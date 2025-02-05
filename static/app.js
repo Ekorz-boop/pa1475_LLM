@@ -87,6 +87,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     displayElement.textContent = 'No input';
                 }
                 break;
+
+            case 'string-addition':
+                const inputConnection1 = connections.find(conn => conn.target === block.id && conn.inputId === 'Text1');
+                const inputConnection2 = connections.find(conn => conn.target === block.id && conn.inputId === 'Text2');
+                if (inputConnection1 && inputConnection2) {
+                    const sourceBlock1 = document.getElementById(inputConnection1.source);
+                    const sourceBlock2 = document.getElementById(inputConnection2.source);
+                    const text1 = sourceBlock1.dataset.output;
+                    const text2 = sourceBlock2.dataset.output;
+                    const result = text1 + text2;
+                    block.dataset.output = result;
+                    propagateData(block);
+                }
+                break;
         }
     }
 
@@ -532,5 +546,40 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasContainer.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${zoom})`;
         zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
         updateConnections();
+    }
+
+    function createCustomBlock(type, inputs, outputs) {
+        const block = document.createElement('div');
+        block.className = 'block';
+        block.id = `block-${blockCounter++}`;
+        block.setAttribute('data-block-type', type);
+
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'block-drag-handle';
+        dragHandle.textContent = type;
+        block.appendChild(dragHandle);
+
+        const blockContent = document.createElement('div');
+        blockContent.className = 'block-content';
+
+        inputs.forEach(input => {
+            const inputGroup = document.createElement('div');
+            inputGroup.className = 'input-group';
+            const inputNode = document.createElement('div');
+            inputNode.className = 'input-node';
+            inputNode.setAttribute('data-input', input);
+            inputGroup.appendChild(inputNode);
+            blockContent.appendChild(inputGroup);
+        });
+
+        outputs.forEach(output => {
+            const outputNode = document.createElement('div');
+            outputNode.className = 'output-node';
+            outputNode.setAttribute('data-output', output);
+            blockContent.appendChild(outputNode);
+        });
+
+        block.appendChild(blockContent);
+        blockContainer.appendChild(block);
     }
 });

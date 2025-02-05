@@ -19,8 +19,18 @@ def number_doubler(x: int) -> int:
 def text_reverser(text: str) -> str:
     return text[::-1]
 
+def string_addition(text1: str, text2: str) -> str:
+    return text1 + text2
+
 # Register available functions
 available_functions = {
     'number_doubler': BlockFunction(number_doubler, int, int),
-    'text_reverser': BlockFunction(text_reverser, str, str)
+    'text_reverser': BlockFunction(text_reverser, str, str),
+    'string_addition': BlockFunction(string_addition, (str, str), str)
 }
+
+def register_function(name, function, input_type, output_type):
+    available_functions[name] = BlockFunction(function, input_type, output_type)
+
+# Example usage:
+# register_function('new_function', new_function, str, str)
