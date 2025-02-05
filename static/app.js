@@ -29,6 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const MIN_ZOOM = 0.1;
     const MAX_ZOOM = 2;
 
+    // Create a single block container for all blocks
+    const blockContainer = document.createElement('div');
+    blockContainer.className = 'block-container';
+    canvasContainer.appendChild(blockContainer);
+
     // Run all blocks button
     runAllButton.addEventListener('click', () => {
         runPipeline();
@@ -120,20 +125,25 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const blockType = e.dataTransfer.getData('text/plain');
         if (blockType) {
-            createBlock(blockType, e.clientX, e.clientY);
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
+            const y = (e.clientY - rect.top - currentTranslate.y) / zoom;
+            createBlock(blockType, x, y);
         }
     });
 
-    // Add throttle function for smooth updates
+    // Optimize throttle function with requestAnimationFrame
     function throttle(func, limit) {
-        let inThrottle;
-        return function(...args) {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
+        let waiting = false;
+        return function (...args) {
+            if (!waiting) {
+                waiting = true;
+                requestAnimationFrame(() => {
+                    func.apply(this, args);
+                    waiting = false;
+                });
             }
-        }
+        };
     }
 
     // Canvas pan functionality
@@ -150,48 +160,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Throttled update functions
-    const throttledUpdateConnections = throttle(updateConnections, 30);
-    const throttledUpdateTransform = throttle(updateCanvasTransform, 30);
+    // Add grid snapping function
+    function snapToGrid(value) {
+        const gridSize = 40; // Match the CSS grid size
+        return Math.round(value / gridSize) * gridSize;
+    }
 
+    // Update mousemove handler for block dragging
     document.addEventListener('mousemove', (e) => {
         if (isPanning) {
             currentTranslate = {
                 x: e.clientX - startPoint.x,
                 y: e.clientY - startPoint.y
             };
-            throttledUpdateTransform();
+            updateCanvasTransform();
             e.preventDefault();
-            e.stopPropagation();
         }
 
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left - dragOffset.x) / zoom - currentTranslate.x / zoom;
-            const y = (e.clientY - rect.top - dragOffset.y) / zoom - currentTranslate.y / zoom;
+            const x = (e.clientX - rect.left - dragOffset.x) / zoom;
+            const y = (e.clientY - rect.top - dragOffset.y) / zoom;
             
-            draggedBlock.style.left = `${x}px`;
-            draggedBlock.style.top = `${y}px`;
+            // Snap to grid
+            const snappedX = snapToGrid(x);
+            const snappedY = snapToGrid(y);
             
-            throttledUpdateConnections();
+            draggedBlock.style.transform = `translate(${snappedX}px, ${snappedY}px)`;
+            updateConnections();
+            
             e.preventDefault();
-            e.stopPropagation();
         }
         
-        if (draggingConnection && tempConnection) {
+        if (draggingConnection && tempConnection && sourceNode) {
             const canvasRect = canvas.getBoundingClientRect();
-            const x = (e.clientX - canvasRect.left) / zoom - currentTranslate.x / zoom;
-            const y = (e.clientY - canvasRect.top) / zoom - currentTranslate.y / zoom;
-            tempConnection.setAttribute('x2', x);
-            tempConnection.setAttribute('y2', y);
+            const sourceRect = sourceNode.getBoundingClientRect();
+            
+            // Calculate connection points accounting for canvas transform
+            const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
+            const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
+            const x2 = ((e.clientX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y2 = ((e.clientY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+            
+            tempConnection.setAttribute('x1', x1);
+            tempConnection.setAttribute('y1', y1);
+            tempConnection.setAttribute('x2', x2);
+            tempConnection.setAttribute('y2', y2);
+
+            // Check for input nodes under mouse
+            const elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+            if (elemUnderMouse && elemUnderMouse.classList.contains('input-node')) {
+                const sourceBlock = sourceNode.closest('.block');
+                const targetBlock = elemUnderMouse.closest('.block');
+                if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                    if (hoveredInputNode && hoveredInputNode !== elemUnderMouse) {
+                        hoveredInputNode.classList.remove('input-node-hover');
+                    }
+                    hoveredInputNode = elemUnderMouse;
+                    hoveredInputNode.classList.add('input-node-hover');
+                }
+            } else if (hoveredInputNode) {
+                hoveredInputNode.classList.remove('input-node-hover');
+                hoveredInputNode = null;
+            }
         }
     });
 
+    // Update mouseup handler for better connection handling
     document.addEventListener('mouseup', (e) => {
         if (isPanning) {
             isPanning = false;
             canvas.classList.remove('grabbing');
         }
+
         if (isDraggingBlock) {
             isDraggingBlock = false;
             if (draggedBlock) {
@@ -201,16 +242,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (draggingConnection) {
-            if (hoveredInputNode && sourceNode) {
+            const elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+            if (elemUnderMouse && elemUnderMouse.classList.contains('input-node') && sourceNode) {
                 const sourceBlock = sourceNode.closest('.block');
-                const targetBlock = hoveredInputNode.closest('.block');
-                if (sourceBlock !== targetBlock) {
-                    const inputId = hoveredInputNode.getAttribute('data-input');
+                const targetBlock = elemUnderMouse.closest('.block');
+                if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                    const inputId = elemUnderMouse.getAttribute('data-input');
                     removeConnectionsToInput(targetBlock.id, inputId);
                     createConnection(sourceBlock, targetBlock, inputId);
                 }
+            }
+
+            if (hoveredInputNode) {
                 hoveredInputNode.classList.remove('input-node-hover');
             }
+
             draggingConnection = false;
             sourceNode = null;
             hoveredInputNode = null;
@@ -264,56 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
         processBlock(target);
     }
 
-    function updateConnections() {
-        connectionsContainer.innerHTML = '';
-        connections.forEach((conn, index) => {
-            const sourceBlock = document.getElementById(conn.source);
-            const targetBlock = document.getElementById(conn.target);
-            
-            if (sourceBlock && targetBlock) {
-                const sourceNode = sourceBlock.querySelector('.output-node');
-                const targetNode = targetBlock.querySelector(`[data-input="${conn.inputId}"]`);
-                
-                const sourceRect = sourceNode.getBoundingClientRect();
-                const targetRect = targetNode.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-                
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = (sourceRect.left + sourceRect.width/2 - canvasRect.left) / zoom;
-                const y1 = (sourceRect.top + sourceRect.height/2 - canvasRect.top) / zoom;
-                const x2 = (targetRect.left + targetRect.width/2 - canvasRect.left) / zoom;
-                const y2 = (targetRect.top + targetRect.height/2 - canvasRect.top) / zoom;
-
-                line.setAttribute('x1', x1);
-                line.setAttribute('y1', y1);
-                line.setAttribute('x2', x2);
-                line.setAttribute('y2', y2);
-                line.setAttribute('class', 'connection-line');
-                line.setAttribute('data-connection-index', index);
-
-                line.addEventListener('click', (e) => {
-                    if (selectedConnection === line) {
-                        const removedConn = connections.splice(index, 1)[0];
-                        updateConnections();
-                        const targetBlock = document.getElementById(removedConn.target);
-                        if (targetBlock) {
-                            processBlock(targetBlock);
-                        }
-                        selectedConnection = null;
-                    } else {
-                        if (selectedConnection) {
-                            selectedConnection.classList.remove('selected');
-                        }
-                        selectedConnection = line;
-                        line.classList.add('selected');
-                    }
-                });
-                
-                connectionsContainer.appendChild(line);
-            }
-        });
-    }
-
     // Zoom controls
     zoomInBtn.addEventListener('click', () => {
         zoom = Math.min(zoom + ZOOM_SPEED, MAX_ZOOM);
@@ -351,20 +347,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function updateCanvasTransform() {
-        requestAnimationFrame(() => {
-            canvasContainer.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${zoom})`;
-            zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
-            updateConnections();
-        });
-    }
-
     // Update the createBlock function
     function createBlock(type, x, y) {
         const template = document.querySelector(`.block-template[data-block-type="${type}"]`);
-        const block = template.cloneNode(true);
+        if (!template) return;
+
+        // Create a new block from template
+        const block = document.createElement('div');
         block.className = 'block';
         block.id = `block-${blockCounter++}`;
+        block.setAttribute('data-block-type', type);
+        block.innerHTML = template.innerHTML;
 
         // Add delete button
         const deleteButton = document.createElement('div');
@@ -376,18 +369,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         block.appendChild(deleteButton);
 
-        const rect = canvas.getBoundingClientRect();
-        const canvasX = (x - rect.left - currentTranslate.x) / zoom;
-        const canvasY = (y - rect.top - currentTranslate.y) / zoom;
-        block.style.left = `${canvasX - 75}px`;
-        block.style.top = `${canvasY - 40}px`;
+        // Add to container first
+        blockContainer.appendChild(block);
 
-        // Make block draggable
-        block.addEventListener('mousedown', (e) => {
-            if (!e.target.classList.contains('input-node') && 
-                !e.target.classList.contains('output-node') && 
-                !e.target.classList.contains('delete-button') &&
-                e.target.tagName.toLowerCase() !== 'input') {
+        // Position the block (snapped to grid)
+        const snappedX = snapToGrid(x);
+        const snappedY = snapToGrid(y);
+        block.style.transform = `translate(${snappedX}px, ${snappedY}px)`;
+
+        // Make only the drag handle draggable
+        const dragHandle = block.querySelector('.block-drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return; // Only left mouse button
                 isDraggingBlock = true;
                 draggedBlock = block;
                 const rect = block.getBoundingClientRect();
@@ -396,27 +390,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 block.style.zIndex = '1000';
                 e.preventDefault();
                 e.stopPropagation();
-            }
-        });
-
-        // Handle file input changes
-        const fileInput = block.querySelector('.file-input');
-        if (fileInput) {
-            fileInput.addEventListener('change', () => {
-                processBlock(block);
             });
         }
-
-        // Handle number input changes
-        const numberInputs = block.querySelectorAll('input[type="number"]');
-        numberInputs.forEach(input => {
-            input.addEventListener('change', () => {
-                processBlock(block);
-            });
-            input.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-            });
-        });
 
         // Node connection handling
         const outputNode = block.querySelector('.output-node');
@@ -433,30 +408,125 @@ document.addEventListener('DOMContentLoaded', () => {
                 const canvasRect = canvas.getBoundingClientRect();
                 
                 tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                tempConnection.setAttribute('x1', rect.left + rect.width/2 - canvasRect.left);
-                tempConnection.setAttribute('y1', rect.top + rect.height/2 - canvasRect.top);
-                tempConnection.setAttribute('x2', rect.left + rect.width/2 - canvasRect.left);
-                tempConnection.setAttribute('y2', rect.top + rect.height/2 - canvasRect.top);
+                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
+                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
+                
+                tempConnection.setAttribute('x1', x1);
+                tempConnection.setAttribute('y1', y1);
+                tempConnection.setAttribute('x2', x1);
+                tempConnection.setAttribute('y2', y1);
                 tempConnection.setAttribute('class', 'connection-line dragging');
                 connectionsContainer.appendChild(tempConnection);
             });
         }
 
         inputNodes.forEach(inputNode => {
-            inputNode.addEventListener('mouseover', () => {
-                if (draggingConnection) {
-                    hoveredInputNode = inputNode;
-                    inputNode.classList.add('input-node-hover');
+            inputNode.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+            
+            inputNode.addEventListener('mouseover', (e) => {
+                if (draggingConnection && sourceNode) {
+                    const sourceBlock = sourceNode.closest('.block');
+                    const targetBlock = inputNode.closest('.block');
+                    if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                        hoveredInputNode = inputNode;
+                        inputNode.classList.add('input-node-hover');
+                        e.stopPropagation();
+                    }
                 }
             });
 
-            inputNode.addEventListener('mouseout', () => {
-                hoveredInputNode = null;
-                inputNode.classList.remove('input-node-hover');
+            inputNode.addEventListener('mouseout', (e) => {
+                if (hoveredInputNode === inputNode) {
+                    hoveredInputNode = null;
+                    inputNode.classList.remove('input-node-hover');
+                    e.stopPropagation();
+                }
             });
         });
 
-        canvasContainer.appendChild(block);
+        // Handle file input changes
+        const fileInput = block.querySelector('.file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', () => {
+                processBlock(block);
+            });
+            fileInput.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+        }
+
+        // Handle number input changes
+        const numberInputs = block.querySelectorAll('input[type="number"]');
+        numberInputs.forEach(input => {
+            input.addEventListener('change', () => {
+                processBlock(block);
+            });
+            input.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+        });
+
         return block;
+    }
+
+    // Update the updateConnections function
+    function updateConnections() {
+        if (!connectionsContainer) return;
+        
+        connectionsContainer.innerHTML = '';
+        connections.forEach((conn, index) => {
+            const sourceBlock = document.getElementById(conn.source);
+            const targetBlock = document.getElementById(conn.target);
+            
+            if (!sourceBlock || !targetBlock) return;
+            
+            const sourceNode = sourceBlock.querySelector('.output-node');
+            const targetNode = targetBlock.querySelector(`[data-input="${conn.inputId}"]`);
+            
+            if (!sourceNode || !targetNode) return;
+            
+            const sourceRect = sourceNode.getBoundingClientRect();
+            const targetRect = targetNode.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+
+            // Calculate positions accounting for canvas transform
+            const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
+            const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
+            const x2 = ((targetRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
+            const y2 = ((targetRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight/2;
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('class', 'connection-line');
+            line.setAttribute('data-connection-index', index);
+            
+            line.addEventListener('click', (e) => {
+                if (selectedConnection === line) {
+                    connections.splice(index, 1);
+                    updateConnections();
+                    selectedConnection = null;
+                } else {
+                    if (selectedConnection) {
+                        selectedConnection.classList.remove('selected');
+                    }
+                    selectedConnection = line;
+                    line.classList.add('selected');
+                }
+            });
+            
+            connectionsContainer.appendChild(line);
+        });
+    }
+
+    // Update the canvas transform function
+    function updateCanvasTransform() {
+        canvasContainer.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${zoom})`;
+        zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
+        updateConnections();
     }
 });
