@@ -306,6 +306,10 @@
     z-index: 999;
 }
 
+svg {
+    overflow: visible;
+}
+
 .connection-line {
     stroke: #666;
     stroke-width: 2;
