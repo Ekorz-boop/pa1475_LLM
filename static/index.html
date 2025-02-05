@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM RAG Pipeline Builder</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div id="app">
+        <div id="top-bar">
+            <button id="run-all" class="run-button">Run Pipeline</button>
+        </div>
+        <div class="main-content">
+            <div id="sidebar">
+                <h3>Blocks</h3>
+                <!-- Document Loading Block Template -->
+                <div class="block-template" draggable="true" data-block-type="file-loader">
+                    <div class="block-header">File Loader</div>
+                    <div class="block-content">
+                        <div class="input-group">
+                            <input type="file" class="file-input" accept=".txt,.pdf,.csv">
+                        </div>
+                        <div class="output-node" data-output="document">Document</div>
+                    </div>
+                </div>
+
+                <!-- Text Processing Block Template -->
+                <div class="block-template" draggable="true" data-block-type="text-splitter">
+                    <div class="block-header">Text Splitter</div>
+                    <div class="block-content">
+                        <div class="input-group">
+                            <div class="input-node" data-input="text">Text</div>
+                            <input type="number" class="chunk-size" value="1000" min="100" step="100">
+                            <span>chunk size</span>
+                        </div>
+                        <div class="output-node" data-output="chunks">Chunks</div>
+                    </div>
+                </div>
+
+                <!-- Display Block Template -->
+                <div class="block-template" draggable="true" data-block-type="display">
+                    <div class="block-header">Display</div>
+                    <div class="block-content">
+                        <div class="input-group">
+                            <div class="input-node" data-input="value">Input</div>
+                        </div>
+                        <div class="output-display">No input</div>
+                    </div>
+                </div>
+            </div>
+            <div id="canvas">
+                <div class="canvas-container">
+                    <div class="canvas-grid"></div>
+                    <svg id="connections"></svg>
+                </div>
+                <div class="zoom-controls">
+                    <button class="zoom-button" id="zoom-in">+</button>
+                    <div class="zoom-level">100%</div>
+                    <button class="zoom-button" id="zoom-out">−</button>
+                    <button class="zoom-button" id="zoom-fit">⟲</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
