@@ -179,8 +179,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left - dragOffset.x) / zoom;
-            const y = (e.clientY - rect.top - dragOffset.y) / zoom;
+            // Calculate position relative to canvas, accounting for zoom and pan
+            const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
+            const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
             
             // Snap to grid
             const snappedX = snapToGrid(x);
@@ -384,9 +385,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.button !== 0) return; // Only left mouse button
                 isDraggingBlock = true;
                 draggedBlock = block;
+                
+                // Calculate offset from the mouse to the block's center
                 const rect = block.getBoundingClientRect();
-                dragOffset.x = e.clientX - rect.left;
-                dragOffset.y = e.clientY - rect.top;
+                dragOffset.x = rect.width / 2;
+                dragOffset.y = 12; // Half of drag handle height
+                
                 block.style.zIndex = '1000';
                 e.preventDefault();
                 e.stopPropagation();
