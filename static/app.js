@@ -101,6 +101,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     propagateData(block);
                 }
                 break;
+
+            case 'ai-model':
+                const modelInputConnection = connections.find(conn => conn.target === block.id);
+                if (modelInputConnection) {
+                    const sourceBlock = document.getElementById(modelInputConnection.source);
+                    const inputText = sourceBlock.dataset.output;
+                    
+                    // Show loading state
+                    block.dataset.output = 'Generating...';
+                    propagateData(block);
+                    
+                    // Call the API
+                    fetch('/api/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ input: inputText })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            block.dataset.output = 'Error: ' + data.error;
+                        } else {
+                            block.dataset.output = data.output;
+                        }
+                        propagateData(block);
+                    })
+                    .catch(error => {
+                        block.dataset.output = 'Error: ' + error.message;
+                        propagateData(block);
+                    });
+                }
+                break;
         }
     }
 
@@ -582,4 +616,173 @@ document.addEventListener('DOMContentLoaded', () => {
         block.appendChild(blockContent);
         blockContainer.appendChild(block);
     }
+
+    // Create and add the management button
+    const managementButton = document.createElement('button');
+    managementButton.className = 'management-button';
+    managementButton.textContent = 'System Management';
+    document.body.appendChild(managementButton);
+
+    // Load and inject the management panel HTML
+    fetch('/static/management.html')
+        .then(response => response.text())
+        .then(html => {
+            document.body.insertAdjacentHTML('beforeend', html);
+            initializeManagementPanel();
+        });
+
+    function initializeManagementPanel() {
+        const panel = document.getElementById('system-management');
+        const closeButton = panel.querySelector('.close-button');
+        
+        managementButton.addEventListener('click', () => {
+            panel.classList.add('visible');
+            updateSystemStatus();
+        });
+        
+        closeButton.addEventListener('click', () => {
+            panel.classList.remove('visible');
+        });
+        
+        // Initialize action buttons
+        document.getElementById('install-ollama').addEventListener('click', installOllama);
+        document.getElementById('install-model').addEventListener('click', installModel);
+        document.getElementById('clear-temp').addEventListener('click', clearTemp);
+        document.getElementById('remove-models').addEventListener('click', removeModels);
+    }
+
+    function updateSystemStatus() {
+        fetch('/api/system/status')
+            .then(response => response.json())
+            .then(data => {
+                updateStatusDisplay('ollama-status', data.ollama_status);
+                updateStatusDisplay('model-status', data.model_status);
+                updateStorageDisplay(data.storage);
+            });
+    }
+
+    function updateStatusDisplay(elementId, status) {
+        const element = document.getElementById(elementId);
+        element.className = 'status-value ' + status;
+        
+        switch(status) {
+            case 'running':
+                element.textContent = 'Running';
+                break;
+            case 'not_running':
+                element.textContent = 'Not Running';
+                break;
+            case 'installed':
+                element.textContent = 'Installed';
+                break;
+            case 'not_installed':
+                element.textContent = 'Not Installed';
+                break;
+            case 'downloading':
+                element.textContent = 'Downloading...';
+                break;
+        }
+    }
+
+    function updateStorageDisplay(storage) {
+        document.getElementById('storage-usage').textContent = 
+            formatBytes(storage.models_size);
+        document.getElementById('temp-files').textContent = 
+            formatBytes(storage.temp_size);
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    async function installOllama() {
+        const button = document.getElementById('install-ollama');
+        button.disabled = true;
+        
+        try {
+            const response = await fetch('/api/system/install-ollama', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'manual_install_required') {
+                window.open(data.download_url, '_blank');
+                alert('Please download and install Ollama from the opened page.');
+            } else if (data.status === 'success') {
+                alert('Ollama installed successfully! Please restart the application.');
+            }
+        } catch (error) {
+            alert('Failed to install Ollama: ' + error.message);
+        } finally {
+            button.disabled = false;
+            updateSystemStatus();
+        }
+    }
+
+    async function installModel() {
+        const button = document.getElementById('install-model');
+        button.disabled = true;
+        updateStatusDisplay('model-status', 'downloading');
+        
+        try {
+            const response = await fetch('/api/system/install-model', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                alert('Model installed successfully!');
+            } else {
+                alert('Failed to install model: ' + data.message);
+            }
+        } catch (error) {
+            alert('Failed to install model: ' + error.message);
+        } finally {
+            button.disabled = false;
+            updateSystemStatus();
+        }
+    }
+
+    async function clearTemp() {
+        if (!confirm('Are you sure you want to clear temporary files?')) return;
+        
+        try {
+            const response = await fetch('/api/system/clear-temp', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                alert('Temporary files cleared successfully!');
+                updateSystemStatus();
+            }
+        } catch (error) {
+            alert('Failed to clear temporary files: ' + error.message);
+        }
+    }
+
+    async function removeModels() {
+        if (!confirm('Are you sure you want to remove unused models? This will free up disk space but models will need to be re-downloaded when needed.')) return;
+        
+        try {
+            const response = await fetch('/api/system/remove-models', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                alert('Models removed successfully!');
+                updateSystemStatus();
+            }
+        } catch (error) {
+            alert('Failed to remove models: ' + error.message);
+        }
+    }
+
+    // Add periodic status updates
+    setInterval(updateSystemStatus, 30000); // Update every 30 seconds
 });
