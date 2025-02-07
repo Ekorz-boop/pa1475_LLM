@@ -16,10 +16,27 @@
                         <button class="action-button" id="ollama-guide">How to Start</button>
                     </div>
                 </div>
-                <div class="status-item">
-                    <span class="status-label">TinyLlama Model:</span>
-                    <span class="status-value" id="model-status">Checking...</span>
-                    <button class="action-button" id="install-model">Download Model</button>
+            </div>
+        </div>
+
+        <div class="model-management-section">
+            <h3>Model Management</h3>
+            <div class="model-search-section">
+                <input type="text" id="model-search-input" placeholder="Search models...">
+                <div class="model-list" id="available-models">
+                    <div class="model-category">
+                        <h4>Available Models</h4>
+                        <div class="model-grid">
+                            <!-- Models will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="installed-models-section">
+                <h4>Installed Models</h4>
+                <div class="model-grid" id="installed-models-list">
+                    <!-- Installed models will be populated here -->
                 </div>
             </div>
         </div>

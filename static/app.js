@@ -617,41 +617,47 @@ document.addEventListener('DOMContentLoaded', () => {
         blockContainer.appendChild(block);
     }
 
-    // Create and add the management button
-    const managementButton = document.createElement('button');
-    managementButton.className = 'management-button';
-    managementButton.textContent = 'System Management';
-    document.body.appendChild(managementButton);
+    // Initialize management panel
+    const managementButton = document.getElementById('management-button');
+    const managementPanel = document.getElementById('system-management');
+    
+    if (!managementButton || !managementPanel) {
+        console.error('Management panel elements not found!');
+        return;
+    }
 
-    // Load and inject the management panel HTML
-    fetch('/static/management.html')
-        .then(response => response.text())
-        .then(html => {
-            document.body.insertAdjacentHTML('beforeend', html);
-            initializeManagementPanel();
-        });
+    // Management panel event listeners
+    managementButton.addEventListener('click', () => {
+        console.log('Opening management panel');
+        managementPanel.classList.add('visible');
+        updateSystemStatus();
+        updateAvailableModels();
+        updateInstalledModels();
+    });
 
-    function initializeManagementPanel() {
-        const panel = document.getElementById('system-management');
-        const closeButton = panel.querySelector('.close-button');
-        
-        managementButton.addEventListener('click', () => {
-            panel.classList.add('visible');
-            updateSystemStatus();
-        });
-        
-        closeButton.addEventListener('click', () => {
-            panel.classList.remove('visible');
-        });
-        
-        // Initialize action buttons
-        document.getElementById('install-ollama').addEventListener('click', installOllama);
-        document.getElementById('install-model').addEventListener('click', installModel);
-        document.getElementById('clear-temp').addEventListener('click', clearTemp);
-        document.getElementById('remove-models').addEventListener('click', removeModels);
+    managementPanel.querySelector('.close-button').addEventListener('click', () => {
+        managementPanel.classList.remove('visible');
+    });
 
-        // Replace start button with guide button
-        document.getElementById('ollama-guide').addEventListener('click', showOllamaGuide);
+    // Initialize action buttons
+    const actionButtons = {
+        'install-ollama': installOllama,
+        'ollama-guide': showOllamaGuide,
+        'clear-temp': clearTemp,
+        'remove-models': removeModels
+    };
+
+    Object.entries(actionButtons).forEach(([id, handler]) => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.addEventListener('click', handler);
+        }
+    });
+
+    // Initialize search functionality
+    const searchInput = document.getElementById('model-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterModels);
     }
 
     function showOllamaGuide() {
@@ -857,4 +863,106 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check Ollama status periodically
     checkOllamaStatus();
     setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
+
+    function initializeModelManager() {
+        const modelManagerBtn = document.getElementById('model-manager-button');
+        const modelManager = document.getElementById('model-manager');
+        const closeBtn = modelManager.querySelector('.close-button');
+        
+        modelManagerBtn.addEventListener('click', () => {
+            modelManager.classList.add('visible');
+            updateAvailableModels();
+            updateInstalledModels();
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            modelManager.classList.remove('visible');
+        });
+        
+        const searchInput = document.getElementById('model-search-input');
+        searchInput.addEventListener('input', filterModels);
+    }
+
+    async function updateAvailableModels() {
+        const response = await fetch('/api/models/available');
+        const models = await response.json();
+        
+        const modelGrid = document.querySelector('#available-models .model-grid');
+        modelGrid.innerHTML = models.map(model => `
+            <div class="model-card" data-model-name="${model.name}">
+                <h4>${model.name}</h4>
+                <p>${model.description}</p>
+                <div class="model-size">${model.size || 'Size varies'}</div>
+                <button onclick="downloadModel('${model.name}')">Download</button>
+            </div>
+        `).join('');
+    }
+
+    async function updateInstalledModels() {
+        const response = await fetch('/api/models/installed');
+        const models = await response.json();
+        
+        const modelGrid = document.getElementById('installed-models-list');
+        modelGrid.innerHTML = models.map(model => `
+            <div class="model-card installed" data-model-name="${model.name}">
+                <h4>${model.name}</h4>
+                <div class="model-size">${formatBytes(model.size)}</div>
+                <button class="uninstall" onclick="uninstallModel('${model.name}')">Uninstall</button>
+            </div>
+        `).join('');
+    }
+
+    function filterModels() {
+        const searchTerm = document.getElementById('model-search-input').value.toLowerCase();
+        const modelCards = document.querySelectorAll('.model-card');
+        
+        modelCards.forEach(card => {
+            const modelName = card.dataset.modelName.toLowerCase();
+            card.style.display = modelName.includes(searchTerm) ? '' : 'none';
+        });
+    }
+
+    async function downloadModel(modelName) {
+        try {
+            const response = await fetch('/api/models/download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: modelName})
+            });
+            
+            if (response.ok) {
+                alert(`Model ${modelName} downloaded successfully!`);
+                updateInstalledModels();
+            } else {
+                const data = await response.json();
+                alert(`Failed to download model: ${data.message}`);
+            }
+        } catch (error) {
+            alert(`Error downloading model: ${error.message}`);
+        }
+    }
+
+    async function uninstallModel(modelName) {
+        if (!confirm(`Are you sure you want to uninstall ${modelName}?`)) return;
+        
+        try {
+            const response = await fetch('/api/models/uninstall', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: modelName})
+            });
+            
+            if (response.ok) {
+                alert(`Model ${modelName} uninstalled successfully!`);
+                updateInstalledModels();
+            } else {
+                const data = await response.json();
+                alert(`Failed to uninstall model: ${data.message}`);
+            }
+        } catch (error) {
+            alert(`Error uninstalling model: ${error.message}`);
+        }
+    }
+
+    initializeModelManager();
 });

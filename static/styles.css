@@ -383,18 +383,20 @@ svg {
 }
 
 .management-button {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    padding: 10px 20px;
-    background-color: #4CAF50;
+    padding: 8px 16px;
+    background-color: #007bff;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    z-index: 1000;
     font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    font-size: 14px;
+    margin-left: 10px;
+    transition: background-color 0.2s;
+}
+
+.management-button:hover {
+    background-color: #0056b3;
 }
 
 .management-panel {
@@ -409,7 +411,6 @@ svg {
     box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     z-index: 2000;
     display: none;
-    overflow: hidden;
 }
 
 .management-panel.visible {
@@ -577,4 +578,82 @@ svg {
 
 .action-button#ollama-guide:hover {
     background-color: #138496;
+}
+
+/* Model Manager Styles */
+#model-manager {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background: white;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+    transition: right 0.3s ease;
+    z-index: 1000;
+}
+
+#model-manager.visible {
+    right: 0;
+}
+
+.model-search-section {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+#model-search-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 15px;
+}
+
+.model-card {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+}
+
+.model-card.installed {
+    border-color: #28a745;
+}
+
+.model-card h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.model-card .model-size {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.model-card button {
+    width: 100%;
+    padding: 5px;
+    border: none;
+    border-radius: 4px;
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+.model-card button.uninstall {
+    background: #dc3545;
+}
+
+.model-card button:hover {
+    opacity: 0.9;
 }

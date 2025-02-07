@@ -369,6 +369,40 @@ def start_ollama_endpoint():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/models/available', methods=['GET'])
+def get_available_models():
+    try:
+        # This would need to be updated with actual Ollama API endpoint
+        models = [
+            {
+                "name": "llama2",
+                "description": "Meta's Llama 2 model",
+                "size": "3.8GB",
+                "category": "Large Language Model"
+            },
+            {
+                "name": "codellama",
+                "description": "Code specialized Llama model",
+                "size": "4.1GB",
+                "category": "Code Generation"
+            },
+            {
+                "name": "mistral",
+                "description": "Mistral 7B model",
+                "size": "4.1GB",
+                "category": "Large Language Model"
+            },
+            {
+                "name": "tinyllama",
+                "description": "Lightweight Llama model",
+                "size": "1.2GB",
+                "category": "Large Language Model"
+            }
+        ]
+        return jsonify(models)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     # Just print status instead of enforcing Ollama to run
     ensure_ollama_is_running()
