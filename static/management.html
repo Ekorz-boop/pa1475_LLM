@@ -1,0 +1,42 @@
+<div id="system-management" class="management-panel">
+    <div class="management-header">
+        <h2>System Management</h2>
+        <button class="close-button">×</button>
+    </div>
+    
+    <div class="management-content">
+        <div class="status-section">
+            <h3>System Status</h3>
+            <div class="status-items">
+                <div class="status-item">
+                    <span class="status-label">Ollama Status:</span>
+                    <span class="status-value" id="ollama-status">Checking...</span>
+                    <button class="action-button" id="install-ollama">Install & Start</button>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">TinyLlama Model:</span>
+                    <span class="status-value" id="model-status">Checking...</span>
+                    <button class="action-button" id="install-model">Download Model</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="memory-section">
+            <h3>Memory Management</h3>
+            <div class="memory-info">
+                <div class="memory-item">
+                    <span>Model Storage:</span>
+                    <span id="storage-usage">Calculating...</span>
+                </div>
+                <div class="memory-item">
+                    <span>Temporary Files:</span>
+                    <span id="temp-files">Calculating...</span>
+                </div>
+            </div>
+            <div class="memory-actions">
+                <button id="clear-temp">Clear Temporary Files</button>
+                <button id="remove-models">Remove Unused Models</button>
+            </div>
+        </div>
+    </div>
+</div> 

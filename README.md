@@ -25,12 +25,20 @@ The LLM RAG Pipeline Builder is a visual tool that allows users to create and co
    pip install -r requirements.txt
    ```
 
-3. **Run the Flask Server:**
-   ```bash
-   python flask_backend.py
-   ```
+3. **Install and Start Ollama:**
+   1. Download and install Ollama from [Ollama's website](https://ollama.ai/download)
+   2. Start Ollama:
+      - **Windows**: Run the Ollama application from your Start menu
+      - **Mac/Linux**: Open a terminal and run `ollama serve`
+   3. Wait for Ollama to start (you should see "Ollama is running" in the terminal)
 
-4. **Open the Application:**
+4. **Run the Flask Server:**
+   ```bash
+   python server.py
+   ```
+   Note: On first run, the server will automatically download the TinyLlama model. This may take a few minutes depending on your internet connection.
+
+5. **Open the Application:**
    Open your web browser and navigate to `http://localhost:5000`.
 
 ## How It Works

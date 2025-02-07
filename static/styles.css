@@ -376,3 +376,143 @@ svg {
     color: #666;
     user-select: none;
 }
+
+.management-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 1000;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.management-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    max-height: 80vh;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 2000;
+    display: none;
+    overflow: hidden;
+}
+
+.management-panel.visible {
+    display: block;
+}
+
+.management-header {
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.management-header h2 {
+    margin: 0;
+    color: #333;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+}
+
+.management-content {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 60px);
+}
+
+.status-section, .memory-section {
+    margin-bottom: 30px;
+}
+
+.status-items, .memory-info {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.status-item, .memory-item {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.status-label {
+    font-weight: bold;
+    min-width: 120px;
+}
+
+.status-value {
+    flex: 1;
+    margin: 0 10px;
+}
+
+.action-button {
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.action-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.memory-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.memory-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #dc3545;
+    color: white;
+}
+
+#clear-temp {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.status-value.running {
+    color: #28a745;
+}
+
+.status-value.not-running {
+    color: #dc3545;
+}
+
+.status-value.downloading {
+    color: #ffc107;
+}
