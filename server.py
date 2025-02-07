@@ -27,39 +27,115 @@ def is_ollama_running():
 
 def start_ollama():
     system = platform.system().lower()
-    if system == "windows":
-        print("Please start Ollama manually by running the Ollama application.")
-        print("You can download it from: https://ollama.ai/download")
-        return False
-    elif system == "darwin":  # macOS
-        try:
-            subprocess.Popen(["ollama", "serve"])
-            time.sleep(5)  # Wait for Ollama to start
-            return True
-        except FileNotFoundError:
-            return False
-    elif system == "linux":
-        try:
-            subprocess.Popen(["ollama", "serve"])
-            time.sleep(5)  # Wait for Ollama to start
-            return True
-        except FileNotFoundError:
-            return False
-    return False
+    try:
+        if system == "windows":
+            # Check for Ollama installation
+            possible_paths = [
+                os.path.expandvars(r'%LOCALAPPDATA%\Ollama\ollama.exe'),
+                r'C:\Program Files\Ollama\ollama.exe',
+                os.path.expandvars(r'%ProgramFiles%\Ollama\ollama.exe')
+            ]
+            
+            ollama_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    ollama_path = path
+                    break
+                    
+            if ollama_path:
+                try:
+                    # First try normal start
+                    subprocess.Popen([ollama_path, "serve"], 
+                                   creationflags=subprocess.CREATE_NO_WINDOW)
+                    time.sleep(2)
+                    if is_ollama_running():
+                        return {
+                            'success': True,
+                            'message': 'Ollama started successfully'
+                        }
+                    
+                    # If normal start failed, try with admin rights
+                    try:
+                        subprocess.Popen(['runas', '/user:Administrator', ollama_path, 'serve'],
+                                       creationflags=subprocess.CREATE_NO_WINDOW)
+                        time.sleep(2)
+                        if is_ollama_running():
+                            return {
+                                'success': True,
+                                'message': 'Ollama started successfully with admin rights'
+                            }
+                    except:
+                        return {
+                            'success': False,
+                            'message': 'Failed to start Ollama. Please start it manually from the Start menu'
+                        }
+                except Exception as e:
+                    return {
+                        'success': False,
+                        'message': f'Found Ollama but failed to start it. Please start it manually: {str(e)}'
+                    }
+            else:
+                return {
+                    'success': False,
+                    'message': 'Ollama not found. Please install it from https://ollama.ai/download',
+                    'needsInstall': True
+                }
+                
+        elif system in ["darwin", "linux"]:  # macOS and Linux
+            try:
+                # Try normal start first
+                subprocess.Popen(["ollama", "serve"])
+                time.sleep(2)
+                if is_ollama_running():
+                    return {
+                        'success': True,
+                        'message': 'Ollama started successfully'
+                    }
+                
+                # If normal start failed, try with sudo
+                try:
+                    subprocess.Popen(['pkexec', 'ollama', 'serve'])  # Use pkexec for GUI sudo prompt
+                    time.sleep(2)
+                    if is_ollama_running():
+                        return {
+                            'success': True,
+                            'message': 'Ollama started successfully with admin rights'
+                        }
+                except:
+                    return {
+                        'success': False,
+                        'message': 'Failed to start Ollama. Please start it manually using: ollama serve'
+                    }
+            except FileNotFoundError:
+                return {
+                    'success': False,
+                    'message': 'Ollama not found. Please install it first',
+                    'needsInstall': True
+                }
+            except Exception as e:
+                return {
+                    'success': False,
+                    'message': f'Failed to start Ollama. Please start it manually: {str(e)}'
+                }
+        
+        return {
+            'success': False,
+            'message': 'Unsupported operating system'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Error starting Ollama: {str(e)}'
+        }
 
 def ensure_ollama_is_running():
     if not is_ollama_running():
-        print("\nOllama is not running!")
-        if not start_ollama():
-            print("\nPlease follow these steps to run Ollama:")
-            print("1. Make sure Ollama is installed (https://ollama.ai/download)")
-            print("2. Start Ollama:")
-            if platform.system().lower() == "windows":
-                print("   - Run the Ollama application from your Start menu")
-            else:
-                print("   - Open a terminal and run: ollama serve")
-            print("3. Once Ollama is running, restart this server\n")
-            sys.exit(1)
+        print("\nOllama is not running! The LLM features will not work until Ollama is started.")
+        print("You can start Ollama from the web interface or manually:\n")
+        if platform.system().lower() == "windows":
+            print("   - Run the Ollama application from your Start menu")
+        else:
+            print("   - Open a terminal and run: ollama serve")
 
 # Function to download model if not present
 def ensure_model_downloaded():
@@ -257,8 +333,43 @@ def check_model_installed():
     except:
         return False
 
+@app.route('/api/system/start-ollama', methods=['POST'])
+def start_ollama_endpoint():
+    try:
+        if is_ollama_running():
+            return jsonify({'status': 'success', 'message': 'Ollama is already running'})
+            
+        result = start_ollama()
+        if result['success']:
+            # Wait for Ollama to be fully running
+            for _ in range(5):  # Try for 10 seconds
+                if is_ollama_running():
+                    return jsonify({
+                        'status': 'success',
+                        'message': result['message']
+                    })
+                time.sleep(2)
+            return jsonify({
+                'status': 'error',
+                'message': 'Started Ollama but service is not responding'
+            }), 500
+        else:
+            # If Ollama isn't installed, provide download URL
+            if 'not found' in result['message'].lower():
+                return jsonify({
+                    'status': 'error',
+                    'message': result['message'],
+                    'needsInstall': True,
+                    'downloadUrl': 'https://ollama.ai/download'
+                }), 404
+            return jsonify({
+                'status': 'error',
+                'message': result['message']
+            }), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 if __name__ == '__main__':
-    # Check if Ollama is running and download model before starting server
+    # Just print status instead of enforcing Ollama to run
     ensure_ollama_is_running()
-    ensure_model_downloaded()
     app.run(debug=True)

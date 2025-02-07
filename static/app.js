@@ -649,13 +649,53 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('install-model').addEventListener('click', installModel);
         document.getElementById('clear-temp').addEventListener('click', clearTemp);
         document.getElementById('remove-models').addEventListener('click', removeModels);
+
+        // Replace start button with guide button
+        document.getElementById('ollama-guide').addEventListener('click', showOllamaGuide);
     }
 
-    function updateSystemStatus() {
+    function showOllamaGuide() {
+        const system = navigator.platform.toLowerCase();
+        let instructions = '';
+        
+        if (system.includes('win')) {
+            instructions = 
+                '1. Open the Start menu\n' +
+                '2. Search for "Ollama"\n' +
+                '3. Click on the Ollama application to start it\n\n' +
+                'Note: The Ollama icon should appear in your system tray when running.';
+        } else if (system.includes('mac')) {
+            instructions = 
+                '1. Open Terminal (you can find it in Applications > Utilities)\n' +
+                '2. Type: ollama serve\n' +
+                '3. Press Enter\n\n' +
+                'Note: Keep the Terminal window open while using Ollama.';
+        } else {
+            instructions = 
+                '1. Open a terminal\n' +
+                '2. Type: ollama serve\n' +
+                '3. Press Enter\n\n' +
+                'Note: Keep the terminal window open while using Ollama.';
+        }
+
+        alert('How to Start Ollama:\n\n' + instructions);
+    }
+
+    async function updateSystemStatus() {
         fetch('/api/system/status')
             .then(response => response.json())
             .then(data => {
-                updateStatusDisplay('ollama-status', data.ollama_status);
+                const ollamaStatus = document.getElementById('ollama-status');
+                const modelStatus = document.getElementById('model-status');
+                
+                if (data.ollama_status === 'running') {
+                    ollamaStatus.textContent = 'Running';
+                    ollamaStatus.className = 'status-value running';
+                } else {
+                    ollamaStatus.textContent = 'Not Running';
+                    ollamaStatus.className = 'status-value not-running';
+                }
+                
                 updateStatusDisplay('model-status', data.model_status);
                 updateStorageDisplay(data.storage);
             });
@@ -783,6 +823,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Add periodic status updates
-    setInterval(updateSystemStatus, 30000); // Update every 30 seconds
+    // Add notification handling
+    const notificationBanner = document.getElementById('notification-banner');
+    const topBar = document.getElementById('top-bar');
+    const openManagementBtn = document.getElementById('open-management');
+    const closeNotificationBtn = document.querySelector('.close-notification');
+
+    function checkOllamaStatus() {
+        fetch('/api/system/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.ollama_status === 'not_running') {
+                    notificationBanner.classList.remove('notification-hidden');
+                    topBar.classList.add('with-notification');
+                } else {
+                    notificationBanner.classList.add('notification-hidden');
+                    topBar.classList.remove('with-notification');
+                }
+            });
+    }
+
+    openManagementBtn.addEventListener('click', () => {
+        const managementPanel = document.getElementById('system-management');
+        managementPanel.classList.add('visible');
+        updateSystemStatus();
+    });
+
+    closeNotificationBtn.addEventListener('click', () => {
+        notificationBanner.classList.add('notification-hidden');
+        topBar.classList.remove('with-notification');
+    });
+
+    // Check Ollama status periodically
+    checkOllamaStatus();
+    setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 });
