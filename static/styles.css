@@ -636,3 +636,35 @@ svg {
 .model-card button:hover {
     opacity: 0.9;
 }
+
+.models-list {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+.models-list h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.model-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.model-name {
+    font-weight: bold;
+}
+
+.model-size {
+    color: #666;
+    font-size: 0.9em;
+}

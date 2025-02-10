@@ -254,6 +254,29 @@ def start_ollama_endpoint():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/models/list', methods=['GET'])
+def list_models():
+    if not is_ollama_running():
+        return jsonify({'error': 'Ollama is not running'}), 503
+        
+    try:
+        response = requests.get('http://localhost:11434/api/tags')
+        if response.status_code == 200:
+            data = response.json()
+            # Format the response to match what the frontend expects
+            models = {
+                'models': [
+                    {
+                        'name': model['name'],
+                        'size': model.get('size', 0)
+                    } for model in data['models']
+                ]
+            }
+            return jsonify(models)
+        return jsonify({'error': 'Failed to fetch models'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Just print status instead of enforcing Ollama to run
     ensure_ollama_is_running()

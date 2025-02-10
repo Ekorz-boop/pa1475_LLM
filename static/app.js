@@ -684,23 +684,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function updateSystemStatus() {
-        fetch('/api/system/status')
-            .then(response => response.json())
-            .then(data => {
-                const ollamaStatus = document.getElementById('ollama-status');
-                const modelStatus = document.getElementById('model-status');
-                
-                if (data.ollama_status === 'running') {
-                    ollamaStatus.textContent = 'Running';
-                    ollamaStatus.className = 'status-value running';
-                } else {
-                    ollamaStatus.textContent = 'Not Running';
-                    ollamaStatus.className = 'status-value not-running';
-                }
-                
-                updateStatusDisplay('model-status', data.model_status);
-                updateStorageDisplay(data.storage);
-            });
+        try {
+            const response = await fetch('/api/system/status');
+            const data = await response.json();
+            const ollamaStatus = document.getElementById('ollama-status');
+            
+            if (data.ollama_status === 'running') {
+                ollamaStatus.textContent = 'Running';
+                ollamaStatus.className = 'status-value running';
+                // Fetch models when Ollama is running
+                updateModelsList();
+            } else {
+                ollamaStatus.textContent = 'Not Running';
+                ollamaStatus.className = 'status-value not-running';
+                document.getElementById('ollama-models').innerHTML = 'Ollama must be running to view models';
+            }
+        } catch (error) {
+            console.error('Failed to check Ollama status:', error);
+        }
     }
 
     function updateStatusDisplay(elementId, status) {
@@ -799,4 +800,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check Ollama status periodically
     checkOllamaStatus();
     setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
+
+    async function updateModelsList() {
+        try {
+            const response = await fetch('/api/models/list');
+            const data = await response.json();
+            const modelsDiv = document.getElementById('ollama-models');
+            
+            if (response.ok) {
+                if (data.models && data.models.length > 0) {
+                    modelsDiv.innerHTML = data.models.map(model => `
+                        <div class="model-item">
+                            <span class="model-name">${model.name}</span>
+                            <span class="model-size">${formatSize(model.size)}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    modelsDiv.innerHTML = 'No models installed';
+                }
+            } else {
+                modelsDiv.innerHTML = data.error || 'Failed to load models';
+            }
+        } catch (error) {
+            document.getElementById('ollama-models').innerHTML = 'Failed to load models';
+            console.error('Failed to fetch models:', error);
+        }
+    }
+
+    function formatSize(bytes) {
+        if (!bytes) return 'N/A';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+        return `${size.toFixed(1)} ${units[unitIndex]}`;
+    }
 });
