@@ -631,8 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Opening management panel');
         managementPanel.classList.add('visible');
         updateSystemStatus();
-        updateAvailableModels();
-        updateInstalledModels();
     });
 
     managementPanel.querySelector('.close-button').addEventListener('click', () => {
@@ -654,11 +652,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initialize search functionality
-    const searchInput = document.getElementById('model-search-input');
-    if (searchInput) {
-        searchInput.addEventListener('input', filterModels);
-    }
+    // Check Ollama status periodically
+    checkOllamaStatus();
+    setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 
     function showOllamaGuide() {
         const system = navigator.platform.toLowerCase();
@@ -769,66 +765,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function installModel() {
-        const button = document.getElementById('install-model');
-        button.disabled = true;
-        updateStatusDisplay('model-status', 'downloading');
-        
-        try {
-            const response = await fetch('/api/system/install-model', {
-                method: 'POST'
-            });
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                alert('Model installed successfully!');
-            } else {
-                alert('Failed to install model: ' + data.message);
-            }
-        } catch (error) {
-            alert('Failed to install model: ' + error.message);
-        } finally {
-            button.disabled = false;
-            updateSystemStatus();
-        }
-    }
-
-    async function clearTemp() {
-        if (!confirm('Are you sure you want to clear temporary files?')) return;
-        
-        try {
-            const response = await fetch('/api/system/clear-temp', {
-                method: 'POST'
-            });
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                alert('Temporary files cleared successfully!');
-                updateSystemStatus();
-            }
-        } catch (error) {
-            alert('Failed to clear temporary files: ' + error.message);
-        }
-    }
-
-    async function removeModels() {
-        if (!confirm('Are you sure you want to remove unused models? This will free up disk space but models will need to be re-downloaded when needed.')) return;
-        
-        try {
-            const response = await fetch('/api/system/remove-models', {
-                method: 'POST'
-            });
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                alert('Models removed successfully!');
-                updateSystemStatus();
-            }
-        } catch (error) {
-            alert('Failed to remove models: ' + error.message);
-        }
-    }
-
     // Add notification handling
     const notificationBanner = document.getElementById('notification-banner');
     const topBar = document.getElementById('top-bar');
@@ -863,106 +799,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check Ollama status periodically
     checkOllamaStatus();
     setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
-
-    function initializeModelManager() {
-        const modelManagerBtn = document.getElementById('model-manager-button');
-        const modelManager = document.getElementById('model-manager');
-        const closeBtn = modelManager.querySelector('.close-button');
-        
-        modelManagerBtn.addEventListener('click', () => {
-            modelManager.classList.add('visible');
-            updateAvailableModels();
-            updateInstalledModels();
-        });
-        
-        closeBtn.addEventListener('click', () => {
-            modelManager.classList.remove('visible');
-        });
-        
-        const searchInput = document.getElementById('model-search-input');
-        searchInput.addEventListener('input', filterModels);
-    }
-
-    async function updateAvailableModels() {
-        const response = await fetch('/api/models/available');
-        const models = await response.json();
-        
-        const modelGrid = document.querySelector('#available-models .model-grid');
-        modelGrid.innerHTML = models.map(model => `
-            <div class="model-card" data-model-name="${model.name}">
-                <h4>${model.name}</h4>
-                <p>${model.description}</p>
-                <div class="model-size">${model.size || 'Size varies'}</div>
-                <button onclick="downloadModel('${model.name}')">Download</button>
-            </div>
-        `).join('');
-    }
-
-    async function updateInstalledModels() {
-        const response = await fetch('/api/models/installed');
-        const models = await response.json();
-        
-        const modelGrid = document.getElementById('installed-models-list');
-        modelGrid.innerHTML = models.map(model => `
-            <div class="model-card installed" data-model-name="${model.name}">
-                <h4>${model.name}</h4>
-                <div class="model-size">${formatBytes(model.size)}</div>
-                <button class="uninstall" onclick="uninstallModel('${model.name}')">Uninstall</button>
-            </div>
-        `).join('');
-    }
-
-    function filterModels() {
-        const searchTerm = document.getElementById('model-search-input').value.toLowerCase();
-        const modelCards = document.querySelectorAll('.model-card');
-        
-        modelCards.forEach(card => {
-            const modelName = card.dataset.modelName.toLowerCase();
-            card.style.display = modelName.includes(searchTerm) ? '' : 'none';
-        });
-    }
-
-    async function downloadModel(modelName) {
-        try {
-            const response = await fetch('/api/models/download', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name: modelName})
-            });
-            
-            if (response.ok) {
-                alert(`Model ${modelName} downloaded successfully!`);
-                updateInstalledModels();
-            } else {
-                const data = await response.json();
-                alert(`Failed to download model: ${data.message}`);
-            }
-        } catch (error) {
-            alert(`Error downloading model: ${error.message}`);
-        }
-    }
-
-    async function uninstallModel(modelName) {
-        if (!confirm(`Are you sure you want to uninstall ${modelName}?`)) return;
-        
-        try {
-            const response = await fetch('/api/models/uninstall', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name: modelName})
-            });
-            
-            if (response.ok) {
-                alert(`Model ${modelName} uninstalled successfully!`);
-                updateInstalledModels();
-            } else {
-                const data = await response.json();
-                alert(`Failed to uninstall model: ${data.message}`);
-            }
-        } catch (error) {
-            alert(`Error uninstalling model: ${error.message}`);
-        }
-    }
-
-    initializeModelManager();
 });

@@ -8,9 +8,6 @@ import time
 import sys
 import subprocess
 import platform
-import psutil
-import shutil
-import tempfile
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -137,30 +134,6 @@ def ensure_ollama_is_running():
         else:
             print("   - Open a terminal and run: ollama serve")
 
-# Function to download model if not present
-def ensure_model_downloaded():
-    if not is_ollama_running():
-        return
-        
-    url = "http://localhost:11434/api/pull"
-    payload = {
-        "name": "tinyllama",
-        "stream": False
-    }
-    
-    try:
-        # Check if model exists
-        response = requests.post("http://localhost:11434/api/show", json={"name": "tinyllama"})
-        if response.status_code == 404 or "error" in response.json():
-            print("Downloading TinyLlama model... This may take a few minutes.")
-            response = requests.post(url, json=payload)
-            if response.status_code == 200:
-                print("TinyLlama model downloaded successfully!")
-            else:
-                print("Failed to download TinyLlama model:", response.json().get('error', 'Unknown error'))
-    except Exception as e:
-        print("Error checking/downloading model:", str(e))
-
 @app.route('/')
 def serve_static():
     return app.send_static_file('index.html')
@@ -220,14 +193,8 @@ def generate_text():
 @app.route('/api/system/status', methods=['GET'])
 def get_system_status():
     ollama_running = is_ollama_running()
-    model_installed = check_model_installed()
-    
-    storage_info = get_storage_info()
-    
     return jsonify({
-        'ollama_status': 'running' if ollama_running else 'not_running',
-        'model_status': 'installed' if model_installed else 'not_installed',
-        'storage': storage_info
+        'ollama_status': 'running' if ollama_running else 'not_running'
     })
 
 @app.route('/api/system/install-ollama', methods=['POST'])
@@ -250,88 +217,6 @@ def install_ollama():
         return jsonify({'status': 'success'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/system/install-model', methods=['POST'])
-def install_model():
-    if not is_ollama_running():
-        return jsonify({'status': 'error', 'message': 'Ollama must be running'}), 400
-    
-    try:
-        ensure_model_downloaded()
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/system/clear-temp', methods=['POST'])
-def clear_temp_files():
-    try:
-        temp_dir = tempfile.gettempdir()
-        # Clear only our application's temp files
-        app_temp_dir = os.path.join(temp_dir, 'llm_rag_pipeline')
-        if os.path.exists(app_temp_dir):
-            shutil.rmtree(app_temp_dir)
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/system/remove-models', methods=['POST'])
-def remove_unused_models():
-    try:
-        # Call Ollama API to remove unused models
-        if is_ollama_running():
-            response = requests.delete('http://localhost:11434/api/remove', 
-                                    json={'name': 'tinyllama'})
-            if response.status_code == 200:
-                return jsonify({'status': 'success'})
-        return jsonify({'status': 'error', 'message': 'Failed to remove models'}), 500
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-def get_storage_info():
-    try:
-        # Get Ollama models directory size
-        models_dir = get_ollama_models_dir()
-        models_size = get_dir_size(models_dir) if models_dir else 0
-        
-        # Get temp directory size
-        temp_dir = os.path.join(tempfile.gettempdir(), 'llm_rag_pipeline')
-        temp_size = get_dir_size(temp_dir) if os.path.exists(temp_dir) else 0
-        
-        return {
-            'models_size': models_size,
-            'temp_size': temp_size
-        }
-    except Exception as e:
-        return {'error': str(e)}
-
-def get_ollama_models_dir():
-    system = platform.system().lower()
-    if system == "windows":
-        return os.path.expandvars(r'%LOCALAPPDATA%\ollama\models')
-    elif system == "darwin":
-        return os.path.expanduser('~/Library/Application Support/ollama/models')
-    elif system == "linux":
-        return os.path.expanduser('~/.ollama/models')
-    return None
-
-def get_dir_size(path):
-    total_size = 0
-    if os.path.exists(path):
-        for dirpath, dirnames, filenames in os.walk(path):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                total_size += os.path.getsize(fp)
-    return total_size
-
-def check_model_installed():
-    if not is_ollama_running():
-        return False
-    try:
-        response = requests.post("http://localhost:11434/api/show", 
-                               json={"name": "tinyllama"})
-        return response.status_code == 200
-    except:
-        return False
 
 @app.route('/api/system/start-ollama', methods=['POST'])
 def start_ollama_endpoint():
@@ -368,40 +253,6 @@ def start_ollama_endpoint():
             }), 500
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/models/available', methods=['GET'])
-def get_available_models():
-    try:
-        # This would need to be updated with actual Ollama API endpoint
-        models = [
-            {
-                "name": "llama2",
-                "description": "Meta's Llama 2 model",
-                "size": "3.8GB",
-                "category": "Large Language Model"
-            },
-            {
-                "name": "codellama",
-                "description": "Code specialized Llama model",
-                "size": "4.1GB",
-                "category": "Code Generation"
-            },
-            {
-                "name": "mistral",
-                "description": "Mistral 7B model",
-                "size": "4.1GB",
-                "category": "Large Language Model"
-            },
-            {
-                "name": "tinyllama",
-                "description": "Lightweight Llama model",
-                "size": "1.2GB",
-                "category": "Large Language Model"
-            }
-        ]
-        return jsonify(models)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # Just print status instead of enforcing Ollama to run
