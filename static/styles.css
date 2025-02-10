@@ -668,3 +668,24 @@ svg {
     color: #666;
     font-size: 0.9em;
 }
+
+.model-selector {
+    width: 90%;
+    margin: 5px auto;
+    padding: 4px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 12px;
+    color: #333;
+}
+
+.model-selector:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.model-selector option {
+    padding: 4px;
+}

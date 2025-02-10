@@ -167,13 +167,14 @@ def generate_text():
         
     data = request.json
     input_text = data.get('input', '')
+    model_name = data.get('model', 'tinyllama')  # Default to tinyllama if no model specified
     
     # Ollama API endpoint
     url = "http://localhost:11434/api/generate"
     
     # Request payload for Ollama
     payload = {
-        "model": "tinyllama",
+        "model": model_name,
         "prompt": input_text,
         "stream": False
     }

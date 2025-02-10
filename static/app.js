@@ -107,6 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (modelInputConnection) {
                     const sourceBlock = document.getElementById(modelInputConnection.source);
                     const inputText = sourceBlock.dataset.output;
+                    const modelSelector = block.querySelector('.model-selector');
+                    const selectedModel = modelSelector ? modelSelector.value : 'tinyllama';
                     
                     // Show loading state
                     block.dataset.output = 'Generating...';
@@ -118,7 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ input: inputText })
+                        body: JSON.stringify({ 
+                            input: inputText,
+                            model: selectedModel
+                        })
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -520,6 +525,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        if (type === 'ai-model') {
+            updateModelSelectors();
+        }
+
         return block;
     }
 
@@ -692,8 +701,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.ollama_status === 'running') {
                 ollamaStatus.textContent = 'Running';
                 ollamaStatus.className = 'status-value running';
-                // Fetch models when Ollama is running
-                updateModelsList();
+                // Update both models list and model selectors
+                await Promise.all([updateModelsList(), updateModelSelectors()]);
             } else {
                 ollamaStatus.textContent = 'Not Running';
                 ollamaStatus.className = 'status-value not-running';
@@ -837,5 +846,35 @@ document.addEventListener('DOMContentLoaded', () => {
             unitIndex++;
         }
         return `${size.toFixed(1)} ${units[unitIndex]}`;
+    }
+
+    // Add this function to update model selectors when models list changes
+    async function updateModelSelectors() {
+        try {
+            const response = await fetch('/api/models/list');
+            const data = await response.json();
+            
+            if (response.ok && data.models) {
+                const modelSelectors = document.querySelectorAll('.model-selector');
+                modelSelectors.forEach(selector => {
+                    const currentValue = selector.value;
+                    // Clear existing options
+                    selector.innerHTML = '';
+                    // Add new options
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.name;
+                        option.textContent = model.name;
+                        selector.appendChild(option);
+                    });
+                    // Try to restore previous selection
+                    if (data.models.some(m => m.name === currentValue)) {
+                        selector.value = currentValue;
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to update model selectors:', error);
+        }
     }
 });
