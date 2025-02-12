@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const connectionsContainer = document.getElementById('connections');
     const blockTemplates = document.querySelectorAll('.block-template');
     const runAllButton = document.getElementById('run-all');
+    const searchInput = document.getElementById('block-search');
     let blockCounter = 1;
     let connections = [];
     let draggedBlock = null;
@@ -13,6 +14,19 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedConnection = null;
     let isDraggingBlock = false;
     let dragOffset = { x: 0, y: 0 };
+
+    // Add search functionality
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        blockTemplates.forEach(template => {
+            const blockName = template.querySelector('.block-drag-handle').textContent.toLowerCase();
+            if (blockName.includes(searchTerm)) {
+                template.style.display = 'flex';
+            } else {
+                template.style.display = 'none';
+            }
+        });
+    });
 
     // Add new variables for canvas manipulation
     const canvasContainer = document.querySelector('.canvas-container');
