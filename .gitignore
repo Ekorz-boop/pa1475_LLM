@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env/
+.venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Logs and debug files
+*.log
+logs/
+debug.log
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Django/Pytest/Cache files
+*.sqlite3
+db.sqlite3
+*.pytest_cache/
+*.mypy_cache/
+*.pytype/
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+*.secret
+
+# MacOS & Linux system files
+.DS_Store
+*.orig
+Thumbs.db
