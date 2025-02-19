@@ -1,0 +1,195 @@
+/* ===== Management Panel ===== */
+.management-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    max-height: 80vh;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 2000;
+    display: none;
+}
+
+.management-panel.visible {
+    display: block;
+}
+
+.management-header {
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.management-header h2 {
+    margin: 0;
+    color: #333;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+}
+
+.management-content {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 60px);
+}
+
+/* ===== Status and Memory Sections ===== */
+.status-section, .memory-section {
+    margin-bottom: 30px;
+}
+
+.status-items, .memory-info {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.status-item, .memory-item {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.status-label {
+    font-weight: bold;
+    min-width: 120px;
+}
+
+.status-value {
+    flex: 1;
+    margin: 0 10px;
+    transition: color 0.3s ease;
+}
+
+.status-value.running { color: #28a745; font-weight: bold; }
+.status-value.not-running { color: #dc3545; }
+.status-value.downloading { color: #ffc107; }
+
+
+/* ===== Model Manager ===== */
+#model-manager {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background: white;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+    transition: right 0.3s ease;
+    z-index: 1000;
+}
+
+#model-manager.visible {
+    right: 0;
+}
+
+.model-search-section {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+#model-search-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 15px;
+}
+
+.model-card {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+}
+
+.model-card.installed {
+    border-color: #28a745;
+}
+
+.model-card h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.model-card .model-size {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.model-card button {
+    width: 100%;
+    padding: 5px;
+    border: none;
+    border-radius: 4px;
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+.model-card button.uninstall {
+    background: #dc3545;
+}
+
+.model-card button:hover {
+    opacity: 0.9;
+}
+
+/* ===== Model List ===== */
+.models-list {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+.models-list h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.model-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.model-name {
+    font-weight: bold;
+}
+
+.model-size {
+    color: #666;
+    font-size: 0.9em;
+}

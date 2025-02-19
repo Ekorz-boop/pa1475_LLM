@@ -1,0 +1,96 @@
+/* ===== Canvas & Grid ===== */
+#canvas {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    background-color: #fafafa;  /* Egg white */
+    overflow: hidden;
+    cursor: grab;
+}
+
+#canvas.grabbing {
+    cursor: grabbing;
+}
+
+.canvas-container {
+    position: absolute;
+    width: 10000px;
+    height: 10000px;
+    transform-origin: 0 0;
+    will-change: transform;
+    overflow: visible !important;
+}
+
+.canvas-grid {
+    position: fixed;
+    width: 200%;
+    height: 200%;
+    top: -50%;
+    left: -50%;
+    pointer-events: none;
+    background-size: 40px 40px;
+    background-image: 
+        radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.2) 2px, transparent 0);
+    z-index: 1;
+}
+
+
+/* ===== Zoom Controls ===== */
+.zoom-controls {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 1000;
+    background-color: white;
+    padding: 5px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.zoom-button {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.zoom-button:hover {
+    background-color: #f0f0f0;
+}
+
+.zoom-level {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    user-select: none;
+}
+
+/* ===== Management Button ===== */
+.management-button {
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    margin-left: 10px;
+    transition: background-color 0.2s;
+}
+
+.management-button:hover {
+    background-color: #0056b3;
+}

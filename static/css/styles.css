@@ -1,0 +1,17 @@
+/* ===== Root Layout ===== */
+#app {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f8ff;  /* Ghost white */
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+

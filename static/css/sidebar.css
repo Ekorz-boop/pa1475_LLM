@@ -1,0 +1,43 @@
+/* ===== Sidebar ===== */
+#sidebar {
+    width: 250px;
+    height: 100%;
+    background-color: #fff;
+    border-right: 1px solid #ccc;
+    padding: 20px;
+    overflow-y: auto;
+    z-index: 5;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+#sidebar h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.search-container {
+    margin-bottom: 20px;
+    padding: 0 5px;
+}
+
+#block-search {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #333;
+    background-color: white;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#block-search:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+}
+
+#block-search::placeholder {
+    color: #999;
+}
