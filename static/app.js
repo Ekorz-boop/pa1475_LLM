@@ -53,107 +53,247 @@ document.addEventListener('DOMContentLoaded', () => {
         runPipeline();
     });
 
-    async function runPipeline() {
-        const blocks = document.querySelectorAll('.block');
-        for (const block of blocks) {
-            await processBlock(block);
+    // Add these utility functions at the top of the file
+    function showToast(message, type = 'info', duration = 3000) {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = message;
+        document.getElementById('toast-container').appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    function showProgress(show = true, title = 'Processing...', status = 'Initializing...') {
+        const modal = document.getElementById('progress-modal');
+        if (show) {
+            document.getElementById('progress-title').textContent = title;
+            document.getElementById('progress-status').textContent = status;
+            document.querySelector('.progress-fill').style.width = '0%';
+            modal.style.display = 'flex';
+        } else {
+            modal.style.display = 'none';
         }
     }
 
+    function updateProgress(percent, status) {
+        document.querySelector('.progress-fill').style.width = `${percent}%`;
+        if (status) {
+            document.getElementById('progress-status').textContent = status;
+        }
+    }
+
+    // Update the runPipeline function
+    async function runPipeline() {
+        showProgress(true, 'Running Pipeline', 'Analyzing pipeline structure...');
+        const blocks = document.querySelectorAll('.block');
+        const totalBlocks = blocks.length;
+        let processedBlocks = 0;
+
+        try {
+            // First validate the pipeline
+            const validationResult = validatePipeline();
+            if (!validationResult.valid) {
+                showToast(validationResult.error, 'error');
+                showProgress(false);
+                return;
+            }
+
+            // Process blocks in order
+            for (const block of blocks) {
+                const type = block.getAttribute('data-block-type');
+                updateProgress(
+                    (processedBlocks / totalBlocks) * 100,
+                    `Processing ${type} block...`
+                );
+
+                try {
+                    await processBlock(block);
+                    processedBlocks++;
+                } catch (error) {
+                    showToast(`Error in ${type} block: ${error.message}`, 'error');
+                    showProgress(false);
+                    return;
+                }
+            }
+
+            updateProgress(100, 'Pipeline completed successfully!');
+            setTimeout(() => {
+                showProgress(false);
+                showToast('Pipeline executed successfully!', 'success');
+            }, 1000);
+        } catch (error) {
+            showToast(`Pipeline error: ${error.message}`, 'error');
+            showProgress(false);
+        }
+    }
+
+    // Add pipeline validation function
+    function validatePipeline() {
+        const blocks = document.querySelectorAll('.block');
+        if (blocks.length === 0) {
+            return { valid: false, error: 'Pipeline is empty. Add some blocks first.' };
+        }
+
+        // Check for required block types
+        const blockTypes = Array.from(blocks).map(b => b.getAttribute('data-block-type'));
+        const hasVectorStore = blockTypes.includes('vector_store');
+        const hasAIModel = blockTypes.includes('ai_model');
+
+        if (!hasVectorStore) {
+            return { valid: false, error: 'Pipeline must include a Vector Store block.' };
+        }
+        if (!hasAIModel) {
+            return { valid: false, error: 'Pipeline must include an AI Model block.' };
+        }
+
+        // Check connections
+        for (const block of blocks) {
+            const inputNodes = block.querySelectorAll('.input-node');
+            for (const inputNode of inputNodes) {
+                const hasConnection = connections.some(conn => 
+                    conn.target === block.id && conn.inputId === inputNode.getAttribute('data-input')
+                );
+                if (!hasConnection) {
+                    const blockType = block.getAttribute('data-block-type');
+                    const inputType = inputNode.getAttribute('data-input');
+                    return { 
+                        valid: false, 
+                        error: `${blockType} block is missing connection for ${inputType} input.`
+                    };
+                }
+            }
+        }
+
+        return { valid: true };
+    }
+
+    // Update the exportPipeline function
+    async function exportPipeline() {
+        showProgress(true, 'Exporting Pipeline', 'Collecting block configurations...');
+        
+        try {
+            // Validate pipeline first
+            const validationResult = validatePipeline();
+            if (!validationResult.valid) {
+                showToast(validationResult.error, 'error');
+                showProgress(false);
+                return;
+            }
+
+            // Get all blocks and their configurations
+            const blocks = document.querySelectorAll('.block');
+            const blockData = {};
+            let processedBlocks = 0;
+            
+            for (const block of blocks) {
+                const id = block.id;
+                const type = block.getAttribute('data-block-type');
+                
+                updateProgress(
+                    (processedBlocks / blocks.length) * 50,
+                    `Processing ${type} configuration...`
+                );
+                
+                blockData[id] = {
+                    type: type,
+                    config: getBlockConfig(block)
+                };
+                processedBlocks++;
+            }
+
+            updateProgress(75, 'Generating Python code...');
+
+            // Send to backend
+            const response = await fetch('/api/blocks/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    blocks: blockData,
+                    connections: connections,
+                    output_file: 'generated_rag.py'
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                updateProgress(100, 'Export completed!');
+                setTimeout(() => {
+                    showProgress(false);
+                    showToast(
+                        `Pipeline exported successfully to ${result.file}! 🎉`,
+                        'success'
+                    );
+                }, 1000);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            showToast(`Export failed: ${error.message}`, 'error');
+            showProgress(false);
+        }
+    }
+
+    // Update block processing function
     async function processBlock(block) {
         const type = block.getAttribute('data-block-type');
-        const displayElement = block.querySelector('.output-display');
+        const config = getBlockConfig(block);
+        
+        try {
+            const response = await fetch('/api/blocks/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    block_id: block.id,
+                    type: type,
+                    config: config
+                })
+            });
 
-        switch (type) {
-            case 'file-loader':
-                const fileInput = block.querySelector('.file-input');
-                if (fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    const text = await file.text();
-                    block.dataset.output = text;
-                    propagateData(block);
-                }
-                break;
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to process block');
+            }
 
-            case 'text-splitter':
-                const inputConnection = connections.find(conn => conn.target === block.id);
-                if (inputConnection) {
-                    const sourceBlock = document.getElementById(inputConnection.source);
-                    const text = sourceBlock.dataset.output;
-                    const chunkSize = parseInt(block.querySelector('.chunk-size').value);
-                    const chunks = splitTextIntoChunks(text, chunkSize);
-                    block.dataset.output = JSON.stringify(chunks);
-                    propagateData(block);
-                }
-                break;
+            const result = await response.json();
+            
+            // Update block status
+            updateBlockStatus(block, 'success');
+            
+            // If it's an answer display block, update the display
+            if (type === 'answer_display') {
+                const display = block.querySelector('.answer-display');
+                display.textContent = result.answer;
+                
+                const chunks = block.querySelector('.context-chunks');
+                chunks.innerHTML = result.context.map(c => 
+                    `<div class="context-chunk">${c}</div>`
+                ).join('');
+            }
 
-            case 'display':
-                const connection = connections.find(conn => conn.target === block.id);
-                if (connection) {
-                    const sourceBlock = document.getElementById(connection.source);
-                    const data = sourceBlock.dataset.output;
-                    if (data) {
-                        displayElement.textContent = data;
-                    } else {
-                        displayElement.textContent = 'No data';
-                    }
-                } else {
-                    displayElement.textContent = 'No input';
-                }
-                break;
+            return result;
+        } catch (error) {
+            updateBlockStatus(block, 'error');
+            throw error;
+        }
+    }
 
-            case 'string-addition':
-                const inputConnection1 = connections.find(conn => conn.target === block.id && conn.inputId === 'Text1');
-                const inputConnection2 = connections.find(conn => conn.target === block.id && conn.inputId === 'Text2');
-                if (inputConnection1 && inputConnection2) {
-                    const sourceBlock1 = document.getElementById(inputConnection1.source);
-                    const sourceBlock2 = document.getElementById(inputConnection2.source);
-                    const text1 = sourceBlock1.dataset.output;
-                    const text2 = sourceBlock2.dataset.output;
-                    const result = text1 + text2;
-                    block.dataset.output = result;
-                    propagateData(block);
-                }
-                break;
-
-            case 'ai-model':
-                const modelInputConnection = connections.find(conn => conn.target === block.id);
-                if (modelInputConnection) {
-                    const sourceBlock = document.getElementById(modelInputConnection.source);
-                    const inputText = sourceBlock.dataset.output;
-                    const modelSelector = block.querySelector('.model-selector');
-                    const selectedModel = modelSelector ? modelSelector.value : 'tinyllama';
-                    
-                    // Show loading state
-                    block.dataset.output = 'Generating...';
-                    propagateData(block);
-                    
-                    // Call the API
-                    fetch('/api/generate', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ 
-                            input: inputText,
-                            model: selectedModel
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            block.dataset.output = 'Error: ' + data.error;
-                        } else {
-                            block.dataset.output = data.output;
-                        }
-                        propagateData(block);
-                    })
-                    .catch(error => {
-                        block.dataset.output = 'Error: ' + error.message;
-                        propagateData(block);
-                    });
-                }
-                break;
+    function updateBlockStatus(block, status) {
+        const statusIndicator = block.querySelector('.status-indicator');
+        if (statusIndicator) {
+            statusIndicator.className = `status-indicator ${status}`;
+        }
+        
+        const statusText = block.querySelector('.status');
+        if (statusText) {
+            statusText.textContent = status === 'success' ? 'Ready' : 'Error';
         }
     }
 
@@ -420,13 +560,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const template = document.querySelector(`.block-template[data-block-type="${type}"]`);
         if (!template) return;
 
-        // Create a new block from template
-        const block = document.createElement('div');
-        block.className = 'block';
+        const block = template.cloneNode(true);
+        block.classList.remove('block-template');
+        block.classList.add('block');
         block.id = `block-${blockCounter++}`;
-        block.setAttribute('data-block-type', type);
-        block.innerHTML = template.innerHTML;
-
+        
         // Add delete button
         const deleteButton = document.createElement('div');
         deleteButton.className = 'delete-button';
@@ -437,15 +575,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         block.appendChild(deleteButton);
 
-        // Add to container first
-        blockContainer.appendChild(block);
+        // Position the block
+        block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
 
-        // Position the block (snapped to grid)
-        const snappedX = snapToGrid(x);
-        const snappedY = snapToGrid(y);
-        block.style.transform = `translate(${snappedX}px, ${snappedY}px)`;
-
-        // Make only the drag handle draggable
+        // Make block draggable
         const dragHandle = block.querySelector('.block-drag-handle');
         if (dragHandle) {
             dragHandle.addEventListener('mousedown', (e) => {
@@ -453,10 +586,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 isDraggingBlock = true;
                 draggedBlock = block;
                 
-                // Calculate offset from the mouse to the block's center
+                // Calculate offset from the mouse to the block's top-left corner
                 const rect = block.getBoundingClientRect();
-                dragOffset.x = rect.width / 2;
-                dragOffset.y = 12; // Half of drag handle height
+                const canvasRect = canvas.getBoundingClientRect();
+                dragOffset.x = (e.clientX - rect.left) / zoom;
+                dragOffset.y = (e.clientY - rect.top) / zoom;
                 
                 block.style.zIndex = '1000';
                 e.preventDefault();
@@ -464,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Node connection handling
+        // Add connection handling
         const outputNode = block.querySelector('.output-node');
         const inputNodes = block.querySelectorAll('.input-node');
 
@@ -539,11 +673,39 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        if (type === 'ai-model') {
-            updateModelSelectors();
-        }
+        // Add to canvas
+        blockContainer.appendChild(block);
+
+        // Initialize block based on type
+        initializeBlock(block, type);
 
         return block;
+    }
+
+    function initializeBlock(block, type) {
+        switch (type) {
+            case 'rag_prompt':
+                const chatInterface = block.querySelector('.chat-interface');
+                if (chatInterface) {
+                    const input = chatInterface.querySelector('input');
+                    const sendButton = chatInterface.querySelector('button');
+                    const messages = chatInterface.querySelector('.chat-messages');
+
+                    sendButton.onclick = () => {
+                        const text = input.value.trim();
+                        if (text) {
+                            messages.innerHTML += `<div class="message">${text}</div>`;
+                            input.value = '';
+                            messages.scrollTop = messages.scrollHeight;
+                        }
+                    };
+
+                    input.onkeypress = (e) => {
+                        if (e.key === 'Enter') sendButton.click();
+                    };
+                }
+                break;
+        }
     }
 
     // Update the updateConnections function
@@ -890,5 +1052,41 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Failed to update model selectors:', error);
         }
+    }
+
+    // Add export button handler
+    const exportButton = document.getElementById('export-pipeline');
+    exportButton.addEventListener('click', exportPipeline);
+
+    function getBlockConfig(block) {
+        const type = block.getAttribute('data-block-type');
+        const config = {};
+
+        switch (type) {
+            case 'pdf_loader':
+                const fileInput = block.querySelector('.file-input');
+                config.files = Array.from(fileInput.files).map(f => f.name);
+                break;
+
+            case 'text_splitter':
+                config.chunk_size = parseInt(block.querySelector('.chunk-size').value);
+                config.chunk_overlap = parseInt(block.querySelector('.chunk-overlap').value);
+                break;
+
+            case 'embedding':
+                config.model = block.querySelector('.model-selector').value;
+                break;
+
+            case 'chat_model':
+                config.model = block.querySelector('.model-selector').value;
+                config.temperature = parseFloat(block.querySelector('.temperature').value);
+                break;
+
+            case 'rag_prompt':
+                config.template = block.querySelector('.prompt-template').value;
+                break;
+        }
+
+        return config;
     }
 });

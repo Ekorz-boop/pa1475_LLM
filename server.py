@@ -1,3 +1,4 @@
+import flask
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from main import available_functions
@@ -8,12 +9,29 @@ import time
 import sys
 import subprocess
 import platform
+from blocks import (
+    Block, ChatModelBlock, EmbeddingBlock, VectorStoreBlock,
+    PDFLoaderBlock, TextSplitterBlock, RAGPromptBlock, Canvas
+)
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
+# Global canvas instance
+canvas = Canvas()
+
 # Dictionary to store block connections and their associated functions
 block_connections = {}
+
+# Block type mapping
+BLOCK_TYPES = {
+    'chat_model': ChatModelBlock,
+    'embedding': EmbeddingBlock,
+    'vector_store': VectorStoreBlock,
+    'pdf_loader': PDFLoaderBlock,
+    'text_splitter': TextSplitterBlock,
+    'rag_prompt': RAGPromptBlock
+}
 
 def is_ollama_running():
     try:
@@ -275,6 +293,72 @@ def list_models():
             }
             return jsonify(models)
         return jsonify({'error': 'Failed to fetch models'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/blocks/create', methods=['POST'])
+def create_block():
+    data = request.json
+    block_type = data.get('type')
+    block_id = data.get('id')
+    
+    if not block_type or not block_id:
+        return jsonify({'error': 'Missing block type or ID'}), 400
+    
+    if block_type not in BLOCK_TYPES:
+        return jsonify({'error': 'Invalid block type'}), 400
+    
+    try:
+        block = BLOCK_TYPES[block_type]()
+        canvas.add_block(block_id, block)
+        return jsonify({'status': 'success', 'message': f'Created {block_type} block'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/blocks/connect', methods=['POST'])
+def connect_block_nodes():
+    data = request.json
+    source_id = data.get('source')
+    target_id = data.get('target')
+    
+    if not source_id or not target_id:
+        return jsonify({'error': 'Missing source or target ID'}), 400
+    
+    try:
+        success = canvas.connect_blocks(source_id, target_id)
+        if success:
+            return jsonify({'status': 'success', 'message': 'Blocks connected successfully'})
+        else:
+            return jsonify({'error': 'Invalid connection'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/blocks/export', methods=['POST'])
+def export_blocks():
+    data = request.json
+    output_file = data.get('output_file', 'generated_rag.py')
+    
+    try:
+        canvas.export_to_python(output_file)
+        return jsonify({
+            'status': 'success',
+            'message': f'Successfully exported to {output_file}',
+            'file': output_file
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/blocks/list', methods=['GET'])
+def list_blocks():
+    try:
+        blocks = {
+            block_id: type(block).__name__
+            for block_id, block in canvas.blocks.items()
+        }
+        return jsonify({
+            'blocks': blocks,
+            'connections': canvas.connections
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
