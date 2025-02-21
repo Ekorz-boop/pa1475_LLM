@@ -559,16 +559,16 @@ svg {
     left: -8px;
     display: flex;
     flex-direction: column;
-    gap: 30px;  /* Gap between nodes within a group */
+    gap: 50px;  /* Increased gap between nodes within a group */
 }
 
 /* Vector Store Input Groups */
 .storage-inputs {
-    top: 20px;
+    top: 30px;  /* Adjusted storage inputs position */
 }
 
 .query-inputs {
-    top: 120px;  /* Distance from storage inputs */
+    top: 160px;  /* Increased distance from storage inputs */
 }
 
 /* AI Model Input Group */
@@ -581,43 +581,76 @@ svg {
 .input-node[data-label]::before {
     content: attr(data-label);
     position: absolute;
-    left: -85px;  /* Increased space for longer labels */
+    left: -110px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 12px;
     color: #666;
     white-space: nowrap;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 2px 4px;
+    background: #fff;
+    padding: 2px 8px;
     border-radius: 3px;
+    border: 1px solid #eee;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    z-index: 1;  /* Ensure labels don't overlap */
 }
 
 /* Adjust block heights and spacing */
 [data-block-type="vector_store"] {
-    min-height: 220px;  /* Increased to accommodate all inputs */
+    min-height: 260px;  /* Increased height to accommodate larger spacing */
+    min-width: 250px;
 }
 
-[data-block-type="ai_model"] {
-    min-height: 180px;  /* Set minimum height for AI model block */
-}
-
-[data-block-type="vector_store"] .block-content-wrapper,
-[data-block-type="ai_model"] .block-content-wrapper {
-    margin-left: 90px;  /* Increased margin to accommodate labels */
+[data-block-type="vector_store"] .block-content-wrapper {
+    margin-left: 110px;  /* Match the label offset */
+    padding-right: 10px;
 }
 
 /* Make input nodes more visible */
 .input-node {
-    width: 12px;
+    width: 12px;  /* Slightly larger nodes for better visibility */
     height: 12px;
     background-color: #4444ff;
-    border: 2px solid #fff;
-    box-shadow: 0 0 4px rgba(0,0,0,0.2);
+    border: 2px solid #fff;  /* Thicker border */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     border-radius: 50%;
-    z-index: 1;
+    z-index: 2;
+    position: absolute;
+    left: 0;
 }
 
+/* Vector Store specific styling */
+[data-block-type="vector_store"] .vector-store-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: #f8f9fa;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+[data-block-type="vector_store"] .status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+    flex-shrink: 0;
+}
+
+[data-block-type="vector_store"] .status {
+    font-size: 12px;
+    color: #666;
+}
+
+[data-block-type="vector_store"] .input-group {
+    margin-top: 12px;
+}
+
+/* Hover effects */
 .input-node:hover {
     transform: scale(1.2);
     box-shadow: 0 0 6px rgba(68,68,255,0.5);
+    z-index: 3;
 }
