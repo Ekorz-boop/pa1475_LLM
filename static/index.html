@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM RAG Pipeline Builder</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/blocks.css">
+    <link rel="stylesheet" href="/static/css/block_content.css">
+    <link rel="stylesheet" href="/static/css/sidebar.css">
+    <link rel="stylesheet" href="/static/css/topbar.css">
+    <link rel="stylesheet" href="/static/css/canvas.css">
+    <link rel="stylesheet" href="/static/css/management_window.css">
 </head>
 <body>
     <div id="app">
@@ -25,12 +31,17 @@
                 </div>
                 <!-- Document Loading Block Template -->
                 <div class="block-template" draggable="true" data-block-type="file-loader">
-                    <div class="block-drag-handle">File Loader</div>
-                    <div class="block-content">
-                        <div class="input-group">
-                            <input type="file" class="file-input" accept=".txt,.pdf,.csv">
-                        </div>
+                    <div class="node-container">
+                        <div class="input-node" data-input="Input"></div>
                         <div class="output-node" data-output="Document"></div>
+                    </div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">File Loader</div>
+                        <div class="block-content">
+                            <div class="input-group">
+                                <input type="file" class="file-input" accept=".txt,.pdf,.csv">
+                            </div>
+                        </div>
                     </div>
                 </div>
 

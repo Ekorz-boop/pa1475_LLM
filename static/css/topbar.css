@@ -1,0 +1,77 @@
+/* ===== Top Bar & Notifications ===== */
+#top-bar {
+    height: 50px;
+    background-color: #f8f8ff;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 10;
+    transition: margin-top 0.3s ease;
+}
+
+#top-bar.with-notification {
+    margin-top: 50px;
+}
+
+.run-button {
+    margin-left: auto;
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.run-button:hover {
+    background-color: #45a049;
+}
+
+.run-button:active {
+    background-color: #3d8b40;
+}
+
+#notification-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    z-index: 1000;
+    border-bottom: 1px solid #ffeeba;
+    transition: transform 0.3s ease;
+}
+
+#notification-banner.notification-hidden {
+    transform: translateY(-100%);
+}
+
+#notification-banner button {
+    padding: 5px 10px;
+    border: 1px solid #856404;
+    border-radius: 4px;
+    background: transparent;
+    color: #856404;
+    cursor: pointer;
+}
+
+#notification-banner button:hover {
+    background-color: #856404;
+    color: white;
+}
+
+#notification-banner .close-notification {
+    padding: 0 8px;
+    font-size: 20px;
+    margin-left: auto;
+}
