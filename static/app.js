@@ -1,4 +1,38 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const menuItems = document.querySelectorAll('.menu-item');
+    const subMenus = document.querySelectorAll('.sub-menu');
+
+    menuItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            // Remove active class from all menu items
+            menuItems.forEach(mi => mi.classList.remove('active'));
+            
+            // Add active class to clicked menu item
+            item.classList.add('active');
+            
+            const menuType = item.dataset.menu;
+            const targetMenu = document.getElementById(`${menuType}-menu`);
+            
+            // Close all open sub-menus
+            subMenus.forEach(menu => menu.classList.remove('active'));
+            
+            // Open selected sub-menu
+            if (targetMenu) {
+                targetMenu.classList.add('active');
+            }
+        });
+    });
+
+    // Close sub-menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.sub-menu') && !e.target.closest('.menu-item')) {
+            subMenus.forEach(menu => menu.classList.remove('active'));
+            menuItems.forEach(item => item.classList.remove('active'));
+        }
+    });
+
     const canvas = document.getElementById('canvas');
     const connectionsContainer = document.getElementById('connections');
     const blockTemplates = document.querySelectorAll('.block-template');

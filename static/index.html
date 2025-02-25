@@ -25,10 +25,51 @@
         </div>
         <div class="main-content">
             <div id="sidebar">
-                <h3>Blocks</h3>
-                <div class="search-container">
-                    <input type="text" id="block-search" placeholder="Search blocks...">
+                <div class="main-menu">
+                    <div class="menu-item" data-menu="dashboard">
+                        <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="menu-item" data-menu="blocks">
+                        <img src="/static/images/icons/Blocks.svg" alt="Blocks">
+                        <span>Blocks</span>
+                    </div>
+                    <div class="menu-item" data-menu="templates">
+                        <img src="/static/images/icons/Templates.svg" alt="Templates">
+                        <span>Templates</span>
+                    </div>
                 </div>
+            </div>
+            <div id="canvas">
+                <div class="canvas-container">
+                    <div class="canvas-grid"></div>
+                    <svg id="connections"></svg>
+                </div>
+                <div class="zoom-controls">
+                    <button class="zoom-button" id="zoom-in">+</button>
+                    <div class="zoom-level">100%</div>
+                    <button class="zoom-button" id="zoom-out">−</button>
+                    <button class="zoom-button" id="zoom-fit">⟲</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add these sub-menus after the sidebar -->
+        <div id="dashboard-menu" class="sub-menu">
+            <div class="sub-menu-header">
+                <h3>Dashboard</h3>
+            </div>
+            <!-- Dashboard content here -->
+        </div>
+
+        <div id="blocks-menu" class="sub-menu">
+            <div class="sub-menu-header">
+                <h3>Blocks</h3>
+            </div>
+            <div class="search-container">
+                <input type="text" id="block-search" placeholder="Search blocks...">
+            </div>
+            <div class="block-templates-container">
                 <!-- Document Loading Block Template -->
                 <div class="block-template" draggable="true" data-block-type="file-loader">
                     <div class="node-container">
@@ -106,18 +147,13 @@
                     </div>
                 </div>
             </div>
-            <div id="canvas">
-                <div class="canvas-container">
-                    <div class="canvas-grid"></div>
-                    <svg id="connections"></svg>
-                </div>
-                <div class="zoom-controls">
-                    <button class="zoom-button" id="zoom-in">+</button>
-                    <div class="zoom-level">100%</div>
-                    <button class="zoom-button" id="zoom-out">−</button>
-                    <button class="zoom-button" id="zoom-fit">⟲</button>
-                </div>
+        </div>
+
+        <div id="templates-menu" class="sub-menu">
+            <div class="sub-menu-header">
+                <h3>Templates</h3>
             </div>
+            <!-- Templates content here -->
         </div>
 
         <!-- Add the management panel HTML directly -->
