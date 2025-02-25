@@ -1,21 +1,8 @@
-/* ===== Top Bar & Notifications ===== */
-#top-bar {
-    height: 50px;
-    background-color: #f8f8ff;
-    border-bottom: 1px solid #333;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    z-index: 10;
-    transition: margin-top 0.3s ease;
-}
-
-#top-bar.with-notification {
-    margin-top: 50px;
-}
-
+/* ===== Buttons ===== */
 .run-button {
-    margin-left: auto;
+    position: fixed;
+    top: 20px;
+    right: 20px;
     padding: 8px 16px;
     background-color: #4CAF50;
     color: white;
@@ -25,6 +12,7 @@
     font-weight: bold;
     font-size: 14px;
     transition: background-color 0.2s;
+    z-index: 1000;
 }
 
 .run-button:hover {
@@ -33,6 +21,26 @@
 
 .run-button:active {
     background-color: #3d8b40;
+}
+
+.management-button {
+    position: fixed;
+    top: 20px;
+    right: 160px;
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background-color 0.2s;
+    z-index: 1000;
+}
+
+.management-button:hover {
+    background-color: #0056b3;
 }
 
 #notification-banner {
