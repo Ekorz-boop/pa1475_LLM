@@ -12,7 +12,8 @@
     position: relative;
 }
 
-#sidebar:hover {
+/* Ändra hover-beteendet */
+#sidebar:not(.menu-active):hover {
     width: 250px;
 }
 
@@ -103,7 +104,7 @@
     transition: opacity 0.2s ease;
 }
 
-#sidebar:hover .menu-item span {
+#sidebar:not(.menu-active):hover .menu-item span {
     opacity: 1;
 }
 
@@ -147,8 +148,3 @@
     color: #333;
 }
 
-.block-templates-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}

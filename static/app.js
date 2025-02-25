@@ -14,13 +14,20 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const menuType = item.dataset.menu;
             const targetMenu = document.getElementById(`${menuType}-menu`);
+            const sidebar = document.getElementById('sidebar');
             
             // Close all open sub-menus
-            subMenus.forEach(menu => menu.classList.remove('active'));
+            subMenus.forEach(menu => {
+                if (menu.classList.contains('active')) {
+                    menu.classList.remove('active');
+                    sidebar.classList.remove('menu-active');
+                }
+            });
             
             // Open selected sub-menu
             if (targetMenu) {
                 targetMenu.classList.add('active');
+                sidebar.classList.add('menu-active');
             }
         });
     });
@@ -30,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!e.target.closest('.sub-menu') && !e.target.closest('.menu-item')) {
             subMenus.forEach(menu => menu.classList.remove('active'));
             menuItems.forEach(item => item.classList.remove('active'));
+            document.getElementById('sidebar').classList.remove('menu-active');
         }
     });
 
