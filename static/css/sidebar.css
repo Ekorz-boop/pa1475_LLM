@@ -1,13 +1,19 @@
 /* ===== Sidebar ===== */
 #sidebar {
-    width: 250px;
+    width: 60px;  /* Default collapsed width */
     height: 100%;
     background-color: #fff;
     border-right: 1px solid #ccc;
-    padding: 20px 20px 20px 80px;
-    overflow-y: auto;
+    padding: 20px 10px;
+    overflow-x: hidden;
     z-index: 5;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    transition: width 0.3s ease, padding 0.3s ease;  /* Smooth transition */
+}
+
+#sidebar:hover {
+    width: 250px;  /* Expanded width */
+    padding: 20px;
 }
 
 #sidebar h3 {
@@ -22,10 +28,11 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    transition: all 0.3s ease;
 }
 
 #block-search {
-    width: 90%;
+    width: 40px;  /* Collapsed width */
     padding: 6px 12px;
     border: 1px solid #ddd;
     border-radius: 10px;
@@ -33,7 +40,11 @@
     color: #333;
     
     background-color: white;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: all 0.3s ease;
+}
+
+#sidebar:hover #block-search {
+    width: 90%;  /* Expanded width */
 }
 
 #block-search:focus {
@@ -44,4 +55,15 @@
 
 #block-search::placeholder {
     color: #999;
+}
+
+/* Adjust block templates for collapsed state */
+.block-template {
+    display: flex;
+    align-items: center;
+}
+
+.block-template .block-drag-handle {
+    white-space: nowrap;
+    overflow: hidden;
 }
