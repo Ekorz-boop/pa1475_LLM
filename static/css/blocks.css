@@ -17,13 +17,48 @@
     display: none;  /* Hide nodes in sidebar templates */
 }
 
-.block .input-node, .block .output-node {
+/* ===== Input/Output Nodes ===== */
+.input-node, .output-node {
     position: absolute;
-    width: 8px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
+    background: #666;
+    border-radius: 50%;
     cursor: pointer;
-    border: 1px solid #ddd;
-    z-index: -1;
+    border: 1px solid #888686;
+    margin: 5px 0;
+    flex-shrink: 0;
+    pointer-events: all;
+    z-index: 1;
+}
+
+.block .input-node {
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #4444ff;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.block .output-node {
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #ff4444;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.input-node:hover, .output-node:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+.input-node-hover {
+    transform: scale(1.2);
+    border-color: #00ff00;
+    box-shadow: 0 0 4px rgba(0,255,0,0.5);
 }
 
 /* Block-type specific coloring*/
@@ -96,24 +131,6 @@
     cursor: move;
     text-align: center;
     font-weight: bold;
-}
-
-.block .input-node {
-    position: absolute;
-    left: 10px;
-    top: 12px;
-    background-color: #4444ff;
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
-}
-
-.block .output-node {
-    position: absolute;
-    right: -9px;
-    top: 12px;
-    background-color: #ff4444;
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
 }
 
 /* ===== Blocks ===== */
@@ -283,97 +300,8 @@
     height: 100%;
 }
 
-.input-node, .output-node {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background: #666;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.input-node {
-    left: -6px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-.output-node {
-    right: -6px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-.input-node:hover, .output-node:hover {
-    background: #333;
-}
-
-.input-node-hover {
-    background: #4CAF50;
-}
-
-.delete-button {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 20px;
-    height: 20px;
-    background: #ff4444;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    z-index: 1;
-}
-
-.delete-button:hover {
-    background: #cc0000;
-}
-
-/* ===== Input/Output Nodes ===== */
-
-.input-node, .output-node {
-    position: relative;
-    width: 8px;
-    height: 16px;
-    cursor: pointer;
-    border: 1px solid #888686;
-    margin: 5px 0;
-    flex-shrink: 0;
-    pointer-events: all;
-    z-index: -1;
-}
-
-.input-node {
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
-    position: absolute;
-    background-color: #4444ff;
-    margin-left: -20px;
-    align-self: flex-start;
-}
-
-.output-node {
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
-    position: absolute;
-    background-color: #ff4444;
-    margin-right: 0px;
-    align-self: flex-end;
-}
-
 .input-node::after, .output-node::after {
     content: none;
-}
-
-.input-node-hover {
-    transform: scale(1.2);
-    border-color: #00ff00;
-    box-shadow: 0 0 4px rgba(0,255,0,0.5);
 }
 
 /* ===== Connections ===== */
@@ -592,7 +520,7 @@ svg {
     border-radius: 3px;
     border: 1px solid #eee;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    z-index: 1;  /* Ensure labels don't overlap */
+    z-index: 1;
 }
 
 /* Adjust block heights and spacing */
@@ -653,4 +581,86 @@ svg {
     transform: scale(1.2);
     box-shadow: 0 0 6px rgba(68,68,255,0.5);
     z-index: 3;
+}
+
+.vector-store .input-node-group {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin: 10px 0;
+}
+
+.vector-store .storage-inputs,
+.vector-store .query-inputs {
+    margin: 20px 0;
+}
+
+.input-node-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.input-node {
+    position: relative;
+    width: 12px;
+    height: 12px;
+    background: #666;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.input-node:hover {
+    background: #888;
+}
+
+.input-node.input-node-hover {
+    background: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+/* Add data-label display */
+.input-node[data-label]:before {
+    content: attr(data-label);
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    white-space: nowrap;
+    color: #666;
+}
+
+/* Debug info styling */
+.debug-info {
+    background: #f0f0f0;
+    border-left: 3px solid #666;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #666;
+    margin-top: 8px;
+    border-radius: 2px;
+    font-family: monospace;
+}
+
+.json-output {
+    background: #f8f8f8;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 0;
+    overflow: auto;
+    max-height: 200px;
+    font-size: 12px;
+    color: #333;
+}
+
+/* Message styling for chat interfaces */
+.message {
+    background: #e9f5ff;
+    border-left: 3px solid #007bff;
+    padding: 8px 12px;
+    margin: 8px 0;
+    border-radius: 0 4px 4px 0;
 }

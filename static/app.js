@@ -244,7 +244,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = block.getAttribute('data-block-type');
         const config = getBlockConfig(block);
         
+        // Log for debugging
+        console.log(`Processing block: ${type} (ID: ${block.id})`);
+        
         try {
+            if (type === 'answer_display') {
+                // Find the input connection
+                const inputConnection = connections.find(conn => conn.target === block.id);
+                if (inputConnection) {
+                    const sourceBlock = document.getElementById(inputConnection.source);
+                    if (sourceBlock) {
+                        const display = block.querySelector('.answer-display');
+                        const value = sourceBlock.dataset.output;
+                        
+                        console.log(`Display Block: Received value from ${sourceBlock.getAttribute('data-block-type')}:`, value);
+                        
+                        // Format the output based on type
+                        if (value === undefined || value === null) {
+                            display.textContent = "No data available";
+                        } else if (typeof value === 'object') {
+                            try {
+                                display.innerHTML = `<pre class="json-output">${JSON.stringify(value, null, 2)}</pre>`;
+                            } catch (err) {
+                                display.textContent = `[Object]: ${value.toString()}`;
+                            }
+                        } else {
+                            display.textContent = value;
+                        }
+                        
+                        // Add block type info for debugging
+                        const sourceType = sourceBlock.getAttribute('data-block-type');
+                        const chunks = block.querySelector('.context-chunks');
+                        chunks.innerHTML = `<div class="debug-info">Source: ${sourceType} block</div>`;
+                        
+                        // Store the value in the block's own dataset as well
+                        block.dataset.output = value;
+                    } else {
+                        console.log(`Display Block: Source block not found for connection ${inputConnection.source}`);
+                    }
+                } else {
+                    console.log(`Display Block: No input connection found`);
+                }
+                return;
+            }
+
             const response = await fetch('/api/blocks/process', {
                 method: 'POST',
                 headers: {
@@ -259,27 +302,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
                 const error = await response.json();
+                console.error(`Error processing ${type} block:`, error);
                 throw new Error(error.message || 'Failed to process block');
             }
 
             const result = await response.json();
+            console.log(`${type} block processed:`, result);
             
             // Update block status
             updateBlockStatus(block, 'success');
             
-            // If it's an answer display block, update the display
-            if (type === 'answer_display') {
-                const display = block.querySelector('.answer-display');
-                display.textContent = result.answer;
-                
-                const chunks = block.querySelector('.context-chunks');
-                chunks.innerHTML = result.context.map(c => 
-                    `<div class="context-chunk">${c}</div>`
-                ).join('');
-            }
-
+            // Store the output in the block's dataset
+            block.dataset.output = result.output || result.answer;
+            console.log(`${type} block output stored:`, block.dataset.output);
+            
             return result;
         } catch (error) {
+            console.error(`Error in ${type} block:`, error);
             updateBlockStatus(block, 'error');
             throw error;
         }
@@ -306,11 +345,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function propagateData(sourceBlock) {
+        const type = sourceBlock.getAttribute('data-block-type');
         const outgoingConnections = connections.filter(conn => conn.source === sourceBlock.id);
-        outgoingConnections.forEach(conn => {
+        
+        console.log(`Propagating data from ${type} block to ${outgoingConnections.length} connections`);
+        
+        if (outgoingConnections.length === 0) {
+            console.log(`No outgoing connections from ${type} block`);
+            return; // No outgoing connections
+        }
+        
+        // Show a small toast notification
+        showToast(`Propagating data from ${type}...`, 'info', 1000);
+        
+        // Process each connected block
+        outgoingConnections.forEach(async conn => {
             const targetBlock = document.getElementById(conn.target);
+            const targetType = targetBlock ? targetBlock.getAttribute('data-block-type') : 'unknown';
+            console.log(`Propagating from ${type} to ${targetType} (input: ${conn.inputId})`);
+            
             if (targetBlock) {
-                processBlock(targetBlock);
+                try {
+                    await processBlock(targetBlock);
+                    // Recursively propagate to next blocks
+                    propagateData(targetBlock);
+                } catch (error) {
+                    console.error(`Error processing ${targetType}:`, error);
+                    showToast(`Error in ${targetType}: ${error.message}`, 'error');
+                }
+            } else {
+                console.error(`Target block ${conn.target} not found`);
             }
         });
     }
@@ -684,24 +748,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initializeBlock(block, type) {
         switch (type) {
-            case 'rag_prompt':
-                const chatInterface = block.querySelector('.chat-interface');
-                if (chatInterface) {
-                    const input = chatInterface.querySelector('input');
-                    const sendButton = chatInterface.querySelector('button');
-                    const messages = chatInterface.querySelector('.chat-messages');
+            case 'query_input':
+                const queryInterface = block.querySelector('.chat-interface');
+                if (queryInterface) {
+                    const input = queryInterface.querySelector('input');
+                    const sendButton = queryInterface.querySelector('button');
+                    const messages = queryInterface.querySelector('.chat-messages');
 
-                    sendButton.onclick = () => {
+                    const sendMessage = () => {
                         const text = input.value.trim();
                         if (text) {
                             messages.innerHTML += `<div class="message">${text}</div>`;
                             input.value = '';
                             messages.scrollTop = messages.scrollHeight;
+                            
+                            // Store the query in the block's data and propagate
+                            block.dataset.output = text;
+                            propagateData(block);
                         }
                     };
 
+                    sendButton.onclick = sendMessage;
                     input.onkeypress = (e) => {
-                        if (e.key === 'Enter') sendButton.click();
+                        if (e.key === 'Enter') sendMessage();
+                    };
+                }
+                break;
+            
+            case 'rag_prompt':
+                const ragInterface = block.querySelector('.chat-interface');
+                if (ragInterface) {
+                    const input = ragInterface.querySelector('input');
+                    const sendButton = ragInterface.querySelector('button');
+                    const messages = ragInterface.querySelector('.chat-messages');
+
+                    const sendMessage = () => {
+                        const text = input.value.trim();
+                        if (text) {
+                            messages.innerHTML += `<div class="message">${text}</div>`;
+                            input.value = '';
+                            messages.scrollTop = messages.scrollHeight;
+                            
+                            // Store the message in the block's data and propagate
+                            block.dataset.output = text;
+                            propagateData(block);
+                        }
+                    };
+
+                    sendButton.onclick = sendMessage;
+                    input.onkeypress = (e) => {
+                        if (e.key === 'Enter') sendMessage();
                     };
                 }
                 break;

@@ -363,6 +363,67 @@ def list_blocks():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/blocks/process', methods=['POST'])
+def process_block():
+    try:
+        data = request.json
+        block_id = data.get('block_id')
+        block_type = data.get('type')
+        config = data.get('config', {})
+        
+        print(f"\n[PROCESSING] Block: {block_type} (ID: {block_id})")
+        print(f"[PROCESSING] Config: {config}")
+        
+        # Simple mock processing for now
+        result = {
+            'status': 'success',
+            'output': f"Processed {block_type} with config {config}",
+            'block_id': block_id
+        }
+        
+        # Special handling for different block types
+        if block_type == 'pdf_loader':
+            files = config.get('files', [])
+            result['output'] = f"Loaded {len(files)} PDF files"
+            print(f"[PDF LOADER] Loaded {len(files)} files: {files}")
+        elif block_type == 'text_splitter':
+            chunk_size = config.get('chunk_size', 1000)
+            overlap = config.get('chunk_overlap', 200)
+            result['output'] = f"Split text into chunks (size: {chunk_size}, overlap: {overlap})"
+            print(f"[TEXT SPLITTER] Chunk size: {chunk_size}, Overlap: {overlap}")
+        elif block_type == 'embedding':
+            model = config.get('model', 'default')
+            result['output'] = f"Generated embeddings using {model} model"
+            print(f"[EMBEDDING] Model: {model}")
+        elif block_type == 'vector_store':
+            top_k = config.get('top_k', 3)
+            result['output'] = f"Stored vectors with top_k={top_k}"
+            print(f"[VECTOR STORE] Top K: {top_k}")
+        elif block_type == 'query_input':
+            # Query input is processed on the frontend directly
+            result['output'] = "Query received"
+            print(f"[QUERY INPUT] Processing query")
+        elif block_type == 'ai_model':
+            model = config.get('model', 'default')
+            temp = config.get('temperature', 0.75)
+            result['output'] = f"Generated response using {model} with temperature {temp}"
+            print(f"[AI MODEL] Model: {model}, Temperature: {temp}")
+            # For AI model, add a dummy answer for testing display
+            result['answer'] = f"This is a sample answer from the {model} model. It would respond to your query here."
+        elif block_type == 'retrieval_ranking':
+            method = config.get('ranking_method', 'similarity')
+            result['output'] = f"Ranked retrieval results using {method}"
+            print(f"[RETRIEVAL RANKING] Method: {method}")
+        elif block_type == 'answer_display':
+            result['output'] = "Display updated"
+            print(f"[ANSWER DISPLAY] Updated display")
+        
+        print(f"[COMPLETED] Block: {block_type} ✓")
+        return jsonify(result)
+    except Exception as e:
+        print(f"[ERROR] Block processing error: {str(e)}")
+        return jsonify({'error': str(e), 'status': 'error'}), 500
+
 if __name__ == '__main__':
     # Just print status instead of enforcing Ollama to run
     ensure_ollama_is_running()
