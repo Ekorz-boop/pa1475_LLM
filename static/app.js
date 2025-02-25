@@ -682,18 +682,11 @@ document.addEventListener('DOMContentLoaded', () => {
         blockContainer.appendChild(block);
     }
 
-    // Initialize management panel
+    // System Management Panel
     const managementButton = document.getElementById('management-button');
     const managementPanel = document.getElementById('system-management');
     
-    if (!managementButton || !managementPanel) {
-        console.error('Management panel elements not found!');
-        return;
-    }
-
-    // Management panel event listeners
     managementButton.addEventListener('click', () => {
-        console.log('Opening management panel');
         managementPanel.classList.add('visible');
         updateSystemStatus();
     });

@@ -149,3 +149,13 @@
     color: #333;
 }
 
+.bottom-menu {
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.bottom-menu .menu-item {
+    margin-bottom: 15px;
+}
+
