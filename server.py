@@ -273,6 +273,7 @@ def start_ollama_endpoint():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
 @app.route('/api/models/list', methods=['GET'])
 def list_models():
     if not is_ollama_running():
