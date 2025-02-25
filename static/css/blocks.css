@@ -1,7 +1,7 @@
 /* ===== Block Templates ===== */
 .block-template {
     position: relative;
-    width: 160px;
+    width: 90%;
     min-height: 80px;
     z-index: 1000;
     background-color: #fff;
