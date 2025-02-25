@@ -492,11 +492,9 @@ svg {
 
 /* Vector Store Input Groups */
 .storage-inputs {
-    top: 30px;  /* Adjusted storage inputs position */
-}
-
-.query-inputs {
-    top: 160px;  /* Increased distance from storage inputs */
+    top: 50%;
+    transform: translateY(-50%);
+    gap: 30px;  /* Space between the two inputs */
 }
 
 /* AI Model Input Group */

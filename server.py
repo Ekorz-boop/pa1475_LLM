@@ -374,39 +374,259 @@ def process_block():
         print(f"\n[PROCESSING] Block: {block_type} (ID: {block_id})")
         print(f"[PROCESSING] Config: {config}")
         
-        # Simple mock processing for now
-        result = {
-            'status': 'success',
-            'output': f"Processed {block_type} with config {config}",
-            'block_id': block_id
-        }
-        
         # Special handling for different block types
         if block_type == 'pdf_loader':
             files = config.get('files', [])
-            result['output'] = f"Loaded {len(files)} PDF files"
-            print(f"[PDF LOADER] Loaded {len(files)} files: {files}")
+            try:
+                from PyPDF2 import PdfReader
+                content = []
+                for file in files:
+                    reader = PdfReader(file)
+                    for page in reader.pages:
+                        content.append(page.extract_text())
+                
+                full_content = "\n\n".join(content)
+                result = {
+                    'status': 'success',
+                    'output': f"Loaded {len(files)} PDF files",
+                    'content': full_content,
+                    'block_id': block_id
+                }
+                print(f"[PDF LOADER] Loaded {len(files)} files: {files}")
+                print(f"[PDF LOADER] Extracted {len(content)} pages of text")
+            except Exception as e:
+                result = {
+                    'status': 'error',
+                    'output': f"Error loading PDFs: {str(e)}",
+                    'content': "",
+                    'block_id': block_id
+                }
+
         elif block_type == 'text_splitter':
             chunk_size = config.get('chunk_size', 1000)
             overlap = config.get('chunk_overlap', 200)
-            result['output'] = f"Split text into chunks (size: {chunk_size}, overlap: {overlap})"
+            
+            # Get input from either content or input_text field
+            input_text = config.get('content', '') or config.get('input_text', '')
+            
+            print(f"[TEXT SPLITTER] Input text length: {len(input_text)}")
             print(f"[TEXT SPLITTER] Chunk size: {chunk_size}, Overlap: {overlap}")
+            
+            if not input_text:
+                result = {
+                    'status': 'error',
+                    'output': "No input text provided",
+                    'chunks': [],
+                    'block_id': block_id
+                }
+                print("[TEXT SPLITTER] Error: No input text provided")
+                return result
+            
+            # Split text into chunks
+            chunks = []
+            words = input_text.split()
+            current_chunk = []
+            current_length = 0
+            
+            for word in words:
+                word_length = len(word)
+                
+                # If adding this word would exceed chunk size, save current chunk
+                if current_length + word_length + 1 > chunk_size and current_chunk:
+                    chunk_text = ' '.join(current_chunk)
+                    chunks.append(chunk_text)
+                    
+                    # Keep overlap words for next chunk
+                    if overlap > 0:
+                        # Calculate how many words to keep based on overlap size
+                        overlap_text = ' '.join(current_chunk[-overlap:])
+                        current_chunk = current_chunk[-overlap:]
+                        current_length = len(overlap_text)
+                    else:
+                        current_chunk = []
+                        current_length = 0
+                
+                current_chunk.append(word)
+                current_length += word_length + 1  # +1 for space
+            
+            # Add the last chunk if there's anything left
+            if current_chunk:
+                chunk_text = ' '.join(current_chunk)
+                chunks.append(chunk_text)
+            
+            print(f"[TEXT SPLITTER] Generated {len(chunks)} chunks")
+            for i, chunk in enumerate(chunks[:3]):  # Print first 3 chunks for debugging
+                print(f"[TEXT SPLITTER] Chunk {i+1} preview: {chunk[:100]}...")
+            
+            result = {
+                'status': 'success',
+                'output': f"Split text into {len(chunks)} chunks",
+                'chunks': chunks,
+                'block_id': block_id
+            }
+            print(f"[TEXT SPLITTER] Success: Generated {len(chunks)} chunks")
+            return result
+
         elif block_type == 'embedding':
-            model = config.get('model', 'default')
-            result['output'] = f"Generated embeddings using {model} model"
-            print(f"[EMBEDDING] Model: {model}")
+            model = config.get('model', 'nomic-embed-text')
+            # Try to get chunks from different possible config locations
+            chunks = config.get('chunks', [])
+            if not chunks and 'input_text' in config:
+                chunks = [config['input_text']]
+            
+            print(f"[EMBEDDING] Config received: {config}")  # Debug print
+            print(f"[EMBEDDING] Processing {len(chunks)} chunks with model: {model}")
+            
+            try:
+                embeddings = []
+                
+                if not chunks:
+                    raise ValueError("No chunks provided for embedding generation")
+                
+                for i, chunk in enumerate(chunks):
+                    if not isinstance(chunk, str):
+                        print(f"[EMBEDDING] Warning: Invalid chunk type at index {i}: {type(chunk)}")
+                        continue
+                        
+                    if not chunk.strip():
+                        print(f"[EMBEDDING] Warning: Empty chunk at index {i}")
+                        continue
+                    
+                    print(f"[EMBEDDING] Processing chunk {i+1}/{len(chunks)} (length: {len(chunk)})")
+                    print(f"[EMBEDDING] Chunk content preview: {chunk[:200]}...")  # Debug print
+                    
+                    response = requests.post('http://localhost:11434/api/embeddings', json={
+                        'model': model,
+                        'prompt': chunk
+                    })
+                    
+                    if response.status_code == 200:
+                        resp_data = response.json()
+                        vector = resp_data.get('embedding', [])
+                        
+                        if not vector:
+                            print(f"[EMBEDDING] Warning: Empty embedding vector for chunk {i+1}")
+                            continue
+                            
+                        embeddings.append({
+                            "text": chunk,
+                            "embedding": vector
+                        })
+                        print(f"[EMBEDDING] Successfully embedded chunk {i+1} (vector size: {len(vector)})")
+                    else:
+                        print(f"[EMBEDDING] Error for chunk {i+1}: {response.text}")
+                        raise Exception(f"Failed to get embedding: {response.text}")
+                
+                if not embeddings:
+                    raise ValueError("No valid embeddings were generated")
+                
+                result = {
+                    'status': 'success',
+                    'output': f"Generated {len(embeddings)} embeddings using {model} model",
+                    'embeddings': embeddings,
+                    'block_id': block_id
+                }
+                print(f"[EMBEDDING] Final result: {result}")  # Debug print
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"[EMBEDDING] Error: {error_msg}")
+                result = {
+                    'status': 'error',
+                    'output': f"Error generating embeddings: {error_msg}",
+                    'embeddings': [],
+                    'block_id': block_id
+                }
+
         elif block_type == 'vector_store':
             top_k = config.get('top_k', 3)
-            result['output'] = f"Stored vectors with top_k={top_k}"
-            print(f"[VECTOR STORE] Top K: {top_k}")
+            chunks_embedded = config.get('chunks_embedded', [])
+            query = config.get('query', '')
+            
+            try:
+                from langchain_community.vectorstores import FAISS
+                
+                if not chunks_embedded or not query:
+                    raise ValueError("Missing embedded chunks or query")
+                
+                # Extract texts and embeddings
+                texts = [chunk['text'] for chunk in chunks_embedded]
+                embeddings = [chunk['embedding'] for chunk in chunks_embedded]
+                
+                # Create FAISS index using Langchain with Ollama embeddings
+                from langchain.embeddings import OllamaEmbeddings
+                embeddings_model = OllamaEmbeddings(model="nomic-embed-text")
+                vector_store = FAISS.from_embeddings(
+                    text_embeddings=list(zip(texts, embeddings)), 
+                    embedding=embeddings_model
+                )
+                
+                # Get query embedding from Ollama
+                response = requests.post('http://localhost:11434/api/embeddings', json={
+                    'model': 'nomic-embed-text',
+                    'prompt': query
+                })
+                if response.status_code != 200:
+                    raise Exception(f"Failed to get query embedding: {response.text}")
+                
+                query_embedding = response.json().get('embedding', [])
+                
+                # Perform similarity search
+                retrieved_docs = vector_store.similarity_search_by_vector(query_embedding, k=top_k)
+                
+                # Extract chunks and combine into context
+                retrieved_chunks = [doc.page_content for doc in retrieved_docs]
+                context = "\n\n".join(retrieved_chunks)
+                
+                result = {
+                    'status': 'success',
+                    'output': f"Retrieved top {top_k} documents for query: {query}",
+                    'context': context,
+                    'retrieved_chunks': retrieved_chunks,
+                    'block_id': block_id
+                }
+                print(f"[VECTOR STORE] Retrieved {len(retrieved_chunks)} chunks for query: {query}")
+                print(f"[VECTOR STORE] Context: {context}")
+            except Exception as e:
+                result = {
+                    'status': 'error',
+                    'output': f"Error in vector store: {str(e)}",
+                    'context': "",
+                    'block_id': block_id
+                }
+                print(f"[VECTOR STORE] Error: {str(e)}")
+
         elif block_type == 'query_input':
-            # Query input is processed on the frontend directly
-            result['output'] = "Query received"
-            print(f"[QUERY INPUT] Processing query")
+            query = config.get('query', '')
+            # Get the query from the chat input if available
+            chat_input = config.get('chat_input', '')
+            if chat_input:
+                query = chat_input
+            
+            if not query:
+                result = {
+                    'status': 'error',
+                    'output': "No query provided",
+                    'query': '',
+                    'block_id': block_id
+                }
+                print(f"[QUERY INPUT] Error: No query provided")
+            else:
+                result = {
+                    'status': 'success',
+                    'output': "Query received",
+                    'query': query,
+                    'block_id': block_id
+                }
+                print(f"[QUERY INPUT] Query: {query}")
+
         elif block_type == 'ai_model':
             model = config.get('model', 'tinyllama')
             temp = config.get('temperature', 0.75)
             prompt = config.get('prompt', '')
+            
+            print(f"[AI MODEL] Model: {model}, Temperature: {temp}")
+            print(f"[AI MODEL] Prompt template: {prompt}")
             
             # Call Ollama API for generation
             try:
@@ -425,6 +645,7 @@ def process_block():
                         'answer': generated_text,
                         'block_id': block_id
                     }
+                    print(f"[AI MODEL] Generated answer: {generated_text}")
                 else:
                     result = {
                         'status': 'error',
@@ -432,6 +653,7 @@ def process_block():
                         'answer': "Error: Failed to generate response",
                         'block_id': block_id
                     }
+                    print(f"[AI MODEL] Error response: {response.text}")
             except Exception as e:
                 result = {
                     'status': 'error',
@@ -439,12 +661,57 @@ def process_block():
                     'answer': f"Error: {str(e)}",
                     'block_id': block_id
                 }
+                print(f"[AI MODEL] Exception: {str(e)}")
+
         elif block_type == 'retrieval_ranking':
             method = config.get('ranking_method', 'similarity')
-            result['output'] = f"Ranked retrieval results using {method}"
-            print(f"[RETRIEVAL RANKING] Method: {method}")
+            chunks = config.get('chunks', [])
+            query = config.get('query', '')
+            
+            try:
+                from sentence_transformers import CrossEncoder
+                
+                # Use cross-encoder for more accurate relevance scoring
+                model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+                
+                # Score each chunk
+                pairs = [[query, chunk] for chunk in chunks]
+                scores = model.predict(pairs)
+                
+                # Sort chunks by score
+                ranked_pairs = list(zip(chunks, scores))
+                ranked_pairs.sort(key=lambda x: x[1], reverse=True)
+                
+                ranked_chunks = [pair[0] for pair in ranked_pairs]
+                context = "\n\n".join(ranked_chunks)
+                
+                result = {
+                    'status': 'success',
+                    'output': f"Ranked retrieval results using {method}",
+                    'ranked_chunks': ranked_chunks,
+                    'context': context,
+                    'scores': scores.tolist(),
+                    'block_id': block_id
+                }
+                print(f"[RETRIEVAL RANKING] Ranked {len(ranked_chunks)} chunks")
+                for i, (chunk, score) in enumerate(ranked_pairs):
+                    print(f"[RETRIEVAL RANKING] Rank {i+1} (score: {score:.3f}): {chunk[:100]}...")
+            except Exception as e:
+                result = {
+                    'status': 'error',
+                    'output': f"Error in ranking: {str(e)}",
+                    'ranked_chunks': chunks,
+                    'context': "\n\n".join(chunks),
+                    'block_id': block_id
+                }
+                print(f"[RETRIEVAL RANKING] Error: {str(e)}")
+
         elif block_type == 'answer_display':
-            result['output'] = "Display updated"
+            result = {
+                'status': 'success',
+                'output': "Display updated",
+                'block_id': block_id
+            }
             print(f"[ANSWER DISPLAY] Updated display")
         
         print(f"[COMPLETED] Block: {block_type} ✓")

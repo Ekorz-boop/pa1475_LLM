@@ -359,36 +359,82 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function propagateData(sourceBlock) {
-        const type = sourceBlock.getAttribute('data-block-type');
+        console.log('Propagating data from block:', sourceBlock.id);
+        
+        // Find all connections where this block is the source
         const outgoingConnections = connections.filter(conn => conn.source === sourceBlock.id);
         
-        console.log(`Propagating data from ${type} block to ${outgoingConnections.length} connections`);
-        
-        if (outgoingConnections.length === 0) {
-            console.log(`No outgoing connections from ${type} block`);
-            return; // No outgoing connections
-        }
-        
-        // Show a small toast notification
-        showToast(`Propagating data from ${type}...`, 'info', 1000);
-        
-        // Process each connected block
-        outgoingConnections.forEach(async conn => {
-            const targetBlock = document.getElementById(conn.target);
-            const targetType = targetBlock ? targetBlock.getAttribute('data-block-type') : 'unknown';
-            console.log(`Propagating from ${type} to ${targetType} (input: ${conn.inputId})`);
+        outgoingConnections.forEach(async connection => {
+            const targetBlock = document.getElementById(connection.target);
+            if (!targetBlock) return;
             
-            if (targetBlock) {
-                try {
-                    await processBlock(targetBlock);
-                    // Recursively propagate to next blocks
-                    propagateData(targetBlock);
-                } catch (error) {
-                    console.error(`Error processing ${targetType}:`, error);
-                    showToast(`Error in ${targetType}: ${error.message}`, 'error');
+            console.log('Processing connection:', connection);
+            console.log('Target block:', targetBlock.id);
+            
+            // Get the configuration for the target block
+            const config = getBlockConfig(targetBlock);
+            
+            // Get the output data from the source block
+            let sourceData = {};
+            try {
+                sourceData = JSON.parse(sourceBlock.dataset.output || '{}');
+            } catch (e) {
+                console.warn('Failed to parse source block output:', e);
+            }
+            console.log('Source data:', sourceData);
+            
+            // Update config based on the block type
+            const targetType = targetBlock.getAttribute('data-block-type');
+            const sourceType = sourceBlock.getAttribute('data-block-type');
+            
+            if (targetType === 'text_splitter' && sourceType === 'pdf_loader') {
+                // Get content from either content field or input_text
+                config.content = sourceData.content || sourceData.input_text;
+                config.input_text = sourceData.content || sourceData.input_text;
+                console.log('Passing PDF content to text splitter:', {
+                    content_length: config.content?.length,
+                    preview: config.content?.substring(0, 100)
+                });
+            }
+            else if (targetType === 'embedding' && sourceType === 'text_splitter') {
+                config.chunks = sourceData.chunks;
+                console.log('Passing chunks to embedding:', config.chunks?.length);
+            }
+            else if (targetType === 'vector_store') {
+                if (connection.inputId === 'ChunksEmbedded') {
+                    config.chunks_embedded = sourceData.embeddings;
+                    console.log('Setting vector store chunks:', config.chunks_embedded?.length);
+                } else if (connection.inputId === 'Query') {
+                    config.query = sourceData.query;
+                    console.log('Setting vector store query:', config.query);
                 }
-            } else {
-                console.error(`Target block ${conn.target} not found`);
+            }
+            else if (targetType === 'ai_model') {
+                if (connection.inputId === 'Query') {
+                    config.query = sourceData.query;
+                    console.log('Setting AI model query:', config.query);
+                } else if (connection.inputId === 'Context') {
+                    config.context = sourceData.context;
+                    console.log('Setting AI model context:', config.context);
+                }
+            }
+            
+            console.log('Final config for target block:', config);
+            
+            try {
+                // Process the target block with the updated config
+                const result = await processBlock(targetBlock, config);
+                console.log('Block processing result:', result);
+                
+                if (result.status === 'success') {
+                    // Store the output in the block's dataset
+                    targetBlock.dataset.output = JSON.stringify(result);
+                    // Recursively propagate to connected blocks
+                    propagateData(targetBlock);
+                }
+            } catch (error) {
+                console.error('Error processing block:', error);
+                showToast('Error processing block: ' + error.message, 'error');
             }
         });
     }
