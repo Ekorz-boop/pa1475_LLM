@@ -404,12 +404,41 @@ def process_block():
             result['output'] = "Query received"
             print(f"[QUERY INPUT] Processing query")
         elif block_type == 'ai_model':
-            model = config.get('model', 'default')
+            model = config.get('model', 'tinyllama')
             temp = config.get('temperature', 0.75)
-            result['output'] = f"Generated response using {model} with temperature {temp}"
-            print(f"[AI MODEL] Model: {model}, Temperature: {temp}")
-            # For AI model, add a dummy answer for testing display
-            result['answer'] = f"This is a sample answer from the {model} model. It would respond to your query here."
+            prompt = config.get('prompt', '')
+            
+            # Call Ollama API for generation
+            try:
+                response = requests.post("http://localhost:11434/api/generate", json={
+                    "model": model,
+                    "prompt": prompt,
+                    "temperature": temp,
+                    "stream": False
+                })
+                
+                if response.status_code == 200:
+                    generated_text = response.json().get('response', '')
+                    result = {
+                        'status': 'success',
+                        'output': f"Generated response using {model} with temperature {temp}",
+                        'answer': generated_text,
+                        'block_id': block_id
+                    }
+                else:
+                    result = {
+                        'status': 'error',
+                        'output': f"Failed to generate response: {response.text}",
+                        'answer': "Error: Failed to generate response",
+                        'block_id': block_id
+                    }
+            except Exception as e:
+                result = {
+                    'status': 'error',
+                    'output': f"Error calling Ollama: {str(e)}",
+                    'answer': f"Error: {str(e)}",
+                    'block_id': block_id
+                }
         elif block_type == 'retrieval_ranking':
             method = config.get('ranking_method', 'similarity')
             result['output'] = f"Ranked retrieval results using {method}"

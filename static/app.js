@@ -255,9 +255,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     const sourceBlock = document.getElementById(inputConnection.source);
                     if (sourceBlock) {
                         const display = block.querySelector('.answer-display');
-                        const value = sourceBlock.dataset.output;
+                        const sourceType = sourceBlock.getAttribute('data-block-type');
                         
-                        console.log(`Display Block: Received value from ${sourceBlock.getAttribute('data-block-type')}:`, value);
+                        // Get the value from the source block
+                        let value;
+                        try {
+                            const blockData = JSON.parse(sourceBlock.dataset.output);
+                            // For AI model, use the answer field
+                            if (sourceType === 'ai_model' && blockData.answer) {
+                                value = blockData.answer;
+                            } else {
+                                value = blockData;
+                            }
+                        } catch (e) {
+                            console.log('Error parsing block data:', e);
+                            value = sourceBlock.dataset.output;
+                        }
+                        
+                        console.log(`Display Block: Received value from ${sourceType}:`, value);
                         
                         // Format the output based on type
                         if (value === undefined || value === null) {
@@ -273,12 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         
                         // Add block type info for debugging
-                        const sourceType = sourceBlock.getAttribute('data-block-type');
                         const chunks = block.querySelector('.context-chunks');
                         chunks.innerHTML = `<div class="debug-info">Source: ${sourceType} block</div>`;
                         
                         // Store the value in the block's own dataset as well
-                        block.dataset.output = value;
+                        block.dataset.output = typeof value === 'object' ? JSON.stringify(value) : value;
                     } else {
                         console.log(`Display Block: Source block not found for connection ${inputConnection.source}`);
                     }
@@ -312,8 +326,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update block status
             updateBlockStatus(block, 'success');
             
-            // Store the output in the block's dataset
-            block.dataset.output = result.output || result.answer;
+            // Store the entire result object in the block's dataset
+            block.dataset.output = JSON.stringify(result);
             console.log(`${type} block output stored:`, block.dataset.output);
             
             return result;
@@ -801,6 +815,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                 }
                 break;
+
+            case 'ai_model':
+                config.model = block.querySelector('.model-selector').value;
+                config.temperature = parseFloat(block.querySelector('.temperature').value);
+                config.prompt = block.querySelector('.prompt-template').value;
+                
+                // Get query from connected query input block
+                const queryConnection = connections.find(conn => 
+                    conn.target === block.id && conn.inputId === 'Query'
+                );
+                if (queryConnection) {
+                    const queryBlock = document.getElementById(queryConnection.source);
+                    if (queryBlock) {
+                        const queryText = queryBlock.dataset.output;
+                        config.prompt = config.prompt.replace('{query}', queryText || '');
+                    }
+                }
+                
+                // Get context from connected vector store or ranking block
+                const contextConnection = connections.find(conn => 
+                    conn.target === block.id && conn.inputId === 'Context'
+                );
+                if (contextConnection) {
+                    const contextBlock = document.getElementById(contextConnection.source);
+                    if (contextBlock) {
+                        try {
+                            const contextData = JSON.parse(contextBlock.dataset.output);
+                            config.prompt = config.prompt.replace('{context}', contextData.context || '');
+                        } catch (e) {
+                            config.prompt = config.prompt.replace('{context}', contextBlock.dataset.output || '');
+                        }
+                    }
+                }
+                break;
         }
     }
 
@@ -1180,6 +1228,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'rag_prompt':
                 config.template = block.querySelector('.prompt-template').value;
+                break;
+
+            case 'ai_model':
+                config.model = block.querySelector('.model-selector').value;
+                config.temperature = parseFloat(block.querySelector('.temperature').value);
+                config.prompt = block.querySelector('.prompt-template').value;
+                
+                // Get query from connected query input block
+                const queryConnection = connections.find(conn => 
+                    conn.target === block.id && conn.inputId === 'Query'
+                );
+                if (queryConnection) {
+                    const queryBlock = document.getElementById(queryConnection.source);
+                    if (queryBlock) {
+                        const queryText = queryBlock.dataset.output;
+                        config.prompt = config.prompt.replace('{query}', queryText || '');
+                    }
+                }
+                
+                // Get context from connected vector store or ranking block
+                const contextConnection = connections.find(conn => 
+                    conn.target === block.id && conn.inputId === 'Context'
+                );
+                if (contextConnection) {
+                    const contextBlock = document.getElementById(contextConnection.source);
+                    if (contextBlock) {
+                        try {
+                            const contextData = JSON.parse(contextBlock.dataset.output);
+                            config.prompt = config.prompt.replace('{context}', contextData.context || '');
+                        } catch (e) {
+                            config.prompt = config.prompt.replace('{context}', contextBlock.dataset.output || '');
+                        }
+                    }
+                }
                 break;
         }
 
