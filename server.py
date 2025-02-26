@@ -39,6 +39,9 @@ BLOCK_TYPES = {
     'rag_prompt': RAGPromptBlock
 }
 
+# Add a simple caching mechanism to prevent duplicate calls
+ai_model_cache = {}
+
 def is_ollama_running():
     try:
         response = requests.get("http://localhost:11434/api/version")
@@ -817,15 +820,69 @@ def process_block():
         elif block_type == 'ai_model':
             model = config.get('model', 'tinyllama')
             temp = config.get('temperature', 0.75)
-            prompt = config.get('prompt', '')
+            prompt_template = config.get('prompt', '')
+            
+            # Extract query from various possible sources
+            query = ""
+            
+            # First check direct query parameter
+            if 'query' in config:
+                query_data = config['query']
+                if isinstance(query_data, str):
+                    query = query_data
+                elif isinstance(query_data, dict) and 'query' in query_data:
+                    query = query_data['query']
+            
+            # Then check Query input object
+            if not query and 'Query' in config:
+                query_obj = config['Query']
+                if isinstance(query_obj, dict) and 'query' in query_obj:
+                    query = query_obj['query']
+            
+            # Extract context from various possible sources
+            context = ""
+            
+            # First check direct context parameter
+            if 'context' in config:
+                context_data = config['context']
+                if isinstance(context_data, str):
+                    context = context_data
+            
+            # Then check Context input object
+            if not context and 'Context' in config:
+                context_obj = config['Context']
+                if isinstance(context_obj, dict) and 'context' in context_obj:
+                    context = context_obj['context']
+            
+            print(f"[AI MODEL] DEBUG - Query object type: {type(query)}")
+            print(f"[AI MODEL] DEBUG - Query value: {query}")
 
-            # In debug mode, provide a sample prompt if missing
-            if debug_mode and not prompt:
-                prompt = "You are a helpful assistant. Please provide a concise answer to the following query: {query}"
-                print(f"[AI MODEL] Debug mode: No prompt template provided, using sample prompt")
+            # IMPORTANT: Instead of using the template from the request, create a new one
+            # This ensures we don't use a template that might have been corrupted
+            prompt_template = """Answer the following question using the provided context. If the context doesn't contain enough information, say so.
+
+Context: {context}
+
+Question: {query}
+
+Answer:"""
+
+            print(f"[AI MODEL] Using fixed prompt template")
+
+            # Format the prompt with the actual values
+            prompt = prompt_template.replace("{context}", context).replace("{query}", query)
 
             print(f"[AI MODEL] Model: {model}, Temperature: {temp}")
-            print(f"[AI MODEL] Prompt template: {prompt}")
+            print(f"[AI MODEL] Query: {query}")
+            print(f"[AI MODEL] Context: {context[:100]}...")  # Print first 100 chars of context
+            print(f"[AI MODEL] Formatted prompt: {prompt[:200]}...")  # Print first 200 chars
+            
+            # Add this before making the API call:
+            cache_key = f"{model}_{temp}_{prompt}"
+            if cache_key in ai_model_cache:
+                print(f"[AI MODEL] Using cached response")
+                result = ai_model_cache[cache_key]
+                return jsonify(result)
 
             # Call Ollama API for generation
             try:
@@ -844,6 +901,8 @@ def process_block():
                         'answer': generated_text,
                         'block_id': block_id
                     }
+                    # Cache the result
+                    ai_model_cache[cache_key] = result
                     print(f"[AI MODEL] Generated answer: {generated_text}")
                 else:
                     result = {

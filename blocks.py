@@ -189,12 +189,10 @@ from langchain.chains import RetrievalQA"""
     sys.stdout.reconfigure(encoding='utf-8')
     print("⚡ Setting up RAG chain...")
     prompt_template = '''Use the following pieces of context to answer the question at the end.
-    If you don't know the answer, just say that you don't know, don't try to make up an answer.
     
-    {context}
+    Context:{context}
     
-    Question: {question}
-    Answer:'''
+    Question:{question}'''
     
     with tqdm(total=2, desc="Creating RAG chain") as pbar:
         PROMPT = PromptTemplate(
