@@ -480,6 +480,9 @@ def process_block():
             # Look for content from PDF loader
             elif 'content' in config:
                 chunks = [config['content']]
+            # Look for query from query input block
+            elif 'query' in config:
+                chunks = [config['query']]
 
             # If we've found nothing, try to split any text we can find
             if not chunks:
@@ -493,26 +496,14 @@ def process_block():
 
             try:
                 embeddings = []
-
-                # Handle debug mode with no chunks
-                if not chunks and debug_mode:
-                    chunks = ["Sample chunk 1 for embedding without proper input source",
-                             "Sample chunk 2 for embedding in debug mode to test functionality"]
-                    print("[EMBEDDING] Warning: No chunks provided, using sample chunks in debug mode")
-
-                # Remove strict validation for chunks
-                if not chunks:
-                    chunks = ["Sample text for embedding without proper input source"]
-                    print("[EMBEDDING] Warning: No chunks provided, using sample text")
-
+                # Process each chunk
                 for i, chunk in enumerate(chunks):
                     if not isinstance(chunk, str):
                         print(f"[EMBEDDING] Warning: Invalid chunk type at index {i}: {type(chunk)}")
-                        chunk = str(chunk) if chunk is not None else "Empty chunk"
+                        chunk = str(chunk)
 
                     if not chunk.strip():
                         print(f"[EMBEDDING] Warning: Empty chunk at index {i}")
-                        chunk = f"Empty chunk placeholder {i}"
 
                     print(f"[EMBEDDING] Processing chunk {i+1}/{len(chunks)} (length: {len(chunk)})")
                     print(f"[EMBEDDING] Chunk content preview: {chunk[:100]}...")  # Debug print
@@ -620,30 +611,9 @@ def process_block():
                 print(f"[VECTOR STORE] Using text query (will be embedded): {query_text}")
             else:
                 print(f"[VECTOR STORE] No query provided")
+                # Initialize context to empty string to avoid undefined variable error
+                context = ""
             print(f"[VECTOR STORE] Top K: {top_k}")
-
-            # Debug mode fallbacks
-            if debug_mode:
-                if not embedded_chunks:
-                    print("[VECTOR STORE] Debug mode: No embedded chunks provided, creating synthetic data")
-                    # Create synthetic embedded chunks for debug mode
-                    sample_texts = [
-                        "Sample chunk 1 for vector store in debug mode",
-                        "Sample chunk 2 for vector store with different content",
-                        "Sample chunk 3 with information about testing vector search"
-                    ]
-
-                    # Generate synthetic embeddings
-                    embedded_chunks = []
-                    for text in sample_texts:
-                        embedded_chunks.append({
-                            "text": text,
-                            "embedding": [random.uniform(-1, 1) for _ in range(768)]
-                        })
-
-                if not embedded_query and not query_text:
-                    print("[VECTOR STORE] Debug mode: No query provided, using sample query")
-                    query_text = "sample query for vector store in debug mode"
 
             # Check if we have the required data
             if not embedded_chunks:
@@ -793,33 +763,17 @@ def process_block():
             if chat_input:
                 query = chat_input
 
-            # Provide default value in debug mode
-            if not query and debug_mode:
-                query = "sample query for testing in debug mode"
-                print(f"[QUERY INPUT] Debug mode: No query provided, using sample query: '{query}'")
-                result = {
-                    'status': 'success',
-                    'output': "Using default sample query in debug mode",
-                    'query': query,
-                    'block_id': block_id
-                }
-            # Remove validation check and provide default value
-            elif not query:
-                query = "sample query for testing"
-                print(f"[QUERY INPUT] Warning: No query provided, using sample query: '{query}'")
-                result = {
-                    'status': 'success',
-                    'output': "Using default sample query",
-                    'query': query,
-                    'block_id': block_id
-                }
-            else:
-                result = {
-                    'status': 'success',
-                    'output': "Query received",
-                    'query': query,
-                    'block_id': block_id
-                }
+            # Check if query is empty and provide appropriate response
+            if not query:
+                # Just log a warning but don't replace with a sample
+                print(f"[QUERY INPUT] Warning: Empty query received")
+            
+            result = {
+                'status': 'success',
+                'output': "Query received",
+                'query': query,
+                'block_id': block_id
+            }
             print(f"[QUERY INPUT] Query: {query}")
 
         elif block_type == 'ai_model':
@@ -876,35 +830,11 @@ def process_block():
             query = config.get('query', '')
 
             # In debug mode, provide sample data if missing
-            if debug_mode:
-                if not chunks:
-                    chunks = [
-                        "Sample chunk 1 for retrieval ranking in debug mode",
-                        "Sample chunk 2 for retrieval ranking in debug mode",
-                        "Sample chunk 3 for retrieval ranking with more information in debug mode"
-                    ]
-                    print("[RETRIEVAL RANKING] Debug mode: No chunks provided, using sample chunks")
-
-                if not query:
-                    query = "sample retrieval query in debug mode"
-                    print(f"[RETRIEVAL RANKING] Debug mode: No query provided, using sample query: '{query}'")
-
             try:
                 from sentence_transformers import CrossEncoder
 
                 # Add fallback for missing data
-                if not chunks:
-                    chunks = [
-                        "Sample chunk 1 for retrieval ranking",
-                        "Sample chunk 2 for retrieval ranking",
-                        "Sample chunk 3 for retrieval ranking with more information"
-                    ]
-                    print("[RETRIEVAL RANKING] Warning: No chunks provided, using sample chunks")
-
-                if not query:
-                    query = "sample retrieval query"
-                    print(f"[RETRIEVAL RANKING] Warning: No query provided, using sample query: '{query}'")
-
+            
                 # Simplified ranking for debug mode to avoid expensive model loading
                 if debug_mode:
                     print(f"[RETRIEVAL RANKING] Using simplified scoring in debug mode")

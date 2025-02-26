@@ -337,7 +337,27 @@ document.addEventListener('DOMContentLoaded', () => {
                             const sourceType = sourceBlock.getAttribute('data-block-type');
 
                             // Handle different source block types
-                            if (sourceType === 'pdf_loader' && sourceOutput.content) {
+                            if (sourceType === 'query_input') {
+                                // Check for stored query first, then fall back to the output
+                                const persistentQuery = sourceBlock.getAttribute('data-last-query');
+                                let queryText = '';
+                                
+                                if (persistentQuery) {
+                                    console.log(`Using persistent query: ${persistentQuery}`);
+                                    queryText = persistentQuery;
+                                } else if (sourceOutput.query) {
+                                    queryText = sourceOutput.query;
+                                }
+                                
+                                // Store the query for different block types
+                                inputData.query = queryText;
+                                
+                                // If this is an embedding block, also add the query as a chunk to embed
+                                if (block.getAttribute('data-block-type') === 'embedding') {
+                                    console.log(`Adding query as chunk for embedding: ${queryText}`);
+                                    inputData.chunks = [queryText];
+                                }
+                            } else if (sourceType === 'pdf_loader' && sourceOutput.content) {
                                 inputData.content = sourceOutput.content;
                             } else if (sourceType === 'text_splitter' && sourceOutput.chunks) {
                                 inputData.chunks = sourceOutput.chunks;
@@ -352,8 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     // Normal embedding chunks (for ChunksEmbedded input)
                                     inputData.chunks_embedded = sourceOutput.embeddings;
                                 }
-                            } else if (sourceType === 'query_input' && sourceOutput.query) {
-                                inputData.query = sourceOutput.query;
                             } else if (sourceType === 'vector_store') {
                                 // Get context from vector store (joined text)
                                 if (sourceOutput.context) {
@@ -398,19 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     inputData.content = "Sample text for the text splitter block in debug mode. This is provided automatically because no input text was found.";
                 }
                 else if (type === 'vector_store' && (!inputData.chunks_embedded || (!inputData.query && !inputData.embedded_query))) {
-                    if (!inputData.chunks_embedded) {
-                        console.log(`Debug mode: Providing sample embeddings for vector_store`);
-                        inputData.chunks_embedded = [
-                            {
-                                text: "Sample chunk 1 for debug mode",
-                                embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
-                            },
-                            {
-                                text: "Sample chunk 2 for debug mode with more sample text",
-                                embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
-                            }
-                        ];
-                    }
+                    
 
                     // Provide a sample embedded query if neither a text query nor an embedded query exists
                     if (!inputData.query && !inputData.embedded_query) {
@@ -421,13 +427,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
                         };
                     }
-                }
-                else if (type === 'embedding' && !inputData.chunks) {
-                    console.log(`Debug mode: Providing sample chunks for embedding`);
-                    inputData.chunks = [
-                        "Sample chunk 1 for embedding in debug mode",
-                        "Sample chunk 2 for embedding in debug mode"
-                    ];
                 }
             }
 
@@ -526,6 +525,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!outputData || outputData.status === 'error') {
             console.warn(`Invalid or error output from ${sourceId}, skipping propagation`);
             return;
+        }
+
+        // Special handling for query_input blocks to ensure query persistence
+        if (sourceType === 'query_input' && outputData.query) {
+            // Store the query in a more permanent way
+            sourceBlock.setAttribute('data-last-query', outputData.query);
+            console.log(`Stored persistent query: ${outputData.query}`);
         }
 
         // Process each connected block
@@ -630,11 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
-            // Snap to grid
-            const snappedX = snapToGrid(x);
-            const snappedY = snapToGrid(y);
-
-            draggedBlock.style.transform = `translate(${snappedX}px, ${snappedY}px)`;
+            draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             updateConnections();
 
             e.preventDefault();
@@ -930,20 +932,114 @@ document.addEventListener('DOMContentLoaded', () => {
                     const input = queryInterface.querySelector('input');
                     const sendButton = queryInterface.querySelector('button');
                     const messages = queryInterface.querySelector('.chat-messages');
-
+                    
+                    // Initialize query history if not already present
+                    if (!block.hasAttribute('data-query-history')) {
+                        block.setAttribute('data-query-history', JSON.stringify([]));
+                    }
+                    
+                    // Function to update the messages display
+                    const updateMessagesDisplay = () => {
+                        try {
+                            const queryHistory = JSON.parse(block.getAttribute('data-query-history') || '[]');
+                            messages.innerHTML = '';
+                            
+                            queryHistory.forEach((query, index) => {
+                                const messageDiv = document.createElement('div');
+                                messageDiv.className = 'message';
+                                messageDiv.textContent = query;
+                                messageDiv.setAttribute('data-index', index);
+                                
+                                // Add delete button
+                                const deleteBtn = document.createElement('span');
+                                deleteBtn.className = 'delete-message';
+                                deleteBtn.innerHTML = '&times;';
+                                deleteBtn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    // Remove this query from history
+                                    queryHistory.splice(index, 1);
+                                    block.setAttribute('data-query-history', JSON.stringify(queryHistory));
+                                    
+                                    // Update the current query to the last one in history
+                                    const lastQuery = queryHistory[queryHistory.length - 1] || '';
+                                    const outputData = {
+                                        status: 'success',
+                                        output: "Query received",
+                                        query: lastQuery,
+                                        block_id: block.id
+                                    };
+                                    block.dataset.output = JSON.stringify(outputData);
+                                    
+                                    // Update display and propagate changes
+                                    updateMessagesDisplay();
+                                    propagateData(block);
+                                };
+                                
+                                // Make message clickable to select it
+                                messageDiv.onclick = () => {
+                                    // Set this as the current query
+                                    const outputData = {
+                                        status: 'success',
+                                        output: "Query received",
+                                        query: query,
+                                        block_id: block.id
+                                    };
+                                    block.dataset.output = JSON.stringify(outputData);
+                                    
+                                    // Highlight this message
+                                    document.querySelectorAll('.message.selected').forEach(el => {
+                                        el.classList.remove('selected');
+                                    });
+                                    messageDiv.classList.add('selected');
+                                    
+                                    // Propagate this query
+                                    propagateData(block);
+                                };
+                                
+                                messageDiv.appendChild(deleteBtn);
+                                messages.appendChild(messageDiv);
+                            });
+                            
+                            // Scroll to bottom
+                            messages.scrollTop = messages.scrollHeight;
+                        } catch (e) {
+                            console.error('Error updating messages display:', e);
+                        }
+                    };
+                    
+                    // Initial display update
+                    updateMessagesDisplay();
+                    
                     const sendMessage = () => {
                         const text = input.value.trim();
                         if (text) {
-                            messages.innerHTML += `<div class="message">${text}</div>`;
-                            input.value = '';
-                            messages.scrollTop = messages.scrollHeight;
-
-                            // Store the query in the block's data and propagate
-                            block.dataset.output = text;
-                            propagateData(block);
+                            try {
+                                // Add to query history
+                                const queryHistory = JSON.parse(block.getAttribute('data-query-history') || '[]');
+                                queryHistory.push(text);
+                                block.setAttribute('data-query-history', JSON.stringify(queryHistory));
+                                
+                                // Clear input
+                                input.value = '';
+                                
+                                // Update the output data with the new query
+                                const outputData = {
+                                    status: 'success',
+                                    output: "Query received",
+                                    query: text,
+                                    block_id: block.id
+                                };
+                                block.dataset.output = JSON.stringify(outputData);
+                                
+                                // Update display and propagate
+                                updateMessagesDisplay();
+                                propagateData(block);
+                            } catch (e) {
+                                console.error('Error sending message:', e);
+                            }
                         }
                     };
-
+                    
                     sendButton.onclick = sendMessage;
                     input.onkeypress = (e) => {
                         if (e.key === 'Enter') sendMessage();
