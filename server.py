@@ -13,6 +13,7 @@ from blocks import (
     Block, ChatModelBlock, EmbeddingBlock, VectorStoreBlock,
     PDFLoaderBlock, TextSplitterBlock, RAGPromptBlock, Canvas
 )
+import random
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -50,17 +51,17 @@ def start_ollama():
                 r'C:\Program Files\Ollama\ollama.exe',
                 os.path.expandvars(r'%ProgramFiles%\Ollama\ollama.exe')
             ]
-            
+
             ollama_path = None
             for path in possible_paths:
                 if os.path.exists(path):
                     ollama_path = path
                     break
-                    
+
             if ollama_path:
                 try:
                     # First try normal start
-                    subprocess.Popen([ollama_path, "serve"], 
+                    subprocess.Popen([ollama_path, "serve"],
                                    creationflags=subprocess.CREATE_NO_WINDOW)
                     time.sleep(2)
                     if is_ollama_running():
@@ -68,7 +69,7 @@ def start_ollama():
                             'success': True,
                             'message': 'Ollama started successfully'
                         }
-                    
+
                     # If normal start failed, try with admin rights
                     try:
                         subprocess.Popen(['runas', '/user:Administrator', ollama_path, 'serve'],
@@ -95,7 +96,7 @@ def start_ollama():
                     'message': 'Ollama not found. Please install it from https://ollama.ai/download',
                     'needsInstall': True
                 }
-                
+
         elif system in ["darwin", "linux"]:  # macOS and Linux
             try:
                 # Try normal start first
@@ -106,7 +107,7 @@ def start_ollama():
                         'success': True,
                         'message': 'Ollama started successfully'
                     }
-                
+
                 # If normal start failed, try with sudo
                 try:
                     subprocess.Popen(['pkexec', 'ollama', 'serve'])  # Use pkexec for GUI sudo prompt
@@ -132,7 +133,7 @@ def start_ollama():
                     'success': False,
                     'message': f'Failed to start Ollama. Please start it manually: {str(e)}'
                 }
-        
+
         return {
             'success': False,
             'message': 'Unsupported operating system'
@@ -162,7 +163,7 @@ def connect_blocks():
     source_id = data.get('source')
     target_id = data.get('target')
     input_id = data.get('inputId')
-    
+
     # Store the connection
     connection_id = f"{source_id}-{target_id}-{input_id}"
     block_connections[connection_id] = {
@@ -171,7 +172,7 @@ def connect_blocks():
         'inputId': input_id,
         'function': None
     }
-    
+
     return jsonify({'status': 'success', 'connection_id': connection_id})
 
 @app.route('/api/connections', methods=['GET'])
@@ -182,21 +183,21 @@ def get_connections():
 def generate_text():
     if not is_ollama_running():
         return jsonify({"error": "Ollama is not running. Please start Ollama and try again."}), 503
-        
+
     data = request.json
     input_text = data.get('input', '')
     model_name = data.get('model', 'tinyllama')  # Default to tinyllama if no model specified
-    
+
     # Ollama API endpoint
     url = "http://localhost:11434/api/generate"
-    
+
     # Request payload for Ollama
     payload = {
         "model": model_name,
         "prompt": input_text,
         "stream": False
     }
-    
+
     try:
         response = requests.post(url, json=payload)
         if response.status_code == 200:
@@ -232,7 +233,7 @@ def install_ollama():
         elif system == "linux":
             # Add appropriate Linux installation commands
             subprocess.run(['curl', '-fsSL', 'https://ollama.ai/install.sh', '|', 'bash'])
-        
+
         return jsonify({'status': 'success'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -242,7 +243,7 @@ def start_ollama_endpoint():
     try:
         if is_ollama_running():
             return jsonify({'status': 'success', 'message': 'Ollama is already running'})
-            
+
         result = start_ollama()
         if result['success']:
             # Wait for Ollama to be fully running
@@ -278,7 +279,7 @@ def start_ollama_endpoint():
 def list_models():
     if not is_ollama_running():
         return jsonify({'error': 'Ollama is not running'}), 503
-        
+
     try:
         response = requests.get('http://localhost:11434/api/tags')
         if response.status_code == 200:
@@ -302,13 +303,13 @@ def create_block():
     data = request.json
     block_type = data.get('type')
     block_id = data.get('id')
-    
+
     if not block_type or not block_id:
         return jsonify({'error': 'Missing block type or ID'}), 400
-    
+
     if block_type not in BLOCK_TYPES:
         return jsonify({'error': 'Invalid block type'}), 400
-    
+
     try:
         block = BLOCK_TYPES[block_type]()
         canvas.add_block(block_id, block)
@@ -321,10 +322,10 @@ def connect_block_nodes():
     data = request.json
     source_id = data.get('source')
     target_id = data.get('target')
-    
+
     if not source_id or not target_id:
         return jsonify({'error': 'Missing source or target ID'}), 400
-    
+
     try:
         success = canvas.connect_blocks(source_id, target_id)
         if success:
@@ -338,7 +339,7 @@ def connect_block_nodes():
 def export_blocks():
     data = request.json
     output_file = data.get('output_file', 'generated_rag.py')
-    
+
     try:
         canvas.export_to_python(output_file)
         return jsonify({
@@ -370,10 +371,11 @@ def process_block():
         block_id = data.get('block_id')
         block_type = data.get('type')
         config = data.get('config', {})
-        
-        print(f"\n[PROCESSING] Block: {block_type} (ID: {block_id})")
+        debug_mode = data.get('debug_mode', False)
+
+        print(f"\n[PROCESSING] Block: {block_type} (ID: {block_id}), Debug mode: {debug_mode}")
         print(f"[PROCESSING] Config: {config}")
-        
+
         # Special handling for different block types
         if block_type == 'pdf_loader':
             files = config.get('files', [])
@@ -384,7 +386,7 @@ def process_block():
                     reader = PdfReader(file)
                     for page in reader.pages:
                         content.append(page.extract_text())
-                
+
                 full_content = "\n\n".join(content)
                 result = {
                     'status': 'success',
@@ -401,53 +403,37 @@ def process_block():
                     'content': "",
                     'block_id': block_id
                 }
+            return jsonify(result)
 
         elif block_type == 'text_splitter':
-            chunk_size = config.get('chunk_size', 1000)
-            overlap = config.get('chunk_overlap', 200)
-            
-            # Get input from either content or input_text field
+            chunk_size = int(config.get('chunk_size', 1000))
+            overlap = int(config.get('chunk_overlap', 200))
+
+            # Get input text
             input_text = config.get('content', '')
-            
-            # If content is missing, try other possible input sources
-            if not input_text:
-                input_text = config.get('input_text', '')
-            
-            # Try to get content from PDF loader if it was passed as 'documents'
-            if not input_text and 'documents' in config:
-                docs = config.get('documents', [])
-                if isinstance(docs, list):
-                    # Try to extract text from document objects
-                    contents = []
-                    for doc in docs:
-                        if isinstance(doc, dict) and 'page_content' in doc:
-                            contents.append(doc['page_content'])
-                        elif isinstance(doc, str):
-                            contents.append(doc)
-                    input_text = "\n\n".join(contents)
-            
+
             print(f"[TEXT SPLITTER] Input text length: {len(input_text)}")
             print(f"[TEXT SPLITTER] Chunk size: {chunk_size}, Overlap: {overlap}")
-            
-            # Removed validation check that required input text
-            if not input_text:
-                input_text = "Sample text for processing without proper input source."
-                print("[TEXT SPLITTER] Warning: No input text provided, using sample text")
-            
-            # Split text into chunks
+
+            # For debug mode with no input text
+            if not input_text and debug_mode:
+                input_text = "Sample text for processing without proper input source. This is provided automatically in debug mode because no input text was found. This will allow you to test your text splitter configuration without needing a proper source connection."
+                print(f"[TEXT SPLITTER] Warning: No input text provided, using sample text")
+
+            # Simple word-based text splitting
             chunks = []
             words = input_text.split()
             current_chunk = []
             current_length = 0
-            
+
             for word in words:
                 word_length = len(word)
-                
+
                 # If adding this word would exceed chunk size, save current chunk
                 if current_length + word_length + 1 > chunk_size and current_chunk:
                     chunk_text = ' '.join(current_chunk)
                     chunks.append(chunk_text)
-                    
+
                     # Keep overlap words for next chunk
                     if overlap > 0:
                         # Calculate how many words to keep based on overlap size
@@ -457,19 +443,19 @@ def process_block():
                     else:
                         current_chunk = []
                         current_length = 0
-                
+
                 current_chunk.append(word)
                 current_length += word_length + 1  # +1 for space
-            
+
             # Add the last chunk if there's anything left
             if current_chunk:
                 chunk_text = ' '.join(current_chunk)
                 chunks.append(chunk_text)
-            
+
             print(f"[TEXT SPLITTER] Generated {len(chunks)} chunks")
             for i, chunk in enumerate(chunks[:3]):  # Print first 3 chunks for debugging
                 print(f"[TEXT SPLITTER] Chunk {i+1} preview: {chunk[:100]}...")
-            
+
             result = {
                 'status': 'success',
                 'output': f"Split text into {len(chunks)} chunks",
@@ -481,10 +467,10 @@ def process_block():
 
         elif block_type == 'embedding':
             model = config.get('model', 'nomic-embed-text')
-            
+
             # Try to get chunks from all possible input sources
             chunks = []
-            
+
             # First look for chunks array
             if 'chunks' in config and isinstance(config['chunks'], list):
                 chunks = config['chunks']
@@ -494,55 +480,61 @@ def process_block():
             # Look for content from PDF loader
             elif 'content' in config:
                 chunks = [config['content']]
-            
+
             # If we've found nothing, try to split any text we can find
             if not chunks:
                 for key, value in config.items():
                     if isinstance(value, str) and value.strip():
                         chunks = [value]
                         break
-            
+
             print(f"[EMBEDDING] Config received: {config}")  # Debug print
             print(f"[EMBEDDING] Processing {len(chunks)} chunks with model: {model}")
-            
+
             try:
                 embeddings = []
-                
+
+                # Handle debug mode with no chunks
+                if not chunks and debug_mode:
+                    chunks = ["Sample chunk 1 for embedding without proper input source",
+                             "Sample chunk 2 for embedding in debug mode to test functionality"]
+                    print("[EMBEDDING] Warning: No chunks provided, using sample chunks in debug mode")
+
                 # Remove strict validation for chunks
                 if not chunks:
                     chunks = ["Sample text for embedding without proper input source"]
                     print("[EMBEDDING] Warning: No chunks provided, using sample text")
-                
+
                 for i, chunk in enumerate(chunks):
                     if not isinstance(chunk, str):
                         print(f"[EMBEDDING] Warning: Invalid chunk type at index {i}: {type(chunk)}")
                         chunk = str(chunk) if chunk is not None else "Empty chunk"
-                        
+
                     if not chunk.strip():
                         print(f"[EMBEDDING] Warning: Empty chunk at index {i}")
                         chunk = f"Empty chunk placeholder {i}"
-                    
+
                     print(f"[EMBEDDING] Processing chunk {i+1}/{len(chunks)} (length: {len(chunk)})")
                     print(f"[EMBEDDING] Chunk content preview: {chunk[:100]}...")  # Debug print
-                    
+
                     # Handle very large chunks by truncating if needed
                     if len(chunk) > 8000:  # Adjust based on model limits
                         print(f"[EMBEDDING] Warning: Truncating chunk {i+1} from {len(chunk)} to 8000 chars")
                         chunk = chunk[:8000]
-                    
+
                     response = requests.post('http://localhost:11434/api/embeddings', json={
                         'model': model,
                         'prompt': chunk
                     })
-                    
+
                     if response.status_code == 200:
                         resp_data = response.json()
                         vector = resp_data.get('embedding', [])
-                        
+
                         if not vector:
                             print(f"[EMBEDDING] Warning: Empty embedding vector for chunk {i+1}")
                             continue
-                            
+
                         embeddings.append({
                             "text": chunk,
                             "embedding": vector
@@ -551,10 +543,10 @@ def process_block():
                     else:
                         print(f"[EMBEDDING] Error for chunk {i+1}: {response.text}")
                         raise Exception(f"Failed to get embedding: {response.text}")
-                
+
                 if not embeddings:
                     raise ValueError("No valid embeddings were generated")
-                
+
                 result = {
                     'status': 'success',
                     'output': f"Generated {len(embeddings)} embeddings using {model} model",
@@ -562,7 +554,7 @@ def process_block():
                     'block_id': block_id
                 }
                 print(f"[EMBEDDING] Success: Generated {len(embeddings)} embeddings")
-                
+
             except Exception as e:
                 error_msg = str(e)
                 print(f"[EMBEDDING] Error: {error_msg}")
@@ -572,45 +564,106 @@ def process_block():
                     'embeddings': [],
                     'block_id': block_id
                 }
-            
+
             return jsonify(result)
 
         elif block_type == 'vector_store':
-            top_k = config.get('top_k', 3)
-            chunks_embedded = config.get('chunks_embedded', [])
+            from langchain.vectorstores import FAISS
+            from langchain.docstore.document import Document
+            from langchain.embeddings.base import Embeddings
+
+            class OllamaEmbeddings(Embeddings):
+                def __init__(self, model="nomic-embed-text"):
+                    self.model = model
+
+                def embed_documents(self, texts):
+                    embeddings = []
+                    for text in texts:
+                        response = requests.post('http://localhost:11434/api/embeddings', json={
+                            'model': self.model,
+                            'prompt': text
+                        })
+                        data = response.json()
+                        embeddings.append(data.get('embedding', []))
+                    return embeddings
+
+                def embed_query(self, text):
+                    response = requests.post('http://localhost:11434/api/embeddings', json={
+                        'model': self.model,
+                        'prompt': text
+                    })
+                    data = response.json()
+                    return data.get('embedding', [])
+
+            # Get embedded chunks
+            embedded_chunks = config.get('chunks_embedded', [])
             query = config.get('query', '')
-            
+            top_k = int(config.get('top_k', 3))
+
+            # Debug mode fallbacks
+            if debug_mode:
+                if not embedded_chunks:
+                    print("[VECTOR STORE] Debug mode: No embedded chunks provided, creating synthetic data")
+                    # Create synthetic embedded chunks for debug mode
+                    sample_texts = [
+                        "Sample chunk 1 for vector store in debug mode",
+                        "Sample chunk 2 for vector store with different content",
+                        "Sample chunk 3 with information about testing vector search"
+                    ]
+
+                    # Generate synthetic embeddings
+                    embedded_chunks = []
+                    for text in sample_texts:
+                        embedded_chunks.append({
+                            "text": text,
+                            "embedding": [random.uniform(-1, 1) for _ in range(768)]
+                        })
+
+                if not query:
+                    print("[VECTOR STORE] Debug mode: No query provided, using sample query")
+                    query = "sample query for vector store in debug mode"
+
+            # Check if we have the required data
+            if not embedded_chunks:
+                return jsonify({
+                    'status': 'error',
+                    'output': "No embedded chunks provided",
+                    'context': "",
+                    'block_id': block_id
+                })
+
+            print(f"[VECTOR STORE] Processing {len(embedded_chunks)} embedded chunks")
+            print(f"[VECTOR STORE] Query: {query}")
+            print(f"[VECTOR STORE] Top K: {top_k}")
+
             try:
-                from langchain_community.vectorstores import FAISS
-                
-                # Remove validation check and provide default values
-                if not chunks_embedded or not query:
-                    print(f"[VECTOR STORE] Warning: Missing {'embedded chunks' if not chunks_embedded else ''}{' and ' if not chunks_embedded and not query else ''}{' query' if not query else ''}")
-                    
-                    # Create dummy data if needed
-                    if not chunks_embedded:
-                        chunks_embedded = [
-                            {"text": "Sample chunk 1 for vector store", "embedding": [0.1] * 384},
-                            {"text": "Sample chunk 2 for vector store", "embedding": [0.2] * 384}
-                        ]
-                        print("[VECTOR STORE] Using sample embedded chunks")
-                    
-                    if not query:
-                        query = "sample query"
-                        print(f"[VECTOR STORE] Using sample query: '{query}'")
-                
-                # Extract texts and embeddings
-                texts = [chunk['text'] for chunk in chunks_embedded]
-                embeddings = [chunk['embedding'] for chunk in chunks_embedded]
-                
-                # Create FAISS index using Langchain with Ollama embeddings
-                from langchain.embeddings import OllamaEmbeddings
-                embeddings_model = OllamaEmbeddings(model="nomic-embed-text")
+                # Create Document objects for FAISS
+                documents = []
+                embeddings_list = []
+
+                for chunk in embedded_chunks:
+                    if not isinstance(chunk, dict):
+                        continue
+
+                    text = chunk.get('text', '')
+                    embedding = chunk.get('embedding', [])
+
+                    if not text or not embedding:
+                        continue
+
+                    documents.append(Document(page_content=text, metadata={}))
+                    embeddings_list.append(embedding)
+
+                # Create FAISS index
+                if not documents or not embeddings_list:
+                    raise ValueError("No valid documents or embeddings to store")
+
                 vector_store = FAISS.from_embeddings(
-                    text_embeddings=list(zip(texts, embeddings)), 
-                    embedding=embeddings_model
+                    text_embeddings=list(zip(documents, embeddings_list)),
+                    embedding=OllamaEmbeddings(),
+                    metadatas=[{}] * len(documents)
                 )
-                
+
                 # Get query embedding from Ollama
                 response = requests.post('http://localhost:11434/api/embeddings', json={
                     'model': 'nomic-embed-text',
@@ -618,16 +671,16 @@ def process_block():
                 })
                 if response.status_code != 200:
                     raise Exception(f"Failed to get query embedding: {response.text}")
-                
+
                 query_embedding = response.json().get('embedding', [])
-                
+
                 # Perform similarity search
                 retrieved_docs = vector_store.similarity_search_by_vector(query_embedding, k=top_k)
-                
+
                 # Extract chunks and combine into context
                 retrieved_chunks = [doc.page_content for doc in retrieved_docs]
                 context = "\n\n".join(retrieved_chunks)
-                
+
                 result = {
                     'status': 'success',
                     'output': f"Retrieved top {top_k} documents for query: {query}",
@@ -637,11 +690,6 @@ def process_block():
                 }
                 print(f"[VECTOR STORE] Retrieved {len(retrieved_chunks)} chunks for query: {query}")
                 print(f"[VECTOR STORE] Context: {context}")
-
-                # Update block status
-                block = canvas.blocks[block_id]
-                status = block.check_status()
-                result.update(status)
 
             except Exception as e:
                 result = {
@@ -658,9 +706,19 @@ def process_block():
             chat_input = config.get('chat_input', '')
             if chat_input:
                 query = chat_input
-            
+
+            # Provide default value in debug mode
+            if not query and debug_mode:
+                query = "sample query for testing in debug mode"
+                print(f"[QUERY INPUT] Debug mode: No query provided, using sample query: '{query}'")
+                result = {
+                    'status': 'success',
+                    'output': "Using default sample query in debug mode",
+                    'query': query,
+                    'block_id': block_id
+                }
             # Remove validation check and provide default value
-            if not query:
+            elif not query:
                 query = "sample query for testing"
                 print(f"[QUERY INPUT] Warning: No query provided, using sample query: '{query}'")
                 result = {
@@ -682,10 +740,15 @@ def process_block():
             model = config.get('model', 'tinyllama')
             temp = config.get('temperature', 0.75)
             prompt = config.get('prompt', '')
-            
+
+            # In debug mode, provide a sample prompt if missing
+            if debug_mode and not prompt:
+                prompt = "You are a helpful assistant. Please provide a concise answer to the following query: {query}"
+                print(f"[AI MODEL] Debug mode: No prompt template provided, using sample prompt")
+
             print(f"[AI MODEL] Model: {model}, Temperature: {temp}")
             print(f"[AI MODEL] Prompt template: {prompt}")
-            
+
             # Call Ollama API for generation
             try:
                 response = requests.post("http://localhost:11434/api/generate", json={
@@ -694,7 +757,7 @@ def process_block():
                     "temperature": temp,
                     "stream": False
                 })
-                
+
                 if response.status_code == 200:
                     generated_text = response.json().get('response', '')
                     result = {
@@ -725,10 +788,24 @@ def process_block():
             method = config.get('ranking_method', 'similarity')
             chunks = config.get('chunks', [])
             query = config.get('query', '')
-            
+
+            # In debug mode, provide sample data if missing
+            if debug_mode:
+                if not chunks:
+                    chunks = [
+                        "Sample chunk 1 for retrieval ranking in debug mode",
+                        "Sample chunk 2 for retrieval ranking in debug mode",
+                        "Sample chunk 3 for retrieval ranking with more information in debug mode"
+                    ]
+                    print("[RETRIEVAL RANKING] Debug mode: No chunks provided, using sample chunks")
+
+                if not query:
+                    query = "sample retrieval query in debug mode"
+                    print(f"[RETRIEVAL RANKING] Debug mode: No query provided, using sample query: '{query}'")
+
             try:
                 from sentence_transformers import CrossEncoder
-                
+
                 # Add fallback for missing data
                 if not chunks:
                     chunks = [
@@ -737,31 +814,50 @@ def process_block():
                         "Sample chunk 3 for retrieval ranking with more information"
                     ]
                     print("[RETRIEVAL RANKING] Warning: No chunks provided, using sample chunks")
-                
+
                 if not query:
                     query = "sample retrieval query"
                     print(f"[RETRIEVAL RANKING] Warning: No query provided, using sample query: '{query}'")
-                
-                # Use cross-encoder for more accurate relevance scoring
-                model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-                
-                # Score each chunk
-                pairs = [[query, chunk] for chunk in chunks]
-                scores = model.predict(pairs)
-                
-                # Sort chunks by score
-                ranked_pairs = list(zip(chunks, scores))
-                ranked_pairs.sort(key=lambda x: x[1], reverse=True)
-                
-                ranked_chunks = [pair[0] for pair in ranked_pairs]
-                context = "\n\n".join(ranked_chunks)
-                
+
+                # Simplified ranking for debug mode to avoid expensive model loading
+                if debug_mode:
+                    print(f"[RETRIEVAL RANKING] Using simplified scoring in debug mode")
+
+                    # Simple keyword matching score
+                    def simple_score(query, chunk):
+                        query_tokens = set(query.lower().split())
+                        chunk_tokens = set(chunk.lower().split())
+                        matches = len(query_tokens.intersection(chunk_tokens))
+                        return matches / max(len(query_tokens), 1)
+
+                    scores = [simple_score(query, chunk) for chunk in chunks]
+                    ranked_pairs = list(zip(chunks, scores))
+                    ranked_pairs.sort(key=lambda x: x[1], reverse=True)
+
+                    ranked_chunks = [pair[0] for pair in ranked_pairs]
+                    context = "\n\n".join(ranked_chunks)
+
+                else:
+                    # Use cross-encoder for more accurate relevance scoring
+                    model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+
+                    # Score each chunk
+                    pairs = [[query, chunk] for chunk in chunks]
+                    scores = model.predict(pairs)
+
+                    # Sort chunks by score
+                    ranked_pairs = list(zip(chunks, scores))
+                    ranked_pairs.sort(key=lambda x: x[1], reverse=True)
+
+                    ranked_chunks = [pair[0] for pair in ranked_pairs]
+                    context = "\n\n".join(ranked_chunks)
+
                 result = {
                     'status': 'success',
                     'output': f"Ranked retrieval results using {method}",
                     'ranked_chunks': ranked_chunks,
                     'context': context,
-                    'scores': scores.tolist(),
+                    'scores': [float(score) for score in scores],
                     'block_id': block_id
                 }
                 print(f"[RETRIEVAL RANKING] Ranked {len(ranked_chunks)} chunks")
@@ -784,7 +880,7 @@ def process_block():
                 'block_id': block_id
             }
             print(f"[ANSWER DISPLAY] Updated display")
-        
+
         print(f"[COMPLETED] Block: {block_type} ✓")
         return jsonify(result)
     except Exception as e:

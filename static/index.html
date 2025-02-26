@@ -21,6 +21,10 @@
         </div>
         <div id="top-bar">
             <button id="run-all" class="run-button">Run Pipeline</button>
+            <div class="debug-mode-container" title="Enable to run partial pipelines for debugging">
+                <input type="checkbox" id="debug-mode">
+                <label for="debug-mode">Debug Mode</label>
+            </div>
             <button id="export-pipeline" class="export-button">Export Pipeline</button>
             <button id="management-button" class="management-button">System Management</button>
         </div>
@@ -30,7 +34,7 @@
                 <div class="search-container">
                     <input type="text" id="block-search" placeholder="Search blocks...">
                 </div>
-                
+
                 <!-- PDF Loader Block Template -->
                 <div class="block-template" draggable="true" data-block-type="pdf_loader">
                     <div class="node-container">
@@ -219,7 +223,7 @@ Answer:</textarea>
                 <h2>System Status</h2>
                 <button class="close-button">×</button>
             </div>
-            
+
             <div class="management-content">
                 <div class="status-items">
                     <div class="status-item">

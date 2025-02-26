@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoomOutBtn = document.getElementById('zoom-out');
     const zoomFitBtn = document.getElementById('zoom-fit');
     const zoomLevelDisplay = document.querySelector('.zoom-level');
-    
+
     let isPanning = false;
     let startPoint = { x: 0, y: 0 };
     let currentTranslate = { x: 0, y: 0 };
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.className = `toast ${type}`;
         toast.innerHTML = message;
         document.getElementById('toast-container').appendChild(toast);
-        
+
         setTimeout(() => {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
@@ -137,6 +137,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return { valid: false, error: 'Pipeline is empty. Add some blocks first.' };
         }
 
+        // Check if debug mode is enabled
+        const debugMode = document.getElementById('debug-mode')?.checked || false;
+
+        if (debugMode) {
+            console.log("Debug mode is enabled - relaxing pipeline validation rules");
+            // In debug mode, we relax the requirement for specific block types
+            // but still check that there's at least one block
+            return { valid: true, debug: true };
+        }
+
+        // Normal validation when not in debug mode
         // Check for required block types
         const blockTypes = Array.from(blocks).map(b => b.getAttribute('data-block-type'));
         const hasVectorStore = blockTypes.includes('vector_store');
@@ -153,14 +164,14 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const block of blocks) {
             const inputNodes = block.querySelectorAll('.input-node');
             for (const inputNode of inputNodes) {
-                const hasConnection = connections.some(conn => 
+                const hasConnection = connections.some(conn =>
                     conn.target === block.id && conn.inputId === inputNode.getAttribute('data-input')
                 );
                 if (!hasConnection) {
                     const blockType = block.getAttribute('data-block-type');
                     const inputType = inputNode.getAttribute('data-input');
-                    return { 
-                        valid: false, 
+                    return {
+                        valid: false,
                         error: `${blockType} block is missing connection for ${inputType} input.`
                     };
                 }
@@ -173,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update the exportPipeline function
     async function exportPipeline() {
         showProgress(true, 'Exporting Pipeline', 'Collecting block configurations...');
-        
+
         try {
             // Validate pipeline first
             const validationResult = validatePipeline();
@@ -187,16 +198,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const blocks = document.querySelectorAll('.block');
             const blockData = {};
             let processedBlocks = 0;
-            
+
             for (const block of blocks) {
                 const id = block.id;
                 const type = block.getAttribute('data-block-type');
-                
+
                 updateProgress(
                     (processedBlocks / blocks.length) * 50,
                     `Processing ${type} configuration...`
                 );
-                
+
                 blockData[id] = {
                     type: type,
                     config: getBlockConfig(block)
@@ -220,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const result = await response.json();
-            
+
             if (result.status === 'success') {
                 updateProgress(100, 'Export completed!');
                 setTimeout(() => {
@@ -243,10 +254,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function processBlock(block) {
         const type = block.getAttribute('data-block-type');
         const config = getBlockConfig(block);
-        
+
+        // Check for debug mode
+        const debugMode = document.getElementById('debug-mode')?.checked || false;
+
         // Log for debugging
-        console.log(`Processing block: ${type} (ID: ${block.id})`);
-        
+        console.log(`Processing block: ${type} (ID: ${block.id}), Debug mode: ${debugMode}`);
+
         try {
             if (type === 'answer_display') {
                 // Find the input connection
@@ -256,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (sourceBlock) {
                         const display = block.querySelector('.answer-display');
                         const sourceType = sourceBlock.getAttribute('data-block-type');
-                        
+
                         // Get the value from the source block
                         let value;
                         try {
@@ -271,9 +285,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             console.log('Error parsing block data:', e);
                             value = sourceBlock.dataset.output;
                         }
-                        
+
                         console.log(`Display Block: Received value from ${sourceType}:`, value);
-                        
+
                         // Format the output based on type
                         if (value === undefined || value === null) {
                             display.textContent = "No data available";
@@ -286,21 +300,106 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             display.textContent = value;
                         }
-                        
+
                         // Add block type info for debugging
                         const chunks = block.querySelector('.context-chunks');
                         chunks.innerHTML = `<div class="debug-info">Source: ${sourceType} block</div>`;
-                        
+
                         // Store the value in the block's own dataset as well
                         block.dataset.output = typeof value === 'object' ? JSON.stringify(value) : value;
-                    } else {
-                        console.log(`Display Block: Source block not found for connection ${inputConnection.source}`);
                     }
-                } else {
-                    console.log(`Display Block: No input connection found`);
                 }
                 return;
             }
+
+            // Get inputs from connected blocks before processing
+            const inputNodes = block.querySelectorAll('.input-node');
+            const inputData = {};
+
+            // For each input node, find connected blocks and get their output
+            for (const inputNode of inputNodes) {
+                const inputType = inputNode.getAttribute('data-input');
+
+                // Find connection where this block's input is the target
+                const connection = connections.find(conn =>
+                    conn.target === block.id && conn.inputId === inputType
+                );
+
+                if (connection) {
+                    const sourceBlock = document.getElementById(connection.source);
+                    if (sourceBlock && sourceBlock.dataset.output) {
+                        try {
+                            // Parse the output from the source block
+                            const sourceOutput = JSON.parse(sourceBlock.dataset.output);
+                            console.log(`Input for ${inputType} from ${sourceBlock.id}:`, sourceOutput);
+
+                            // Store based on the source block type
+                            const sourceType = sourceBlock.getAttribute('data-block-type');
+
+                            // Handle different source block types
+                            if (sourceType === 'pdf_loader' && sourceOutput.content) {
+                                inputData.content = sourceOutput.content;
+                            } else if (sourceType === 'text_splitter' && sourceOutput.chunks) {
+                                inputData.chunks = sourceOutput.chunks;
+                            } else if (sourceType === 'embedding' && sourceOutput.embeddings) {
+                                inputData.chunks_embedded = sourceOutput.embeddings;
+                            } else if (sourceType === 'query_input' && sourceOutput.query) {
+                                inputData.query = sourceOutput.query;
+                            } else if (sourceType === 'vector_store' && sourceOutput.context) {
+                                inputData.context = sourceOutput.context;
+                            } else if (sourceType === 'ai_model' && sourceOutput.answer) {
+                                inputData.answer = sourceOutput.answer;
+                            }
+
+                            // Also store the direct input data with the input type as key
+                            inputData[inputType] = sourceOutput;
+                        } catch (e) {
+                            console.error(`Error parsing output from ${sourceBlock.id}:`, e);
+                        }
+                    }
+                }
+            }
+
+            // In debug mode, provide defaults for missing inputs
+            if (debugMode) {
+                console.log(`Debug mode: Checking for missing inputs on ${type} block`);
+
+                // Handle specific block types
+                if (type === 'text_splitter' && !inputData.content) {
+                    console.log(`Debug mode: Providing sample text for text_splitter`);
+                    inputData.content = "Sample text for the text splitter block in debug mode. This is provided automatically because no input text was found.";
+                }
+                else if (type === 'vector_store' && (!inputData.chunks_embedded || !inputData.query)) {
+                    if (!inputData.chunks_embedded) {
+                        console.log(`Debug mode: Providing sample embeddings for vector_store`);
+                        inputData.chunks_embedded = [
+                            {
+                                text: "Sample chunk 1 for debug mode",
+                                embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
+                            },
+                            {
+                                text: "Sample chunk 2 for debug mode with more sample text",
+                                embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
+                            }
+                        ];
+                    }
+                    if (!inputData.query) {
+                        console.log(`Debug mode: Providing sample query for vector_store`);
+                        inputData.query = "sample query for debug mode";
+                    }
+                }
+                else if (type === 'embedding' && !inputData.chunks) {
+                    console.log(`Debug mode: Providing sample chunks for embedding`);
+                    inputData.chunks = [
+                        "Sample chunk 1 for embedding in debug mode",
+                        "Sample chunk 2 for embedding in debug mode"
+                    ];
+                }
+            }
+
+            // Merge input data with the config
+            const mergedConfig = { ...config, ...inputData };
+            console.log(`Merged config for ${type}:`, mergedConfig);
 
             const response = await fetch('/api/blocks/process', {
                 method: 'POST',
@@ -310,7 +409,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     block_id: block.id,
                     type: type,
-                    config: config
+                    config: mergedConfig,
+                    debug_mode: debugMode
                 })
             });
 
@@ -322,14 +422,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const result = await response.json();
             console.log(`${type} block processed:`, result);
-            
+
             // Update block status
             updateBlockStatus(block, 'success');
-            
+
             // Store the entire result object in the block's dataset
             block.dataset.output = JSON.stringify(result);
             console.log(`${type} block output stored:`, block.dataset.output);
-            
+
+            // After successfully processing, propagate data to connected blocks
+            propagateData(block);
+
             return result;
         } catch (error) {
             console.error(`Error in ${type} block:`, error);
@@ -343,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (statusIndicator) {
             statusIndicator.className = `status-indicator ${status}`;
         }
-        
+
         const statusText = block.querySelector('.status');
         if (statusText) {
             statusText.textContent = status === 'success' ? 'Ready' : 'Error';
@@ -359,84 +462,63 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function propagateData(sourceBlock) {
-        console.log('Propagating data from block:', sourceBlock.id);
-        
+        // Get the source block ID and type
+        const sourceId = sourceBlock.id;
+        const sourceType = sourceBlock.getAttribute('data-block-type');
+
+        console.log(`Propagating data from ${sourceType} block (${sourceId})`);
+
         // Find all connections where this block is the source
-        const outgoingConnections = connections.filter(conn => conn.source === sourceBlock.id);
-        
-        outgoingConnections.forEach(async connection => {
-            const targetBlock = document.getElementById(connection.target);
-            if (!targetBlock) return;
-            
-            console.log('Processing connection:', connection);
-            console.log('Target block:', targetBlock.id);
-            
-            // Get the configuration for the target block
-            const config = getBlockConfig(targetBlock);
-            
-            // Get the output data from the source block
-            let sourceData = {};
-            try {
-                sourceData = JSON.parse(sourceBlock.dataset.output || '{}');
-            } catch (e) {
-                console.warn('Failed to parse source block output:', e);
+        const outgoingConnections = connections.filter(conn => conn.source === sourceId);
+
+        if (outgoingConnections.length === 0) {
+            console.log(`No outgoing connections from ${sourceId}`);
+            return;
+        }
+
+        console.log(`Found ${outgoingConnections.length} outgoing connections from ${sourceId}`);
+
+        // Get the output data from this block
+        let outputData;
+        try {
+            outputData = JSON.parse(sourceBlock.dataset.output);
+            console.log(`Output data from ${sourceId}:`, outputData);
+        } catch (e) {
+            console.error(`Error parsing output data from ${sourceId}:`, e);
+            return;
+        }
+
+        // Check if the output is valid
+        if (!outputData || outputData.status === 'error') {
+            console.warn(`Invalid or error output from ${sourceId}, skipping propagation`);
+            return;
+        }
+
+        // Process each connected block
+        for (const connection of outgoingConnections) {
+            const targetId = connection.target;
+            const targetBlock = document.getElementById(targetId);
+
+            if (!targetBlock) {
+                console.warn(`Target block ${targetId} not found`);
+                continue;
             }
-            console.log('Source data:', sourceData);
-            
-            // Update config based on the block type
+
             const targetType = targetBlock.getAttribute('data-block-type');
-            const sourceType = sourceBlock.getAttribute('data-block-type');
-            
-            if (targetType === 'text_splitter' && sourceType === 'pdf_loader') {
-                // Get content from either content field or input_text
-                config.content = sourceData.content || sourceData.input_text;
-                config.input_text = sourceData.content || sourceData.input_text;
-                console.log('Passing PDF content to text splitter:', {
-                    content_length: config.content?.length,
-                    preview: config.content?.substring(0, 100)
-                });
-            }
-            else if (targetType === 'embedding' && sourceType === 'text_splitter') {
-                config.chunks = sourceData.chunks;
-                console.log('Passing chunks to embedding:', config.chunks?.length);
-            }
-            else if (targetType === 'vector_store') {
-                if (connection.inputId === 'ChunksEmbedded') {
-                    config.chunks_embedded = sourceData.embeddings;
-                    console.log('Setting vector store chunks:', config.chunks_embedded?.length);
-                } else if (connection.inputId === 'Query') {
-                    config.query = sourceData.query;
-                    console.log('Setting vector store query:', config.query);
-                }
-            }
-            else if (targetType === 'ai_model') {
-                if (connection.inputId === 'Query') {
-                    config.query = sourceData.query;
-                    console.log('Setting AI model query:', config.query);
-                } else if (connection.inputId === 'Context') {
-                    config.context = sourceData.context;
-                    console.log('Setting AI model context:', config.context);
-                }
-            }
-            
-            console.log('Final config for target block:', config);
-            
-            try {
-                // Process the target block with the updated config
-                const result = await processBlock(targetBlock, config);
-                console.log('Block processing result:', result);
-                
-                if (result.status === 'success') {
-                    // Store the output in the block's dataset
-                    targetBlock.dataset.output = JSON.stringify(result);
-                    // Recursively propagate to connected blocks
-                    propagateData(targetBlock);
-                }
-            } catch (error) {
-                console.error('Error processing block:', error);
-                showToast('Error processing block: ' + error.message, 'error');
-            }
-        });
+            console.log(`Propagating to ${targetType} block (${targetId})`);
+
+            // Automatically process the target block with a small delay to allow UI updates
+            setTimeout(() => {
+                console.log(`Processing connected block ${targetType} (${targetId})`);
+                processBlock(targetBlock)
+                    .then(result => {
+                        console.log(`Successfully processed connected block ${targetId}`, result);
+                    })
+                    .catch(err => {
+                        console.error(`Error processing connected block ${targetId}:`, err);
+                    });
+            }, 100);
+        }
     }
 
     // Block template drag functionality
@@ -513,27 +595,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // Calculate position relative to canvas, accounting for zoom and pan
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
-            
+
             // Snap to grid
             const snappedX = snapToGrid(x);
             const snappedY = snapToGrid(y);
-            
+
             draggedBlock.style.transform = `translate(${snappedX}px, ${snappedY}px)`;
             updateConnections();
-            
+
             e.preventDefault();
         }
-        
+
         if (draggingConnection && tempConnection && sourceNode) {
             const canvasRect = canvas.getBoundingClientRect();
             const sourceRect = sourceNode.getBoundingClientRect();
-            
+
             // Calculate connection points accounting for canvas transform
             const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
             const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
             const x2 = ((e.clientX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
             const y2 = ((e.clientY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
-            
+
             tempConnection.setAttribute('x1', x1);
             tempConnection.setAttribute('y1', y1);
             tempConnection.setAttribute('x2', x2);
@@ -688,7 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         block.classList.remove('block-template');
         block.classList.add('block');
         block.id = `block-${blockCounter++}`;
-        
+
         // Add delete button
         const deleteButton = document.createElement('div');
         deleteButton.className = 'delete-button';
@@ -709,13 +791,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.button !== 0) return; // Only left mouse button
                 isDraggingBlock = true;
                 draggedBlock = block;
-                
+
                 // Calculate offset from the mouse to the block's top-left corner
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
                 dragOffset.x = (e.clientX - rect.left) / zoom;
                 dragOffset.y = (e.clientY - rect.top) / zoom;
-                
+
                 block.style.zIndex = '1000';
                 e.preventDefault();
                 e.stopPropagation();
@@ -732,14 +814,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 draggingConnection = true;
                 sourceNode = outputNode;
-                
+
                 const rect = outputNode.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                
+
                 tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
                 const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
-                
+
                 tempConnection.setAttribute('x1', x1);
                 tempConnection.setAttribute('y1', y1);
                 tempConnection.setAttribute('x2', x1);
@@ -753,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inputNode.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
             });
-            
+
             inputNode.addEventListener('mouseover', (e) => {
                 if (draggingConnection && sourceNode) {
                     const sourceBlock = sourceNode.closest('.block');
@@ -821,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             messages.innerHTML += `<div class="message">${text}</div>`;
                             input.value = '';
                             messages.scrollTop = messages.scrollHeight;
-                            
+
                             // Store the query in the block's data and propagate
                             block.dataset.output = text;
                             propagateData(block);
@@ -834,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                 }
                 break;
-            
+
             case 'rag_prompt':
                 const ragInterface = block.querySelector('.chat-interface');
                 if (ragInterface) {
@@ -848,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             messages.innerHTML += `<div class="message">${text}</div>`;
                             input.value = '';
                             messages.scrollTop = messages.scrollHeight;
-                            
+
                             // Store the message in the block's data and propagate
                             block.dataset.output = text;
                             propagateData(block);
@@ -866,9 +948,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.model = block.querySelector('.model-selector').value;
                 config.temperature = parseFloat(block.querySelector('.temperature').value);
                 config.prompt = block.querySelector('.prompt-template').value;
-                
+
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn => 
+                const queryConnection = connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -878,9 +960,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         config.prompt = config.prompt.replace('{query}', queryText || '');
                     }
                 }
-                
+
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn => 
+                const contextConnection = connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
@@ -901,19 +983,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update the updateConnections function
     function updateConnections() {
         if (!connectionsContainer) return;
-        
+
         connectionsContainer.innerHTML = '';
         connections.forEach((conn, index) => {
             const sourceBlock = document.getElementById(conn.source);
             const targetBlock = document.getElementById(conn.target);
-            
+
             if (!sourceBlock || !targetBlock) return;
-            
+
             const sourceNode = sourceBlock.querySelector('.output-node');
             const targetNode = targetBlock.querySelector(`[data-input="${conn.inputId}"]`);
-            
+
             if (!sourceNode || !targetNode) return;
-            
+
             const sourceRect = sourceNode.getBoundingClientRect();
             const targetRect = targetNode.getBoundingClientRect();
             const canvasRect = canvas.getBoundingClientRect();
@@ -931,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
             line.setAttribute('y2', y2);
             line.setAttribute('class', 'connection-line');
             line.setAttribute('data-connection-index', index);
-            
+
             line.addEventListener('click', (e) => {
                 if (selectedConnection === line) {
                     connections.splice(index, 1);
@@ -945,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     line.classList.add('selected');
                 }
             });
-            
+
             connectionsContainer.appendChild(line);
         });
     }
@@ -995,7 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize management panel
     const managementButton = document.getElementById('management-button');
     const managementPanel = document.getElementById('system-management');
-    
+
     if (!managementButton || !managementPanel) {
         console.error('Management panel elements not found!');
         return;
@@ -1034,21 +1116,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function showOllamaGuide() {
         const system = navigator.platform.toLowerCase();
         let instructions = '';
-        
+
         if (system.includes('win')) {
-            instructions = 
+            instructions =
                 '1. Open the Start menu\n' +
                 '2. Search for "Ollama"\n' +
                 '3. Click on the Ollama application to start it\n\n' +
                 'Note: The Ollama icon should appear in your system tray when running.';
         } else if (system.includes('mac')) {
-            instructions = 
+            instructions =
                 '1. Open Terminal (you can find it in Applications > Utilities)\n' +
                 '2. Type: ollama serve\n' +
                 '3. Press Enter\n\n' +
                 'Note: Keep the Terminal window open while using Ollama.';
         } else {
-            instructions = 
+            instructions =
                 '1. Open a terminal\n' +
                 '2. Type: ollama serve\n' +
                 '3. Press Enter\n\n' +
@@ -1063,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/system/status');
             const data = await response.json();
             const ollamaStatus = document.getElementById('ollama-status');
-            
+
             if (data.ollama_status === 'running') {
                 ollamaStatus.textContent = 'Running';
                 ollamaStatus.className = 'status-value running';
@@ -1082,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateStatusDisplay(elementId, status) {
         const element = document.getElementById(elementId);
         element.className = 'status-value ' + status;
-        
+
         switch(status) {
             case 'running':
                 element.textContent = 'Running';
@@ -1103,9 +1185,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateStorageDisplay(storage) {
-        document.getElementById('storage-usage').textContent = 
+        document.getElementById('storage-usage').textContent =
             formatBytes(storage.models_size);
-        document.getElementById('temp-files').textContent = 
+        document.getElementById('temp-files').textContent =
             formatBytes(storage.temp_size);
     }
 
@@ -1120,13 +1202,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function installOllama() {
         const button = document.getElementById('install-ollama');
         button.disabled = true;
-        
+
         try {
             const response = await fetch('/api/system/install-ollama', {
                 method: 'POST'
             });
             const data = await response.json();
-            
+
             if (data.status === 'manual_install_required') {
                 window.open(data.download_url, '_blank');
                 alert('Please download and install Ollama from the opened page.');
@@ -1181,7 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/models/list');
             const data = await response.json();
             const modelsDiv = document.getElementById('ollama-models');
-            
+
             if (response.ok) {
                 if (data.models && data.models.length > 0) {
                     modelsDiv.innerHTML = data.models.map(model => `
@@ -1219,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/models/list');
             const data = await response.json();
-            
+
             if (response.ok && data.models) {
                 const modelSelectors = document.querySelectorAll('.model-selector');
                 modelSelectors.forEach(selector => {
@@ -1280,9 +1362,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.model = block.querySelector('.model-selector').value;
                 config.temperature = parseFloat(block.querySelector('.temperature').value);
                 config.prompt = block.querySelector('.prompt-template').value;
-                
+
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn => 
+                const queryConnection = connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -1292,9 +1374,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         config.prompt = config.prompt.replace('{query}', queryText || '');
                     }
                 }
-                
+
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn => 
+                const contextConnection = connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
