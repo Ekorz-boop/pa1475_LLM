@@ -50,6 +50,22 @@
     color: #e65100;
 }
 
+[data-block-type="custom-block"] .block-drag-handle {
+    background-color: #fff0f4;  /* Light pink */
+    color: #c2185b;
+}
+
+[data-block-type="string-addition"] .block-drag-handle {
+    background-color: #f1f8e9;  /* Light lime */
+    color: #558b2f;
+}
+
+[data-block-type="text-splitter"] .block-drag-handle {
+    background-color: #e0f2f1;  /* Light teal */
+    color: #00695c;
+}
+
+
 .block-drag-handle {
     width: 100%;
     height: 24px;
