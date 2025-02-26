@@ -595,10 +595,32 @@ def process_block():
                     data = response.json()
                     return data.get('embedding', [])
 
-            # Get embedded chunks
+            # Get embedded chunks and embedded query
             embedded_chunks = config.get('chunks_embedded', [])
-            query = config.get('query', '')
+
+            # Look for embedded query from embedding block
+            embedded_query = None
+            # First check if we have an embedded query dictionary with text and embedding
+            if 'embedded_query' in config and isinstance(config['embedded_query'], dict):
+                embedded_query = config['embedded_query']
+            # Then check if we have a list of embedded queries (take the first one)
+            elif 'embedded_query' in config and isinstance(config['embedded_query'], list) and len(config['embedded_query']) > 0:
+                embedded_query = config['embedded_query'][0]
+
+            # Also check for a raw query (text only) as fallback
+            query_text = config.get('query', '')
+
+            # Get top_k parameter
             top_k = int(config.get('top_k', 3))
+
+            print(f"[VECTOR STORE] Processing {len(embedded_chunks)} embedded chunks")
+            if embedded_query:
+                print(f"[VECTOR STORE] Using embedded query: {embedded_query.get('text', 'Unknown')}")
+            elif query_text:
+                print(f"[VECTOR STORE] Using text query (will be embedded): {query_text}")
+            else:
+                print(f"[VECTOR STORE] No query provided")
+            print(f"[VECTOR STORE] Top K: {top_k}")
 
             # Debug mode fallbacks
             if debug_mode:
@@ -619,9 +641,9 @@ def process_block():
                             "embedding": [random.uniform(-1, 1) for _ in range(768)]
                         })
 
-                if not query:
+                if not embedded_query and not query_text:
                     print("[VECTOR STORE] Debug mode: No query provided, using sample query")
-                    query = "sample query for vector store in debug mode"
+                    query_text = "sample query for vector store in debug mode"
 
             # Check if we have the required data
             if not embedded_chunks:
@@ -629,50 +651,104 @@ def process_block():
                     'status': 'error',
                     'output': "No embedded chunks provided",
                     'context': "",
+                    'retrieved_chunks': [],
+                    'chunks': [],
                     'block_id': block_id
                 })
 
-            print(f"[VECTOR STORE] Processing {len(embedded_chunks)} embedded chunks")
-            print(f"[VECTOR STORE] Query: {query}")
-            print(f"[VECTOR STORE] Top K: {top_k}")
-
             try:
+                # Get and validate embedded chunks
+                if not embedded_chunks:
+                    print("[VECTOR STORE] No embedded chunks provided")
+                    if debug_mode:
+                        # Create sample embedded chunks for debug mode
+                        print("[VECTOR STORE] Creating sample embedded chunks for debug mode")
+                        import random
+                        sample_chunks = ["Sample text chunk 1", "Sample text chunk 2", "Sample text chunk 3"]
+                        embedded_chunks = []
+                        for i, text in enumerate(sample_chunks):
+                            # Generate a 768-dimension random embedding for testing
+                            embedding = [random.uniform(-1, 1) for _ in range(768)]
+                            embedded_chunks.append({"text": text, "embedding": embedding})
+                    else:
+                        raise ValueError("No embedded chunks provided")
+
+                # Print diagnostics about embedded chunks
+                print(f"[VECTOR STORE] Processing {len(embedded_chunks)} embedded chunks")
+                for i, chunk in enumerate(embedded_chunks[:3]):  # Print sample of first 3 chunks
+                    chunk_type = type(chunk)
+                    print(f"[VECTOR STORE] Chunk {i+1} type: {chunk_type}")
+                    if isinstance(chunk, dict):
+                        text = chunk.get('text', '')
+                        embedding = chunk.get('embedding', [])
+                        print(f"[VECTOR STORE] Chunk {i+1} text type: {type(text)}, preview: {str(text)[:30]}")
+                        print(f"[VECTOR STORE] Chunk {i+1} embedding length: {len(embedding)}")
+
                 # Create Document objects for FAISS
                 documents = []
                 embeddings_list = []
 
-                for chunk in embedded_chunks:
-                    if not isinstance(chunk, dict):
+                for i, chunk in enumerate(embedded_chunks):
+                    try:
+                        if not isinstance(chunk, dict):
+                            print(f"[VECTOR STORE] Warning: Skipping non-dict chunk {i}: {type(chunk)}")
+                            continue
+
+                        text = chunk.get('text', '')
+                        embedding = chunk.get('embedding', [])
+
+                        # Handle potentially nested Document objects
+                        if hasattr(text, 'page_content'):
+                            print(f"[VECTOR STORE] Found Document object instead of string, extracting page_content")
+                            text = text.page_content
+
+                        # Ensure text is a string
+                        if not isinstance(text, str):
+                            print(f"[VECTOR STORE] Converting non-string content to string: {type(text)}")
+                            text = str(text)
+
+                        if not text or not embedding:
+                            print(f"[VECTOR STORE] Skipping chunk {i}: Missing text or embedding")
+                            continue
+
+                        # Create Document object with the extracted string text
+                        documents.append(Document(page_content=text, metadata={}))
+                        embeddings_list.append(embedding)
+                    except Exception as chunk_error:
+                        print(f"[VECTOR STORE] Error processing chunk {i}: {str(chunk_error)}")
                         continue
 
-                    text = chunk.get('text', '')
-                    embedding = chunk.get('embedding', [])
-
-                    if not text or not embedding:
-                        continue
-
-                    documents.append(Document(page_content=text, metadata={}))
-                    embeddings_list.append(embedding)
-
-                # Create FAISS index
+                # Validate we have documents and embeddings to process
                 if not documents or not embeddings_list:
                     raise ValueError("No valid documents or embeddings to store")
 
+                # Create FAISS index
                 vector_store = FAISS.from_embeddings(
                     text_embeddings=list(zip(documents, embeddings_list)),
                     embedding=OllamaEmbeddings(),
                     metadatas=[{}] * len(documents)
                 )
 
-                # Get query embedding from Ollama
-                response = requests.post('http://localhost:11434/api/embeddings', json={
-                    'model': 'nomic-embed-text',
-                    'prompt': query
-                })
-                if response.status_code != 200:
-                    raise Exception(f"Failed to get query embedding: {response.text}")
+                # Get query embedding - either use provided embedding or generate one
+                query_embedding = []
 
-                query_embedding = response.json().get('embedding', [])
+                if embedded_query and 'embedding' in embedded_query:
+                    # Use the provided embedding
+                    query_embedding = embedded_query['embedding']
+                    print(f"[VECTOR STORE] Using provided query embedding (size: {len(query_embedding)})")
+                elif query_text:
+                    # Generate embedding for the query text
+                    print(f"[VECTOR STORE] Generating embedding for query text: {query_text}")
+                    response = requests.post('http://localhost:11434/api/embeddings', json={
+                        'model': 'nomic-embed-text',
+                        'prompt': query_text
+                    })
+                    if response.status_code != 200:
+                        raise Exception(f"Failed to get query embedding: {response.text}")
+
+                    query_embedding = response.json().get('embedding', [])
+                else:
+                    raise ValueError("No query or query embedding provided")
 
                 # Perform similarity search
                 retrieved_docs = vector_store.similarity_search_by_vector(query_embedding, k=top_k)
@@ -681,21 +757,31 @@ def process_block():
                 retrieved_chunks = [doc.page_content for doc in retrieved_docs]
                 context = "\n\n".join(retrieved_chunks)
 
+                # Log what is being returned
+                print(f"[VECTOR STORE] Retrieved {len(retrieved_chunks)} chunks for query")
+                for i, chunk in enumerate(retrieved_chunks):
+                    print(f"[VECTOR STORE] Chunk {i+1}: {chunk[:50]}...")
+
+                # Create result with chunks in multiple formats to ensure compatibility
                 result = {
                     'status': 'success',
-                    'output': f"Retrieved top {top_k} documents for query: {query}",
+                    'output': f"Retrieved top {top_k} documents for query",
                     'context': context,
                     'retrieved_chunks': retrieved_chunks,
+                    'chunks': retrieved_chunks,  # Include as chunks to be consistent with other blocks
                     'block_id': block_id
                 }
-                print(f"[VECTOR STORE] Retrieved {len(retrieved_chunks)} chunks for query: {query}")
-                print(f"[VECTOR STORE] Context: {context}")
+
+                # Log the structure of the result for debugging
+                print(f"[VECTOR STORE] Result keys: {', '.join(result.keys())}")
 
             except Exception as e:
                 result = {
                     'status': 'error',
                     'output': f"Error in vector store: {str(e)}",
                     'context': "",
+                    'retrieved_chunks': [],
+                    'chunks': [],
                     'block_id': block_id
                 }
                 print(f"[VECTOR STORE] Error: {str(e)}")

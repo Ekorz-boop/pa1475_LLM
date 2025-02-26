@@ -342,11 +342,39 @@ document.addEventListener('DOMContentLoaded', () => {
                             } else if (sourceType === 'text_splitter' && sourceOutput.chunks) {
                                 inputData.chunks = sourceOutput.chunks;
                             } else if (sourceType === 'embedding' && sourceOutput.embeddings) {
-                                inputData.chunks_embedded = sourceOutput.embeddings;
+                                // Check if this is going to a vector store's query input
+                                if (inputType === 'Query') {
+                                    // This is an embedded query (single embedding for the Query input)
+                                    // Use the first embedding as the embedded query
+                                    console.log('Using embedding as query input:', sourceOutput.embeddings[0]);
+                                    inputData.embedded_query = sourceOutput.embeddings[0];
+                                } else {
+                                    // Normal embedding chunks (for ChunksEmbedded input)
+                                    inputData.chunks_embedded = sourceOutput.embeddings;
+                                }
                             } else if (sourceType === 'query_input' && sourceOutput.query) {
                                 inputData.query = sourceOutput.query;
-                            } else if (sourceType === 'vector_store' && sourceOutput.context) {
-                                inputData.context = sourceOutput.context;
+                            } else if (sourceType === 'vector_store') {
+                                // Get context from vector store (joined text)
+                                if (sourceOutput.context) {
+                                    inputData.context = sourceOutput.context;
+                                }
+
+                                // Get the individual chunks (preferred format for some blocks)
+                                if (sourceOutput.retrieved_chunks && sourceOutput.retrieved_chunks.length > 0) {
+                                    console.log(`Found ${sourceOutput.retrieved_chunks.length} retrieved chunks from vector store`);
+                                    inputData.chunks = sourceOutput.retrieved_chunks;
+                                } else if (sourceOutput.chunks && sourceOutput.chunks.length > 0) {
+                                    console.log(`Found ${sourceOutput.chunks.length} chunks from vector store`);
+                                    inputData.chunks = sourceOutput.chunks;
+                                } else {
+                                    console.log(`No chunks found in vector store output:`, sourceOutput);
+                                }
+
+                                // Also store the query if available for retrieval ranking
+                                if (sourceOutput.query) {
+                                    inputData.query = sourceOutput.query;
+                                }
                             } else if (sourceType === 'ai_model' && sourceOutput.answer) {
                                 inputData.answer = sourceOutput.answer;
                             }
@@ -369,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log(`Debug mode: Providing sample text for text_splitter`);
                     inputData.content = "Sample text for the text splitter block in debug mode. This is provided automatically because no input text was found.";
                 }
-                else if (type === 'vector_store' && (!inputData.chunks_embedded || !inputData.query)) {
+                else if (type === 'vector_store' && (!inputData.chunks_embedded || (!inputData.query && !inputData.embedded_query))) {
                     if (!inputData.chunks_embedded) {
                         console.log(`Debug mode: Providing sample embeddings for vector_store`);
                         inputData.chunks_embedded = [
@@ -383,9 +411,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         ];
                     }
-                    if (!inputData.query) {
-                        console.log(`Debug mode: Providing sample query for vector_store`);
-                        inputData.query = "sample query for debug mode";
+
+                    // Provide a sample embedded query if neither a text query nor an embedded query exists
+                    if (!inputData.query && !inputData.embedded_query) {
+                        console.log(`Debug mode: Providing sample embedded query for vector_store`);
+                        // Create a sample embedded query with similar structure to real embeddings
+                        inputData.embedded_query = {
+                            text: "sample query for debug mode",
+                            embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
+                        };
                     }
                 }
                 else if (type === 'embedding' && !inputData.chunks) {
