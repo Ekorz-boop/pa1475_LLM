@@ -45,14 +45,18 @@ from langchain_community.embeddings import OllamaEmbeddings"""
         self.function_string = """def create_embeddings():
     sys.stdout.reconfigure(encoding='utf-8')
     print("🧠 Initializing embeddings model...")
-    with tqdm(total=1, desc="Loading embeddings model") as pbar:
-        embeddings = OllamaEmbeddings(
-            model="nomic-embed-text",
-            base_url="http://localhost:11434"
-        )
-        pbar.update(1)
-    print("✅ Embeddings model ready")
-    return embeddings"""
+    try:
+        with tqdm(total=1, desc="Loading embeddings model") as pbar:
+            embeddings = OllamaEmbeddings(
+                model="nomic-embed-text",
+                base_url="http://localhost:11434"
+            )
+            pbar.update(1)
+        print("✅ Embeddings model ready")
+        return embeddings
+    except Exception as e:
+        print(f"❌ Error initializing embeddings model: {str(e)}")
+        raise"""
     
     def validate_connections(self) -> bool:
         return True
@@ -65,15 +69,30 @@ from tqdm import tqdm
 from langchain_community.vectorstores import FAISS"""
         self.function_string = """def create_vectorstore(documents, embeddings):
     sys.stdout.reconfigure(encoding='utf-8')
+    if not documents:
+        raise ValueError("No documents provided to vector store")
+    
+    if not embeddings:
+        raise ValueError("No embeddings model provided to vector store")
+        
     print("🗄️  Creating vector store...")
-    with tqdm(total=1, desc="Building FAISS index") as pbar:
-        vectorstore = FAISS.from_documents(documents, embeddings)
-        pbar.update(1)
-    print("✅ Vector store ready")
-    return vectorstore"""
+    print(f"Input received: {len(documents)} document chunks")
+    try:
+        with tqdm(total=1, desc="Building FAISS index") as pbar:
+            vectorstore = FAISS.from_documents(documents, embeddings)
+            pbar.update(1)
+        print("✅ Vector store ready")
+        return vectorstore
+    except Exception as e:
+        print(f"❌ Error creating vector store: {str(e)}")
+        raise"""
     
     def validate_connections(self) -> bool:
-        return all(isinstance(inp, (EmbeddingBlock)) for inp in self.inputs.values())
+        # Check if the inputs contain at least one TextSplitterBlock and one EmbeddingBlock
+        has_text_splitter = any(isinstance(inp, TextSplitterBlock) for inp in self.inputs.values())
+        has_embedding = any(isinstance(inp, EmbeddingBlock) for inp in self.inputs.values())
+        
+        return has_text_splitter and has_embedding
 
 class PDFLoaderBlock(Block):
     def __init__(self):
@@ -134,7 +153,12 @@ from tqdm import tqdm
 from langchain_text_splitters import RecursiveCharacterTextSplitter"""
         self.function_string = """def split_text(documents):
     sys.stdout.reconfigure(encoding='utf-8')
+    if not documents:
+        raise ValueError("No documents provided to the text splitter")
+        
     print("✂️  Splitting text into chunks...")
+    print(f"Input received: {len(documents)} document(s)")
+    
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
@@ -146,7 +170,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter"""
     return splits"""
     
     def validate_connections(self) -> bool:
-        return all(isinstance(inp, PDFLoaderBlock) for inp in self.inputs.values())
+        # First check if all inputs are PDFLoaderBlocks
+        if not all(isinstance(inp, PDFLoaderBlock) for inp in self.inputs.values()):
+            return False
+        # Check that we have at least one input
+        if not self.inputs:
+            return False
+        return True
 
 class RAGPromptBlock(Block):
     def __init__(self):
@@ -290,6 +320,29 @@ class Canvas:
         """Generate the main execution code based on the block order."""
         code_lines = []
         results = {}  # block_id -> variable_name
+        input_map = {}  # target_block_id -> {parameter_name: source_block_id}
+        
+        # Build input parameter map for each block
+        for source_id, targets in self.connections.items():
+            for target_id in targets:
+                if target_id not in input_map:
+                    input_map[target_id] = {}
+                
+                source_block = self.blocks[source_id]
+                target_block = self.blocks[target_id]
+                
+                if isinstance(target_block, TextSplitterBlock) and isinstance(source_block, PDFLoaderBlock):
+                    input_map[target_id]['documents'] = source_id
+                elif isinstance(target_block, VectorStoreBlock):
+                    if isinstance(source_block, TextSplitterBlock):
+                        input_map[target_id]['documents'] = source_id
+                    elif isinstance(source_block, EmbeddingBlock):
+                        input_map[target_id]['embeddings'] = source_id
+                elif isinstance(target_block, RAGPromptBlock):
+                    if isinstance(source_block, ChatModelBlock):
+                        input_map[target_id]['llm'] = source_id
+                    elif isinstance(source_block, VectorStoreBlock):
+                        input_map[target_id]['vectorstore'] = source_id
         
         for block_id in execution_order:
             block = self.blocks[block_id]
@@ -300,10 +353,15 @@ class Canvas:
                 results[block_id] = f"{block_id}_result"
             
             elif isinstance(block, TextSplitterBlock):
-                input_var = results[list(block.inputs.keys())[0]]
-                code_lines.append(f"    # Split text")
-                code_lines.append(f"    {block_id}_result = split_text({input_var})")
-                results[block_id] = f"{block_id}_result"
+                if block_id in input_map and 'documents' in input_map[block_id]:
+                    input_var = results[input_map[block_id]['documents']]
+                    code_lines.append(f"    # Split text")
+                    code_lines.append(f"    {block_id}_result = split_text({input_var})")
+                    results[block_id] = f"{block_id}_result"
+                else:
+                    code_lines.append(f"    # WARNING: TextSplitterBlock missing document input")
+                    code_lines.append(f"    {block_id}_result = split_text([])")
+                    results[block_id] = f"{block_id}_result"
             
             elif isinstance(block, EmbeddingBlock):
                 code_lines.append(f"    # Create embeddings")
@@ -311,11 +369,21 @@ class Canvas:
                 results[block_id] = f"{block_id}_result"
             
             elif isinstance(block, VectorStoreBlock):
-                docs_var = results[list(block.inputs.keys())[0]]
-                emb_var = results[list(block.inputs.keys())[1]]
-                code_lines.append(f"    # Create vector store")
-                code_lines.append(f"    {block_id}_result = create_vectorstore({docs_var}, {emb_var})")
-                results[block_id] = f"{block_id}_result"
+                # Make sure we have both document chunks and embeddings
+                if block_id in input_map and 'documents' in input_map[block_id] and 'embeddings' in input_map[block_id]:
+                    docs_var = results[input_map[block_id]['documents']]
+                    emb_var = results[input_map[block_id]['embeddings']]
+                    code_lines.append(f"    # Create vector store")
+                    code_lines.append(f"    {block_id}_result = create_vectorstore({docs_var}, {emb_var})")
+                    results[block_id] = f"{block_id}_result"
+                else:
+                    code_lines.append(f"    # WARNING: VectorStoreBlock missing required inputs")
+                    # Create empty placeholder
+                    if 'documents' not in input_map.get(block_id, {}):
+                        code_lines.append(f"    # Missing document chunks input")
+                    if 'embeddings' not in input_map.get(block_id, {}):
+                        code_lines.append(f"    # Missing embeddings input")
+                    results[block_id] = f"None # Placeholder for missing VectorStore"
             
             elif isinstance(block, ChatModelBlock):
                 code_lines.append(f"    # Create LLM")
@@ -323,10 +391,22 @@ class Canvas:
                 results[block_id] = f"{block_id}_result"
             
             elif isinstance(block, RAGPromptBlock):
-                llm_var = results[list(block.inputs.keys())[0]]
-                vs_var = results[list(block.inputs.keys())[1]]
-                code_lines.append(f"    # Create RAG chain")
-                code_lines.append(f"    {block_id}_result = create_rag_chain({llm_var}, {vs_var})")
-                results[block_id] = f"{block_id}_result"
+                if block_id in input_map and 'llm' in input_map[block_id] and 'vectorstore' in input_map[block_id]:
+                    llm_var = results[input_map[block_id]['llm']]
+                    vs_var = results[input_map[block_id]['vectorstore']]
+                    code_lines.append(f"    # Create RAG chain")
+                    code_lines.append(f"    {block_id}_result = create_rag_chain({llm_var}, {vs_var})")
+                    results[block_id] = f"{block_id}_result"
+                else:
+                    code_lines.append(f"    # WARNING: RAGPromptBlock missing required inputs")
+                    if 'llm' not in input_map.get(block_id, {}):
+                        code_lines.append(f"    # Missing LLM input")
+                    if 'vectorstore' not in input_map.get(block_id, {}):
+                        code_lines.append(f"    # Missing vectorstore input")
+                    results[block_id] = f"None # Placeholder for missing RAG chain"
         
-        return "\n".join(code_lines) 
+        # Add some debug info
+        code_lines.append("\n    # Print completion message with debug info")
+        code_lines.append('    print("\\n✅ Pipeline execution complete!")')
+        
+        return "\n".join(code_lines)
