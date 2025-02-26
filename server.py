@@ -14,6 +14,11 @@ from blocks import (
     PDFLoaderBlock, TextSplitterBlock, RAGPromptBlock, Canvas
 )
 import random
+from langchain.docstore.document import Document
+from langchain_community.vectorstores import FAISS
+import numpy as np
+import faiss
+from langchain_community.docstore.in_memory import InMemoryDocstore
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -563,28 +568,15 @@ def process_block():
             from langchain.docstore.document import Document
             from langchain.embeddings.base import Embeddings
 
-            class OllamaEmbeddings(Embeddings):
-                def __init__(self, model="nomic-embed-text"):
-                    self.model = model
-
+            # Create a dummy embedding class that doesn't compute anything
+            class DummyEmbeddings:
                 def embed_documents(self, texts):
-                    embeddings = []
-                    for text in texts:
-                        response = requests.post('http://localhost:11434/api/embeddings', json={
-                            'model': self.model,
-                            'prompt': text
-                        })
-                        data = response.json()
-                        embeddings.append(data.get('embedding', []))
-                    return embeddings
-
+                    # This won't be called since we're providing pre-computed embeddings
+                    return [np.zeros(768) for _ in texts]
+                
                 def embed_query(self, text):
-                    response = requests.post('http://localhost:11434/api/embeddings', json={
-                        'model': self.model,
-                        'prompt': text
-                    })
-                    data = response.json()
-                    return data.get('embedding', [])
+                    # This won't be called for the same reason
+                    return np.zeros(768)
 
             # Get embedded chunks and embedded query
             embedded_chunks = config.get('chunks_embedded', [])
@@ -668,8 +660,11 @@ def process_block():
                         embedding = chunk.get('embedding', [])
 
                         # Handle potentially nested Document objects
-                        if hasattr(text, 'page_content'):
+                        if isinstance(text, Document):
                             print(f"[VECTOR STORE] Found Document object instead of string, extracting page_content")
+                            text = text.page_content
+                        elif hasattr(text, 'page_content'):
+                            print(f"[VECTOR STORE] Found object with page_content attribute, extracting it")
                             text = text.page_content
 
                         # Ensure text is a string
@@ -693,11 +688,54 @@ def process_block():
                     raise ValueError("No valid documents or embeddings to store")
 
                 # Create FAISS index
-                vector_store = FAISS.from_embeddings(
-                    text_embeddings=list(zip(documents, embeddings_list)),
-                    embedding=OllamaEmbeddings(),
-                    metadatas=[{}] * len(documents)
-                )
+                try:
+                    print("[VECTOR STORE] Creating FAISS index with embeddings")
+                    
+                    # Create a list of (Document, embedding) tuples
+                    text_embeddings = []
+                    for i, (doc, emb) in enumerate(zip(documents, embeddings_list)):
+                        try:
+                            # Ensure we're working with strings for document content
+                            if isinstance(doc, Document):
+                                # Already a Document object
+                                text_embeddings.append((doc, emb))
+                            else:
+                                # Create a new Document with the text
+                                text = str(doc) if not isinstance(doc, str) else doc
+                                text_embeddings.append((Document(page_content=text, metadata={}), emb))
+                        except Exception as e:
+                            print(f"[VECTOR STORE] Error processing document {i}: {str(e)}")
+                    
+                    # Create the vector store using FAISS directly
+                    embeddings_array = np.array([emb for _, emb in text_embeddings])
+                    texts = [doc.page_content for doc, _ in text_embeddings]
+
+                    # Create a mapping from index to document ID
+                    index_to_docstore_id = {i: str(i) for i in range(len(texts))}
+
+                    # Create a docstore with the documents
+                    docstore = InMemoryDocstore({
+                        str(i): Document(page_content=text, metadata={}) 
+                        for i, text in enumerate(texts)
+                    })
+
+                    # Create the FAISS index
+                    dimension = embeddings_array.shape[1]
+                    index = faiss.IndexFlatL2(dimension)
+                    index.add(embeddings_array)
+
+                    # Create the vector store
+                    vector_store = FAISS(
+                        embedding_function=lambda x: np.zeros(dimension),  # Dummy function
+                        index=index,
+                        docstore=docstore,
+                        index_to_docstore_id=index_to_docstore_id
+                    )
+
+                    print(f"[VECTOR STORE] Successfully created FAISS index with {len(text_embeddings)} documents")
+                except Exception as e:
+                    print(f"[VECTOR STORE] Error creating FAISS index: {str(e)}")
+                    raise
 
                 # Get query embedding - either use provided embedding or generate one
                 query_embedding = []
