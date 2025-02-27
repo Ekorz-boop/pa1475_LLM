@@ -1,3 +1,9 @@
-flask==3.0.2
-flask-cors==4.0.0
-requests 
+flask
+flask-cors
+PyPDF2
+sentence-transformers
+faiss-cpu
+numpy
+requests
+langchain
+langchain-community 

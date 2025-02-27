@@ -76,3 +76,45 @@
     font-size: 20px;
     margin-left: auto;
 }
+
+/* Debug Mode Toggle */
+.debug-mode-container {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    margin-left: 15px;
+    background-color: #f0f0ff;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.debug-mode-container label {
+    margin-left: 5px;
+    font-size: 14px;
+    color: #555;
+}
+
+.debug-mode-container input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.export-button, .management-button {
+    padding: 8px 16px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    margin-left: 10px;
+    transition: background-color 0.2s;
+}
+
+.export-button:hover, .management-button:hover {
+    background-color: #0b7dda;
+}
+
+.export-button:active, .management-button:active {
+    background-color: #0a6fc2;
+}

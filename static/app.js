@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoomOutBtn = document.getElementById('zoom-out');
     const zoomFitBtn = document.getElementById('zoom-fit');
     const zoomLevelDisplay = document.querySelector('.zoom-level');
-    
+
     let isPanning = false;
     let startPoint = { x: 0, y: 0 };
     let currentTranslate = { x: 0, y: 0 };
@@ -95,107 +95,436 @@ document.addEventListener('DOMContentLoaded', () => {
         runPipeline();
     });
 
-    async function runPipeline() {
-        const blocks = document.querySelectorAll('.block');
-        for (const block of blocks) {
-            await processBlock(block);
+    // Add these utility functions at the top of the file
+    function showToast(message, type = 'info', duration = 3000) {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = message;
+        document.getElementById('toast-container').appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    function showProgress(show = true, title = 'Processing...', status = 'Initializing...') {
+        const modal = document.getElementById('progress-modal');
+        if (show) {
+            document.getElementById('progress-title').textContent = title;
+            document.getElementById('progress-status').textContent = status;
+            document.querySelector('.progress-fill').style.width = '0%';
+            modal.style.display = 'flex';
+        } else {
+            modal.style.display = 'none';
         }
     }
 
+    function updateProgress(percent, status) {
+        document.querySelector('.progress-fill').style.width = `${percent}%`;
+        if (status) {
+            document.getElementById('progress-status').textContent = status;
+        }
+    }
+
+    // Update the runPipeline function
+    async function runPipeline() {
+        showProgress(true, 'Running Pipeline', 'Analyzing pipeline structure...');
+        const blocks = document.querySelectorAll('.block');
+        const totalBlocks = blocks.length;
+        let processedBlocks = 0;
+
+        try {
+            // First validate the pipeline
+            const validationResult = validatePipeline();
+            if (!validationResult.valid) {
+                showToast(validationResult.error, 'error');
+                showProgress(false);
+                return;
+            }
+
+            // Process blocks in order
+            for (const block of blocks) {
+                const type = block.getAttribute('data-block-type');
+                updateProgress(
+                    (processedBlocks / totalBlocks) * 100,
+                    `Processing ${type} block...`
+                );
+
+                try {
+                    await processBlock(block);
+                    processedBlocks++;
+                } catch (error) {
+                    showToast(`Error in ${type} block: ${error.message}`, 'error');
+                    showProgress(false);
+                    return;
+                }
+            }
+
+            updateProgress(100, 'Pipeline completed successfully!');
+            setTimeout(() => {
+                showProgress(false);
+                showToast('Pipeline executed successfully!', 'success');
+            }, 1000);
+        } catch (error) {
+            showToast(`Pipeline error: ${error.message}`, 'error');
+            showProgress(false);
+        }
+    }
+
+    // Add pipeline validation function
+    function validatePipeline() {
+        const blocks = document.querySelectorAll('.block');
+        if (blocks.length === 0) {
+            return { valid: false, error: 'Pipeline is empty. Add some blocks first.' };
+        }
+
+        // Check if debug mode is enabled
+        const debugMode = document.getElementById('debug-mode')?.checked || false;
+
+        if (debugMode) {
+            console.log("Debug mode is enabled - relaxing pipeline validation rules");
+            // In debug mode, we relax the requirement for specific block types
+            // but still check that there's at least one block
+            return { valid: true, debug: true };
+        }
+
+        // Normal validation when not in debug mode
+        // Check for required block types
+        const blockTypes = Array.from(blocks).map(b => b.getAttribute('data-block-type'));
+        const hasVectorStore = blockTypes.includes('vector_store');
+        const hasAIModel = blockTypes.includes('ai_model');
+
+        if (!hasVectorStore) {
+            return { valid: false, error: 'Pipeline must include a Vector Store block.' };
+        }
+        if (!hasAIModel) {
+            return { valid: false, error: 'Pipeline must include an AI Model block.' };
+        }
+
+        // Check connections
+        for (const block of blocks) {
+            const inputNodes = block.querySelectorAll('.input-node');
+            for (const inputNode of inputNodes) {
+                const hasConnection = connections.some(conn =>
+                    conn.target === block.id && conn.inputId === inputNode.getAttribute('data-input')
+                );
+                if (!hasConnection) {
+                    const blockType = block.getAttribute('data-block-type');
+                    const inputType = inputNode.getAttribute('data-input');
+                    return {
+                        valid: false,
+                        error: `${blockType} block is missing connection for ${inputType} input.`
+                    };
+                }
+            }
+        }
+
+        return { valid: true };
+    }
+
+    // Update the exportPipeline function
+    async function exportPipeline() {
+        showProgress(true, 'Exporting Pipeline', 'Collecting block configurations...');
+
+        try {
+            // Validate pipeline first
+            const validationResult = validatePipeline();
+            if (!validationResult.valid) {
+                showToast(validationResult.error, 'error');
+                showProgress(false);
+                return;
+            }
+
+            // Get all blocks and their configurations
+            const blocks = document.querySelectorAll('.block');
+            const blockData = {};
+            let processedBlocks = 0;
+
+            for (const block of blocks) {
+                const id = block.id;
+                const type = block.getAttribute('data-block-type');
+
+                updateProgress(
+                    (processedBlocks / blocks.length) * 50,
+                    `Processing ${type} configuration...`
+                );
+
+                blockData[id] = {
+                    type: type,
+                    config: getBlockConfig(block)
+                };
+                processedBlocks++;
+            }
+
+            updateProgress(75, 'Generating Python code...');
+
+            // Send to backend
+            const response = await fetch('/api/blocks/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    blocks: blockData,
+                    connections: connections,
+                    output_file: 'generated_rag.py'
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                updateProgress(100, 'Export completed!');
+                setTimeout(() => {
+                    showProgress(false);
+                    showToast(
+                        `Pipeline exported successfully to ${result.file}! 🎉`,
+                        'success'
+                    );
+                }, 1000);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            showToast(`Export failed: ${error.message}`, 'error');
+            showProgress(false);
+        }
+    }
+
+    // Update block processing function
     async function processBlock(block) {
         const type = block.getAttribute('data-block-type');
-        const displayElement = block.querySelector('.output-display');
+        const config = getBlockConfig(block);
 
-        switch (type) {
-            case 'file-loader':
-                const fileInput = block.querySelector('.file-input');
-                if (fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    const text = await file.text();
-                    block.dataset.output = text;
-                    propagateData(block);
-                }
-                break;
+        // Check for debug mode
+        const debugMode = document.getElementById('debug-mode')?.checked || false;
 
-            case 'text-splitter':
+        // Log for debugging
+        console.log(`Processing block: ${type} (ID: ${block.id}), Debug mode: ${debugMode}`);
+
+        try {
+            if (type === 'answer_display') {
+                // Find the input connection
                 const inputConnection = connections.find(conn => conn.target === block.id);
                 if (inputConnection) {
                     const sourceBlock = document.getElementById(inputConnection.source);
-                    const text = sourceBlock.dataset.output;
-                    const chunkSize = parseInt(block.querySelector('.chunk-size').value);
-                    const chunks = splitTextIntoChunks(text, chunkSize);
-                    block.dataset.output = JSON.stringify(chunks);
-                    propagateData(block);
-                }
-                break;
+                    if (sourceBlock) {
+                        const display = block.querySelector('.answer-display');
+                        const sourceType = sourceBlock.getAttribute('data-block-type');
 
-            case 'display':
-                const connection = connections.find(conn => conn.target === block.id);
+                        // Get the value from the source block
+                        let value;
+                        try {
+                            const blockData = JSON.parse(sourceBlock.dataset.output);
+                            // For AI model, use the answer field
+                            if (sourceType === 'ai_model' && blockData.answer) {
+                                value = blockData.answer;
+                            } else {
+                                value = blockData;
+                            }
+                        } catch (e) {
+                            console.log('Error parsing block data:', e);
+                            value = sourceBlock.dataset.output;
+                        }
+
+                        console.log(`Display Block: Received value from ${sourceType}:`, value);
+
+                        // Format the output based on type
+                        if (value === undefined || value === null) {
+                            display.textContent = "No data available";
+                        } else if (typeof value === 'object') {
+                            try {
+                                display.innerHTML = `<pre class="json-output">${JSON.stringify(value, null, 2)}</pre>`;
+                            } catch (err) {
+                                display.textContent = `[Object]: ${value.toString()}`;
+                            }
+                        } else {
+                            display.textContent = value;
+                        }
+
+                        // Add block type info for debugging
+                        const chunks = block.querySelector('.context-chunks');
+                        chunks.innerHTML = `<div class="debug-info">Source: ${sourceType} block</div>`;
+
+                        // Store the value in the block's own dataset as well
+                        block.dataset.output = typeof value === 'object' ? JSON.stringify(value) : value;
+                    }
+                }
+                return;
+            }
+
+            // Get inputs from connected blocks before processing
+            const inputNodes = block.querySelectorAll('.input-node');
+            const inputData = {};
+
+            // For each input node, find connected blocks and get their output
+            for (const inputNode of inputNodes) {
+                const inputType = inputNode.getAttribute('data-input');
+
+                // Find connection where this block's input is the target
+                const connection = connections.find(conn =>
+                    conn.target === block.id && conn.inputId === inputType
+                );
+
                 if (connection) {
                     const sourceBlock = document.getElementById(connection.source);
-                    const data = sourceBlock.dataset.output;
-                    if (data) {
-                        displayElement.textContent = data;
-                    } else {
-                        displayElement.textContent = 'No data';
-                    }
-                } else {
-                    displayElement.textContent = 'No input';
-                }
-                break;
+                    if (sourceBlock && sourceBlock.dataset.output) {
+                        try {
+                            // Parse the output from the source block
+                            const sourceOutput = JSON.parse(sourceBlock.dataset.output);
+                            console.log(`Input for ${inputType} from ${sourceBlock.id}:`, sourceOutput);
 
-            case 'string-addition':
-                const inputConnection1 = connections.find(conn => conn.target === block.id && conn.inputId === 'Text1');
-                const inputConnection2 = connections.find(conn => conn.target === block.id && conn.inputId === 'Text2');
-                if (inputConnection1 && inputConnection2) {
-                    const sourceBlock1 = document.getElementById(inputConnection1.source);
-                    const sourceBlock2 = document.getElementById(inputConnection2.source);
-                    const text1 = sourceBlock1.dataset.output;
-                    const text2 = sourceBlock2.dataset.output;
-                    const result = text1 + text2;
-                    block.dataset.output = result;
-                    propagateData(block);
-                }
-                break;
+                            // Store based on the source block type
+                            const sourceType = sourceBlock.getAttribute('data-block-type');
 
-            case 'ai-model':
-                const modelInputConnection = connections.find(conn => conn.target === block.id);
-                if (modelInputConnection) {
-                    const sourceBlock = document.getElementById(modelInputConnection.source);
-                    const inputText = sourceBlock.dataset.output;
-                    const modelSelector = block.querySelector('.model-selector');
-                    const selectedModel = modelSelector ? modelSelector.value : 'tinyllama';
-                    
-                    // Show loading state
-                    block.dataset.output = 'Generating...';
-                    propagateData(block);
-                    
-                    // Call the API
-                    fetch('/api/generate', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ 
-                            input: inputText,
-                            model: selectedModel
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            block.dataset.output = 'Error: ' + data.error;
-                        } else {
-                            block.dataset.output = data.output;
+                            // Handle different source block types
+                            if (sourceType === 'query_input') {
+                                // Check for stored query first, then fall back to the output
+                                const persistentQuery = sourceBlock.getAttribute('data-last-query');
+                                let queryText = '';
+                                
+                                if (persistentQuery) {
+                                    console.log(`Using persistent query: ${persistentQuery}`);
+                                    queryText = persistentQuery;
+                                } else if (sourceOutput.query) {
+                                    queryText = sourceOutput.query;
+                                }
+                                
+                                // Store the query for different block types
+                                inputData.query = queryText;
+                                
+                                // If this is an embedding block, also add the query as a chunk to embed
+                                if (block.getAttribute('data-block-type') === 'embedding') {
+                                    console.log(`Adding query as chunk for embedding: ${queryText}`);
+                                    inputData.chunks = [queryText];
+                                }
+                            } else if (sourceType === 'pdf_loader' && sourceOutput.content) {
+                                inputData.content = sourceOutput.content;
+                            } else if (sourceType === 'text_splitter' && sourceOutput.chunks) {
+                                inputData.chunks = sourceOutput.chunks;
+                            } else if (sourceType === 'embedding' && sourceOutput.embeddings) {
+                                // Check if this is going to a vector store's query input
+                                if (inputType === 'Query') {
+                                    // This is an embedded query (single embedding for the Query input)
+                                    // Use the first embedding as the embedded query
+                                    console.log('Using embedding as query input:', sourceOutput.embeddings[0]);
+                                    inputData.embedded_query = sourceOutput.embeddings[0];
+                                } else {
+                                    // Normal embedding chunks (for ChunksEmbedded input)
+                                    inputData.chunks_embedded = sourceOutput.embeddings;
+                                }
+                            } else if (sourceType === 'vector_store') {
+                                // Get context from vector store (joined text)
+                                if (sourceOutput.context) {
+                                    inputData.context = sourceOutput.context;
+                                }
+
+                                // Get the individual chunks (preferred format for some blocks)
+                                if (sourceOutput.retrieved_chunks && sourceOutput.retrieved_chunks.length > 0) {
+                                    console.log(`Found ${sourceOutput.retrieved_chunks.length} retrieved chunks from vector store`);
+                                    inputData.chunks = sourceOutput.retrieved_chunks;
+                                } else if (sourceOutput.chunks && sourceOutput.chunks.length > 0) {
+                                    console.log(`Found ${sourceOutput.chunks.length} chunks from vector store`);
+                                    inputData.chunks = sourceOutput.chunks;
+                                } else {
+                                    console.log(`No chunks found in vector store output:`, sourceOutput);
+                                }
+
+                                // Also store the query if available for retrieval ranking
+                                if (sourceOutput.query) {
+                                    inputData.query = sourceOutput.query;
+                                }
+                            } else if (sourceType === 'ai_model' && sourceOutput.answer) {
+                                inputData.answer = sourceOutput.answer;
+                            }
+
+                            // Also store the direct input data with the input type as key
+                            inputData[inputType] = sourceOutput;
+                        } catch (e) {
+                            console.error(`Error parsing output from ${sourceBlock.id}:`, e);
                         }
-                        propagateData(block);
-                    })
-                    .catch(error => {
-                        block.dataset.output = 'Error: ' + error.message;
-                        propagateData(block);
-                    });
+                    }
                 }
-                break;
+            }
+
+            // In debug mode, provide defaults for missing inputs
+            if (debugMode) {
+                console.log(`Debug mode: Checking for missing inputs on ${type} block`);
+
+                // Handle specific block types
+                if (type === 'text_splitter' && !inputData.content) {
+                    console.log(`Debug mode: Providing sample text for text_splitter`);
+                    inputData.content = "Sample text for the text splitter block in debug mode. This is provided automatically because no input text was found.";
+                }
+                else if (type === 'vector_store' && (!inputData.chunks_embedded || (!inputData.query && !inputData.embedded_query))) {
+                    
+
+                    // Provide a sample embedded query if neither a text query nor an embedded query exists
+                    if (!inputData.query && !inputData.embedded_query) {
+                        console.log(`Debug mode: Providing sample embedded query for vector_store`);
+                        // Create a sample embedded query with similar structure to real embeddings
+                        inputData.embedded_query = {
+                            text: "sample query for debug mode",
+                            embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
+                        };
+                    }
+                }
+            }
+
+            // Merge input data with the config
+            const mergedConfig = { ...config, ...inputData };
+            console.log(`Merged config for ${type}:`, mergedConfig);
+
+            const response = await fetch('/api/blocks/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    block_id: block.id,
+                    type: type,
+                    config: mergedConfig,
+                    debug_mode: debugMode
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                console.error(`Error processing ${type} block:`, error);
+                throw new Error(error.message || 'Failed to process block');
+            }
+
+            const result = await response.json();
+            console.log(`${type} block processed:`, result);
+
+            // Update block status
+            updateBlockStatus(block, 'success');
+
+            // Store the entire result object in the block's dataset
+            block.dataset.output = JSON.stringify(result);
+            console.log(`${type} block output stored:`, block.dataset.output);
+
+            // After successfully processing, propagate data to connected blocks
+            propagateData(block);
+
+            return result;
+        } catch (error) {
+            console.error(`Error in ${type} block:`, error);
+            updateBlockStatus(block, 'error');
+            throw error;
+        }
+    }
+
+    function updateBlockStatus(block, status) {
+        const statusIndicator = block.querySelector('.status-indicator');
+        if (statusIndicator) {
+            statusIndicator.className = `status-indicator ${status}`;
+        }
+
+        const statusText = block.querySelector('.status');
+        if (statusText) {
+            statusText.textContent = status === 'success' ? 'Ready' : 'Error';
         }
     }
 
@@ -208,13 +537,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function propagateData(sourceBlock) {
-        const outgoingConnections = connections.filter(conn => conn.source === sourceBlock.id);
-        outgoingConnections.forEach(conn => {
-            const targetBlock = document.getElementById(conn.target);
-            if (targetBlock) {
-                processBlock(targetBlock);
+        // Get the source block ID and type
+        const sourceId = sourceBlock.id;
+        const sourceType = sourceBlock.getAttribute('data-block-type');
+
+        console.log(`Propagating data from ${sourceType} block (${sourceId})`);
+
+        // Find all connections where this block is the source
+        const outgoingConnections = connections.filter(conn => conn.source === sourceId);
+
+        if (outgoingConnections.length === 0) {
+            console.log(`No outgoing connections from ${sourceId}`);
+            return;
+        }
+
+        console.log(`Found ${outgoingConnections.length} outgoing connections from ${sourceId}`);
+
+        // Get the output data from this block
+        let outputData;
+        try {
+            outputData = JSON.parse(sourceBlock.dataset.output);
+            console.log(`Output data from ${sourceId}:`, outputData);
+        } catch (e) {
+            console.error(`Error parsing output data from ${sourceId}:`, e);
+            return;
+        }
+
+        // Check if the output is valid
+        if (!outputData || outputData.status === 'error') {
+            console.warn(`Invalid or error output from ${sourceId}, skipping propagation`);
+            return;
+        }
+
+        // Special handling for query_input blocks to ensure query persistence
+        if (sourceType === 'query_input' && outputData.query) {
+            // Store the query in a more permanent way
+            sourceBlock.setAttribute('data-last-query', outputData.query);
+            console.log(`Stored persistent query: ${outputData.query}`);
+        }
+
+        // Process each connected block
+        for (const connection of outgoingConnections) {
+            const targetId = connection.target;
+            const targetBlock = document.getElementById(targetId);
+
+            if (!targetBlock) {
+                console.warn(`Target block ${targetId} not found`);
+                continue;
             }
-        });
+
+            const targetType = targetBlock.getAttribute('data-block-type');
+            console.log(`Propagating to ${targetType} block (${targetId})`);
+
+            // Automatically process the target block with a small delay to allow UI updates
+            setTimeout(() => {
+                console.log(`Processing connected block ${targetType} (${targetId})`);
+                processBlock(targetBlock)
+                    .then(result => {
+                        console.log(`Successfully processed connected block ${targetId}`, result);
+                    })
+                    .catch(err => {
+                        console.error(`Error processing connected block ${targetId}:`, err);
+                    });
+            }, 100);
+        }
     }
 
     // Block template drag functionality
@@ -291,27 +677,23 @@ document.addEventListener('DOMContentLoaded', () => {
             // Calculate position relative to canvas, accounting for zoom and pan
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
-            
-            // Snap to grid
-            const snappedX = snapToGrid(x);
-            const snappedY = snapToGrid(y);
-            
-            draggedBlock.style.transform = `translate(${snappedX}px, ${snappedY}px)`;
+
+            draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             updateConnections();
-            
+
             e.preventDefault();
         }
-        
+
         if (draggingConnection && tempConnection && sourceNode) {
             const canvasRect = canvas.getBoundingClientRect();
             const sourceRect = sourceNode.getBoundingClientRect();
-            
+
             // Calculate connection points accounting for canvas transform
             const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
             const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
             const x2 = ((e.clientX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
             const y2 = ((e.clientY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
-            
+
             tempConnection.setAttribute('x1', x1);
             tempConnection.setAttribute('y1', y1);
             tempConnection.setAttribute('x2', x2);
@@ -462,12 +844,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const template = document.querySelector(`.block-template[data-block-type="${type}"]`);
         if (!template) return;
 
-        // Create a new block from template
-        const block = document.createElement('div');
-        block.className = 'block';
+        const block = template.cloneNode(true);
+        block.classList.remove('block-template');
+        block.classList.add('block');
         block.id = `block-${blockCounter++}`;
-        block.setAttribute('data-block-type', type);
-        block.innerHTML = template.innerHTML;
 
         // Add delete button
         const deleteButton = document.createElement('div');
@@ -479,34 +859,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         block.appendChild(deleteButton);
 
-        // Add to container first
-        blockContainer.appendChild(block);
+        // Position the block
+        block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
 
-        // Position the block (snapped to grid)
-        const snappedX = snapToGrid(x);
-        const snappedY = snapToGrid(y);
-        block.style.transform = `translate(${snappedX}px, ${snappedY}px)`;
-
-        // Make only the drag handle draggable
+        // Make block draggable
         const dragHandle = block.querySelector('.block-drag-handle');
         if (dragHandle) {
             dragHandle.addEventListener('mousedown', (e) => {
                 if (e.button !== 0) return; // Only left mouse button
                 isDraggingBlock = true;
                 draggedBlock = block;
-                
-                // Calculate offset from the mouse to the block's center
+
+                // Calculate offset from the mouse to the block's top-left corner
                 const rect = block.getBoundingClientRect();
-                dragOffset.x = rect.width / 2;
-                dragOffset.y = 12; // Half of drag handle height
-                
+                const canvasRect = canvas.getBoundingClientRect();
+                dragOffset.x = (e.clientX - rect.left) / zoom;
+                dragOffset.y = (e.clientY - rect.top) / zoom;
+
                 block.style.zIndex = '1000';
                 e.preventDefault();
                 e.stopPropagation();
             });
         }
 
-        // Node connection handling
+        // Add connection handling
         const outputNode = block.querySelector('.output-node');
         const inputNodes = block.querySelectorAll('.input-node');
 
@@ -516,14 +892,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 draggingConnection = true;
                 sourceNode = outputNode;
-                
+
                 const rect = outputNode.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                
+
                 tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
                 const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
-                
+
                 tempConnection.setAttribute('x1', x1);
                 tempConnection.setAttribute('y1', y1);
                 tempConnection.setAttribute('x2', x1);
@@ -537,7 +913,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inputNode.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
             });
-            
+
             inputNode.addEventListener('mouseover', (e) => {
                 if (draggingConnection && sourceNode) {
                     const sourceBlock = sourceNode.closest('.block');
@@ -581,29 +957,217 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        if (type === 'ai-model') {
-            updateModelSelectors();
-        }
+        // Add to canvas
+        blockContainer.appendChild(block);
+
+        // Initialize block based on type
+        initializeBlock(block, type);
 
         return block;
+    }
+
+    function initializeBlock(block, type) {
+        switch (type) {
+            case 'query_input':
+                const queryInterface = block.querySelector('.chat-interface');
+                if (queryInterface) {
+                    const input = queryInterface.querySelector('input');
+                    const sendButton = queryInterface.querySelector('button');
+                    const messages = queryInterface.querySelector('.chat-messages');
+                    
+                    // Initialize query history if not already present
+                    if (!block.hasAttribute('data-query-history')) {
+                        block.setAttribute('data-query-history', JSON.stringify([]));
+                    }
+                    
+                    // Function to update the messages display
+                    const updateMessagesDisplay = () => {
+                        try {
+                            const queryHistory = JSON.parse(block.getAttribute('data-query-history') || '[]');
+                            messages.innerHTML = '';
+                            
+                            queryHistory.forEach((query, index) => {
+                                const messageDiv = document.createElement('div');
+                                messageDiv.className = 'message';
+                                messageDiv.textContent = query;
+                                messageDiv.setAttribute('data-index', index);
+                                
+                                // Add delete button
+                                const deleteBtn = document.createElement('span');
+                                deleteBtn.className = 'delete-message';
+                                deleteBtn.innerHTML = '&times;';
+                                deleteBtn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    // Remove this query from history
+                                    queryHistory.splice(index, 1);
+                                    block.setAttribute('data-query-history', JSON.stringify(queryHistory));
+                                    
+                                    // Update the current query to the last one in history
+                                    const lastQuery = queryHistory[queryHistory.length - 1] || '';
+                                    const outputData = {
+                                        status: 'success',
+                                        output: "Query received",
+                                        query: lastQuery,
+                                        block_id: block.id
+                                    };
+                                    block.dataset.output = JSON.stringify(outputData);
+                                    
+                                    // Update display and propagate changes
+                                    updateMessagesDisplay();
+                                    propagateData(block);
+                                };
+                                
+                                // Make message clickable to select it
+                                messageDiv.onclick = () => {
+                                    // Set this as the current query
+                                    const outputData = {
+                                        status: 'success',
+                                        output: "Query received",
+                                        query: query,
+                                        block_id: block.id
+                                    };
+                                    block.dataset.output = JSON.stringify(outputData);
+                                    
+                                    // Highlight this message
+                                    document.querySelectorAll('.message.selected').forEach(el => {
+                                        el.classList.remove('selected');
+                                    });
+                                    messageDiv.classList.add('selected');
+                                    
+                                    // Propagate this query
+                                    propagateData(block);
+                                };
+                                
+                                messageDiv.appendChild(deleteBtn);
+                                messages.appendChild(messageDiv);
+                            });
+                            
+                            // Scroll to bottom
+                            messages.scrollTop = messages.scrollHeight;
+                        } catch (e) {
+                            console.error('Error updating messages display:', e);
+                        }
+                    };
+                    
+                    // Initial display update
+                    updateMessagesDisplay();
+                    
+                    const sendMessage = () => {
+                        const text = input.value.trim();
+                        if (text) {
+                            try {
+                                // Add to query history
+                                const queryHistory = JSON.parse(block.getAttribute('data-query-history') || '[]');
+                                queryHistory.push(text);
+                                block.setAttribute('data-query-history', JSON.stringify(queryHistory));
+                                
+                                // Clear input
+                                input.value = '';
+                                
+                                // Update the output data with the new query
+                                const outputData = {
+                                    status: 'success',
+                                    output: "Query received",
+                                    query: text,
+                                    block_id: block.id
+                                };
+                                block.dataset.output = JSON.stringify(outputData);
+                                
+                                // Update display and propagate
+                                updateMessagesDisplay();
+                                propagateData(block);
+                            } catch (e) {
+                                console.error('Error sending message:', e);
+                            }
+                        }
+                    };
+                    
+                    sendButton.onclick = sendMessage;
+                    input.onkeypress = (e) => {
+                        if (e.key === 'Enter') sendMessage();
+                    };
+                }
+                break;
+
+            case 'rag_prompt':
+                const ragInterface = block.querySelector('.chat-interface');
+                if (ragInterface) {
+                    const input = ragInterface.querySelector('input');
+                    const sendButton = ragInterface.querySelector('button');
+                    const messages = ragInterface.querySelector('.chat-messages');
+
+                    const sendMessage = () => {
+                        const text = input.value.trim();
+                        if (text) {
+                            messages.innerHTML += `<div class="message">${text}</div>`;
+                            input.value = '';
+                            messages.scrollTop = messages.scrollHeight;
+
+                            // Store the message in the block's data and propagate
+                            block.dataset.output = text;
+                            propagateData(block);
+                        }
+                    };
+
+                    sendButton.onclick = sendMessage;
+                    input.onkeypress = (e) => {
+                        if (e.key === 'Enter') sendMessage();
+                    };
+                }
+                break;
+
+            case 'ai_model':
+                config.model = block.querySelector('.model-selector').value;
+                config.temperature = parseFloat(block.querySelector('.temperature').value);
+                config.prompt = block.querySelector('.prompt-template').value;
+
+                // Get query from connected query input block
+                const queryConnection = connections.find(conn =>
+                    conn.target === block.id && conn.inputId === 'Query'
+                );
+                if (queryConnection) {
+                    const queryBlock = document.getElementById(queryConnection.source);
+                    if (queryBlock) {
+                        const queryText = queryBlock.dataset.output;
+                        config.prompt = config.prompt.replace('{query}', queryText || '');
+                    }
+                }
+
+                // Get context from connected vector store or ranking block
+                const contextConnection = connections.find(conn =>
+                    conn.target === block.id && conn.inputId === 'Context'
+                );
+                if (contextConnection) {
+                    const contextBlock = document.getElementById(contextConnection.source);
+                    if (contextBlock) {
+                        try {
+                            const contextData = JSON.parse(contextBlock.dataset.output);
+                            config.prompt = config.prompt.replace('{context}', contextData.context || '');
+                        } catch (e) {
+                            config.prompt = config.prompt.replace('{context}', contextBlock.dataset.output || '');
+                        }
+                    }
+                }
+                break;
+        }
     }
 
     // Update the updateConnections function
     function updateConnections() {
         if (!connectionsContainer) return;
-        
+
         connectionsContainer.innerHTML = '';
         connections.forEach((conn, index) => {
             const sourceBlock = document.getElementById(conn.source);
             const targetBlock = document.getElementById(conn.target);
-            
+
             if (!sourceBlock || !targetBlock) return;
-            
+
             const sourceNode = sourceBlock.querySelector('.output-node');
             const targetNode = targetBlock.querySelector(`[data-input="${conn.inputId}"]`);
-            
+
             if (!sourceNode || !targetNode) return;
-            
+
             const sourceRect = sourceNode.getBoundingClientRect();
             const targetRect = targetNode.getBoundingClientRect();
             const canvasRect = canvas.getBoundingClientRect();
@@ -621,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             line.setAttribute('y2', y2);
             line.setAttribute('class', 'connection-line');
             line.setAttribute('data-connection-index', index);
-            
+
             line.addEventListener('click', (e) => {
                 if (selectedConnection === line) {
                     connections.splice(index, 1);
@@ -635,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     line.classList.add('selected');
                 }
             });
-            
+
             connectionsContainer.appendChild(line);
         });
     }
@@ -685,7 +1249,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // System Management Panel
     const managementButton = document.getElementById('management-button');
     const managementPanel = document.getElementById('system-management');
-    
+
+
+    if (!managementButton || !managementPanel) {
+        console.error('Management panel elements not found!');
+        return;
+    }
+
+    // Management panel event listeners
+
     managementButton.addEventListener('click', () => {
         managementPanel.classList.add('visible');
         updateSystemStatus();
@@ -717,21 +1289,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function showOllamaGuide() {
         const system = navigator.platform.toLowerCase();
         let instructions = '';
-        
+
         if (system.includes('win')) {
-            instructions = 
+            instructions =
                 '1. Open the Start menu\n' +
                 '2. Search for "Ollama"\n' +
                 '3. Click on the Ollama application to start it\n\n' +
                 'Note: The Ollama icon should appear in your system tray when running.';
         } else if (system.includes('mac')) {
-            instructions = 
+            instructions =
                 '1. Open Terminal (you can find it in Applications > Utilities)\n' +
                 '2. Type: ollama serve\n' +
                 '3. Press Enter\n\n' +
                 'Note: Keep the Terminal window open while using Ollama.';
         } else {
-            instructions = 
+            instructions =
                 '1. Open a terminal\n' +
                 '2. Type: ollama serve\n' +
                 '3. Press Enter\n\n' +
@@ -746,7 +1318,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/system/status');
             const data = await response.json();
             const ollamaStatus = document.getElementById('ollama-status');
-            
+
             if (data.ollama_status === 'running') {
                 ollamaStatus.textContent = 'Running';
                 ollamaStatus.className = 'status-value running';
@@ -765,7 +1337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateStatusDisplay(elementId, status) {
         const element = document.getElementById(elementId);
         element.className = 'status-value ' + status;
-        
+
         switch(status) {
             case 'running':
                 element.textContent = 'Running';
@@ -786,9 +1358,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateStorageDisplay(storage) {
-        document.getElementById('storage-usage').textContent = 
+        document.getElementById('storage-usage').textContent =
             formatBytes(storage.models_size);
-        document.getElementById('temp-files').textContent = 
+        document.getElementById('temp-files').textContent =
             formatBytes(storage.temp_size);
     }
 
@@ -803,13 +1375,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function installOllama() {
         const button = document.getElementById('install-ollama');
         button.disabled = true;
-        
+
         try {
             const response = await fetch('/api/system/install-ollama', {
                 method: 'POST'
             });
             const data = await response.json();
-            
+
             if (data.status === 'manual_install_required') {
                 window.open(data.download_url, '_blank');
                 alert('Please download and install Ollama from the opened page.');
@@ -864,7 +1436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/models/list');
             const data = await response.json();
             const modelsDiv = document.getElementById('ollama-models');
-            
+
             if (response.ok) {
                 if (data.models && data.models.length > 0) {
                     modelsDiv.innerHTML = data.models.map(model => `
@@ -902,7 +1474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/models/list');
             const data = await response.json();
-            
+
             if (response.ok && data.models) {
                 const modelSelectors = document.querySelectorAll('.model-selector');
                 modelSelectors.forEach(selector => {
@@ -925,6 +1497,76 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Failed to update model selectors:', error);
         }
+    }
+
+    // Add export button handler
+    const exportButton = document.getElementById('export-pipeline');
+    exportButton.addEventListener('click', exportPipeline);
+
+    function getBlockConfig(block) {
+        const type = block.getAttribute('data-block-type');
+        const config = {};
+
+        switch (type) {
+            case 'pdf_loader':
+                const fileInput = block.querySelector('.file-input');
+                config.files = Array.from(fileInput.files).map(f => f.name);
+                break;
+
+            case 'text_splitter':
+                config.chunk_size = parseInt(block.querySelector('.chunk-size').value);
+                config.chunk_overlap = parseInt(block.querySelector('.chunk-overlap').value);
+                break;
+
+            case 'embedding':
+                config.model = block.querySelector('.model-selector').value;
+                break;
+
+            case 'chat_model':
+                config.model = block.querySelector('.model-selector').value;
+                config.temperature = parseFloat(block.querySelector('.temperature').value);
+                break;
+
+            case 'rag_prompt':
+                config.template = block.querySelector('.prompt-template').value;
+                break;
+
+            case 'ai_model':
+                config.model = block.querySelector('.model-selector').value;
+                config.temperature = parseFloat(block.querySelector('.temperature').value);
+                config.prompt = block.querySelector('.prompt-template').value;
+
+                // Get query from connected query input block
+                const queryConnection = connections.find(conn =>
+                    conn.target === block.id && conn.inputId === 'Query'
+                );
+                if (queryConnection) {
+                    const queryBlock = document.getElementById(queryConnection.source);
+                    if (queryBlock) {
+                        const queryText = queryBlock.dataset.output;
+                        config.prompt = config.prompt.replace('{query}', queryText || '');
+                    }
+                }
+
+                // Get context from connected vector store or ranking block
+                const contextConnection = connections.find(conn =>
+                    conn.target === block.id && conn.inputId === 'Context'
+                );
+                if (contextConnection) {
+                    const contextBlock = document.getElementById(contextConnection.source);
+                    if (contextBlock) {
+                        try {
+                            const contextData = JSON.parse(contextBlock.dataset.output);
+                            config.prompt = config.prompt.replace('{context}', contextData.context || '');
+                        } catch (e) {
+                            config.prompt = config.prompt.replace('{context}', contextBlock.dataset.output || '');
+                        }
+                    }
+                }
+                break;
+        }
+
+        return config;
     }
 });
 

@@ -20,9 +20,19 @@
             <button class="close-notification">×</button>
         </div>
         <div id="top-bar">
+
+            <button id="run-all" class="run-button">Run Pipeline</button>
+            <div class="debug-mode-container" title="Enable to run partial pipelines for debugging">
+                <input type="checkbox" id="debug-mode">
+                <label for="debug-mode">Debug Mode</label>
+            </div>
+            <button id="export-pipeline" class="export-button">Export Pipeline</button>
+            <button id="management-button" class="management-button">System Management</button>
+
             <button id="run-all" class="run-button" title="Run Pipeline">
                 <img src="/static/images/icons/run.svg" alt="Run Pipeline">
             </button>
+
         </div>
         <div class="main-content">
             <div id="sidebar">
@@ -58,6 +68,11 @@
                     <button class="zoom-button" id="zoom-out">−</button>
                     <button class="zoom-button" id="zoom-fit">⟲</button>
                 </div>
+
+
+                <!-- PDF Loader Block Template -->
+                <div class="block-template" draggable="true" data-block-type="pdf_loader">
+
             </div>
         </div>
 
@@ -79,80 +94,172 @@
             <div class="block-templates-container">
                 <!-- Document Loading Block Template -->
                 <div class="block-template" draggable="true" data-block-type="file-loader">
+
                     <div class="node-container">
-                        <div class="input-node" data-input="Input"></div>
-                        <div class="output-node" data-output="Document"></div>
+                        <div class="output-node" data-output="Documents"></div>
                     </div>
                     <div class="block-content-wrapper">
-                        <div class="block-drag-handle">File Loader</div>
+                        <div class="block-drag-handle">PDF Loader</div>
                         <div class="block-content">
                             <div class="input-group">
-                                <input type="file" class="file-input" accept=".txt,.pdf,.csv">
+                                <input type="file" class="file-input" accept=".pdf" multiple>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Text Processing Block Template -->
-                <div class="block-template" draggable="true" data-block-type="text-splitter">
-                    <div class="block-drag-handle">Text Splitter</div>
-                    <div class="block-content">
-                        <div class="input-group">
-                            <div class="input-node" data-input="Text"></div>
-                            <input type="number" class="chunk-size" value="1000" min="100" step="100">
-                            <span>chunk size</span>
-                        </div>
+                <!-- Text Splitter Block Template -->
+                <div class="block-template" draggable="true" data-block-type="text_splitter">
+                    <div class="node-container">
+                        <div class="input-node" data-input="Documents"></div>
                         <div class="output-node" data-output="Chunks"></div>
                     </div>
-                </div>
-
-                <!-- Display Block Template -->
-                <div class="block-template" draggable="true" data-block-type="display">
-                    <div class="block-drag-handle">Display</div>
-                    <div class="block-content">
-                        <div class="input-group">
-                            <div class="input-node" data-input="Input"></div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">Text Splitter</div>
+                        <div class="block-content">
+                            <div class="input-group">
+                                <label>Chunk Size:</label>
+                                <input type="number" class="chunk-size" value="1000" min="100" step="100">
+                            </div>
+                            <div class="input-group">
+                                <label>Overlap:</label>
+                                <input type="number" class="chunk-overlap" value="200" min="0" step="50">
+                            </div>
                         </div>
-                        <div class="output-display">No input</div>
                     </div>
                 </div>
 
-                <!-- New Custom Block Template -->
-                <div class="block-template" draggable="true" data-block-type="custom-block">
-                    <div class="block-drag-handle">Custom Block</div>
-                    <div class="block-content">
-                        <div class="input-group">
-                            <div class="input-node" data-input="CustomInput"></div>
+                <!-- Embeddings Block Template -->
+                <div class="block-template" draggable="true" data-block-type="embedding">
+                    <div class="node-container">
+                        <div class="input-node" data-input="Text"></div>
+                        <div class="output-node" data-output="Embeddings"></div>
+                    </div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">Embeddings</div>
+                        <div class="block-content">
+                            <select class="model-selector">
+                                <option value="nomic-embed-text">Nomic Embed</option>
+                            </select>
                         </div>
-                        <div class="output-node" data-output="CustomOutput"></div>
                     </div>
                 </div>
 
-                <!-- String Addition Block Template -->
-                <div class="block-template" draggable="true" data-block-type="string-addition">
-                    <div class="block-drag-handle">String Addition</div>
-                    <div class="block-content">
-                        <div class="input-group">
-                            <div class="input-node" data-input="Text1"></div>
-                            <div class="input-node" data-input="Text2"></div>
+                <!-- Vector Store Block Template -->
+                <div class="block-template" draggable="true" data-block-type="vector_store">
+                    <div class="node-container">
+                        <div class="input-node-group storage-inputs">
+                            <div class="input-node" data-input="ChunksEmbedded" data-label="Chunks Embedded"></div>
+                            <div class="input-node" data-input="Query" data-label="Query"></div>
                         </div>
-                        <div class="output-node" data-output="Result"></div>
+                        <div class="output-node" data-output="RetrievedDocs"></div>
+                    </div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">Vector Store</div>
+                        <div class="block-content">
+                            <div class="vector-store-status">
+                                <div class="status-indicator"></div>
+                                <span class="status">Not initialized</span>
+                            </div>
+                            <div class="input-group">
+                                <label>Top K:</label>
+                                <input type="number" class="top-k" value="3" min="1" step="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Input Block Template -->
+                <div class="block-template" draggable="true" data-block-type="query_input">
+                    <div class="node-container">
+                        <div class="output-node" data-output="Query"></div>
+                    </div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">Query Input</div>
+                        <div class="block-content">
+                            <div class="chat-interface">
+                                <div class="chat-messages"></div>
+                                <div class="chat-input">
+                                    <input type="text" placeholder="Ask a question...">
+                                    <button>Send</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Retrieval Ranking Block Template -->
+                <div class="block-template" draggable="true" data-block-type="retrieval_ranking">
+                    <div class="node-container">
+                        <div class="input-node" data-input="Chunks"></div>
+                        <div class="output-node" data-output="RankedContext"></div>
+                    </div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">Retrieval Ranking</div>
+                        <div class="block-content">
+                            <div class="input-group">
+                                <label>Ranking Method:</label>
+                                <select class="ranking-method">
+                                    <option value="similarity">Similarity Score</option>
+                                    <option value="mmr">MMR (Diversity)</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Diversity Weight (MMR):</label>
+                                <input type="number" class="diversity-weight" value="0.3" min="0" max="1" step="0.1">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- AI Model Block Template -->
-                <div class="block-template" draggable="true" data-block-type="ai-model">
-                    <div class="block-drag-handle">AI Model</div>
-                    <div class="block-content">
-                        <div class="input-group">
-                            <div class="input-node" data-input="Text"></div>
+                <div class="block-template" draggable="true" data-block-type="ai_model">
+                    <div class="node-container">
+                        <!-- Model Inputs -->
+                        <div class="input-node-group model-inputs">
+                            <div class="input-node" data-input="Query" data-label="Query"></div>
+                            <div class="input-node" data-input="Context" data-label="Vector Store"></div>
                         </div>
-                        <select class="model-selector">
-                            <option value="tinyllama">TinyLlama</option>
-                        </select>
                         <div class="output-node" data-output="Response"></div>
                     </div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">AI Model</div>
+                        <div class="block-content">
+                            <select class="model-selector">
+                                <option value="tinyllama">TinyLlama</option>
+                            </select>
+                            <div class="input-group">
+                                <label>Temperature:</label>
+                                <input type="number" class="temperature" value="0.75" min="0" max="1" step="0.1">
+                            </div>
+                            <textarea class="prompt-template" rows="4" placeholder="Enter your prompt template...">Answer the following question using the provided context. If the context doesn't contain enough information, say so.
+
+Context: {context}
+
+Question: {query}
+
+Answer:</textarea>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Answer Display Block Template -->
+                <div class="block-template" draggable="true" data-block-type="answer_display">
+                    <div class="node-container">
+                        <div class="input-node" data-input="Answer"></div>
+                    </div>
+                    <div class="block-content-wrapper">
+                        <div class="block-drag-handle">Answer Display</div>
+                        <div class="block-content">
+                            <div class="answer-display">No answer yet</div>
+                            <div class="context-display">
+                                <h4>Used Context:</h4>
+                                <div class="context-chunks"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -169,7 +276,7 @@
                 <h2>System Status</h2>
                 <button class="close-button">×</button>
             </div>
-            
+
             <div class="management-content">
                 <div class="status-items">
                     <div class="status-item">
@@ -186,5 +293,111 @@
         </div>
     </div>
     <script src="/static/app.js"></script>
+
+    <!-- Add this right after the body opening tag -->
+    <div id="notification-system">
+        <div id="toast-container"></div>
+        <div id="modal-container"></div>
+    </div>
+
+    <!-- Add this before the closing body tag -->
+    <div id="progress-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="progress-title">Processing...</h3>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <div id="progress-status">Initializing...</div>
+        </div>
+    </div>
+
+    <style>
+    /* Toast Notifications */
+    #toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+
+    .toast {
+        background: white;
+        border-radius: 4px;
+        padding: 16px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 300px;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+    }
+
+    .toast.success {
+        border-left: 4px solid #4caf50;
+    }
+
+    .toast.error {
+        border-left: 4px solid #f44336;
+    }
+
+    .toast.info {
+        border-left: 4px solid #2196f3;
+    }
+
+    .toast.warning {
+        border-left: 4px solid #ff9800;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Progress Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        min-width: 400px;
+        text-align: center;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #eee;
+        border-radius: 4px;
+        margin: 16px 0;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        width: 0%;
+        height: 100%;
+        background: #4caf50;
+        transition: width 0.3s ease;
+    }
+
+    #progress-status {
+        color: #666;
+        margin-top: 12px;
+        font-size: 14px;
+    }
+    </style>
 </body>
 </html>
