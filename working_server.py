@@ -382,9 +382,7 @@ def process_block():
         debug_mode = data.get('debug_mode', False)
 
         print(f"\n[PROCESSING] Block: {block_type} (ID: {block_id}), Debug mode: {debug_mode}")
-        if block_id != 'block-7':
-            print(f"[PROCESSING] Config: {config}")
-            print(f"[PROCESSING] Config keys: {list(config.keys())}")
+        print(f"[PROCESSING] Config: {config}")
 
         # Special handling for different block types
         if block_type == 'pdf_loader':
@@ -727,8 +725,6 @@ def process_block():
                     # Create the FAISS index
                     dimension = embeddings_array.shape[1]
                     index = faiss.IndexFlatL2(dimension)
-                    # Ensure embeddings_array is the right type
-                    embeddings_array = np.array(embeddings_array, dtype=np.float32)
                     index.add(embeddings_array)
 
                     # Create the vector store
@@ -932,29 +928,7 @@ Answer:"""
 
             # In debug mode, provide sample data if missing
             try:
-                # Try to import sentence_transformers, but provide fallback if not available
-                try:
-                    from sentence_transformers import CrossEncoder
-                except ImportError:
-                    # Create a simple fallback implementation
-                    class CrossEncoder:
-                        def __init__(self, model_name):
-                            print(f"Warning: Using fallback CrossEncoder (sentence_transformers not installed)")
-                            self.model_name = model_name
-                        
-                        def predict(self, pairs):
-                            # Simple fallback scoring based on word overlap
-                            scores = []
-                            for query, chunk in pairs:
-                                query_words = set(query.lower().split())
-                                chunk_words = set(chunk.lower().split())
-                                if not query_words:
-                                    scores.append(0.0)
-                                    continue
-                                overlap = len(query_words.intersection(chunk_words))
-                                score = overlap / len(query_words)
-                                scores.append(float(score))
-                            return scores
+                from sentence_transformers import CrossEncoder
 
                 # Add fallback for missing data
             
@@ -1019,17 +993,8 @@ Answer:"""
                 'block_id': block_id
             }
             print(f"[ANSWER DISPLAY] Updated display")
-        
-        else:
-            # Fallback for any unhandled block types
-            result = {
-                'status': 'error',
-                'output': f"Unknown block type: {block_type}",
-                'block_id': block_id
-            }
-            print(f"[WARNING] Unknown block type: {block_type}")
 
-        print(f"[COMPLETED] Block: {block_type} completed")
+        print(f"[COMPLETED] Block: {block_type} ✓")
         return jsonify(result)
     except Exception as e:
         print(f"[ERROR] Block processing error: {str(e)}")
@@ -1039,4 +1004,3 @@ if __name__ == '__main__':
     # Just print status instead of enforcing Ollama to run
     ensure_ollama_is_running()
     app.run(debug=True)
-
