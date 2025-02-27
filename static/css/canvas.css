@@ -1,8 +1,16 @@
 /* ===== Canvas & Grid ===== */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
 #canvas {
     position: relative;
     flex: 1;
-    height: 100%;
+    height: 100vh;
     background-color: #fafafa;  /* Egg white */
     overflow: hidden;
     cursor: grab;

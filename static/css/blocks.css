@@ -2,6 +2,12 @@
 .block-template {
     background: #fff;
     border: 1px solid #ccc;
+    position: relative;
+    width: 90%;
+    min-height: 80px;
+    z-index: 1000;
+    background-color: #fff;
+    border: 1px solid #ddd;  /* Light gray */
     border-radius: 8px;
     padding: 10px;
     margin: 10px;
@@ -82,6 +88,7 @@
     background-color: #fff3e0;  /* Light orange */
     color: #e65100;
 }
+
 
 [data-block-type="pdf_loader"] .block-drag-handle {
     background-color: #e3f2fd;
