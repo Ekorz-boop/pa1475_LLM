@@ -102,3 +102,16 @@ html, body {
 .management-button:hover {
     background-color: #0056b3;
 }
+
+/* Update canvas layout */
+.main-content {
+    display: flex;
+    height: 100vh;
+}
+
+#canvas {
+    flex: 1;
+    height: 100vh;
+    position: relative;
+    /* ... rest of canvas styles remain the same ... */
+}
