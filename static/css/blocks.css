@@ -1,6 +1,6 @@
 /* ===== Block Templates ===== */
 .block-template {
-    background: #fff;
+    
     border: 1px solid #ccc;
     position: relative;
     width: 90%;
@@ -9,7 +9,7 @@
     background-color: #fff;
     border: 1px solid #ddd;  /* Light gray */
     border-radius: 8px;
-    padding: 10px;
+    padding: 0;
     margin: 10px;
     cursor: move;
     position: relative;
@@ -26,20 +26,20 @@
 /* ===== Input/Output Nodes ===== */
 .input-node, .output-node {
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     background: #666;
     border-radius: 50%;
     cursor: pointer;
-    border: 1px solid #888686;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);  /* Consistent shadow */
     margin: 5px 0;
     flex-shrink: 0;
     pointer-events: all;
-    z-index: 1;
+    z-index: -2;
 }
 
 .block .input-node {
-    left: -6px;
+    left: -10px;
     top: 50%;
     transform: translateY(-50%);
     background-color: #4444ff;
@@ -48,7 +48,7 @@
 }
 
 .block .output-node {
-    right: -6px;
+    right: -10px;
     top: 50%;
     transform: translateY(-50%);
     background-color: #ff4444;
@@ -131,13 +131,20 @@
 }
 
 .block-drag-handle {
-    padding: 5px;
-    background: #f5f5f5;
-    border-radius: 4px;
-    margin-bottom: 10px;
+    width: 100%;
+    height: 24px;
+    border-top-left-radius: 7px;  /* Adjusted for thinner border */
+    border-top-right-radius: 7px;
+    border-bottom: 1px solid #eee;
     cursor: move;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
     font-weight: bold;
+    font-size: 13px;
+    z-index: 2;  /* Above nodes */
+    position: relative;  /* Create stacking context */
 }
 
 /* ===== Blocks ===== */
@@ -146,7 +153,7 @@
     background: #fff;
     border: 1px solid #ccc;
     border-radius: 8px;
-    padding: 10px;
+    padding: 0;
     cursor: move;
     min-width: 200px;
     display: flex;
@@ -155,7 +162,7 @@
     transition: transform 0.2s, box-shadow 0.2s;
     transform-origin: top left;
     will-change: transform;
-    z-index: 1;
+    z-index: 10;
 }
 
 .block:hover {
@@ -170,6 +177,7 @@
 
 .block-container {
     position: absolute;
+    z-index: 2;
     top: 0;
     left: 0;
     width: 100%;
@@ -183,6 +191,9 @@
 
 .block-content {
     padding: 10px;
+    z-index: 2;  /* Above nodes */
+    position: relative;  /* Create stacking context */
+    border-radius: 8px;
 }
 
 .input-group {
@@ -300,11 +311,18 @@
     border-radius: 4px;
     background: #f5f5f5;
     color: #666;
+    z-index: 1000;
 }
 
 .node-container {
-    position: relative;
+    position: absolute;
+    border-radius: 8px;
+    top: 0;
+    left: 0;
+    width: 100%;
     height: 100%;
+    pointer-events: none;
+    z-index: -2;  /* Above connections, below content */
 }
 
 .input-node::after, .output-node::after {
@@ -319,7 +337,7 @@
     top: 0;
     left: 0;
     pointer-events: none;
-    z-index: 999;
+    z-index: -3;  /* Below nodes and everything else */
 }
 
 svg {
@@ -331,6 +349,7 @@ svg {
     stroke-width: 2;
     pointer-events: all;
     cursor: pointer;
+    z-index: -3;  /* Match container z-index */
 }
 
 .connection-line:hover {
@@ -435,6 +454,7 @@ svg {
     padding: 4px 8px;
     background: #f8f9fa;
     border-radius: 4px;
+    z-index: 1000;
 }
 
 .status-indicator {
@@ -497,11 +517,24 @@ svg {
     gap: 50px;  /* Increased gap between nodes within a group */
 }
 
-/* Vector Store Input Groups */
+/* Vector Store Input Groups - adjust vertical positioning */
 .storage-inputs {
-    top: 50%;
-    transform: translateY(-50%);
-    gap: 30px;  /* Space between the two inputs */
+    position: absolute;
+    left: -10px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;  /* Space between nodes */
+    top: 50%;   /* Move the group higher up */
+}
+
+/* Individual node positioning within storage-inputs */
+.storage-inputs .input-node:first-child {
+    transform: translateY(-50%);  /* First node (Chunks) */
+}
+
+.storage-inputs .input-node:last-child {
+    transform: translateY(50%);   /* Second node (Query) */
+    top: 40px;  /* Move second node down */
 }
 
 /* AI Model Input Group */
@@ -525,7 +558,15 @@ svg {
     border-radius: 3px;
     border: 1px solid #eee;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 10000;  /* Make it appear above everything */
+}
+
+/* Show label on hover */
+.input-node[data-label]:hover::before {
+    opacity: 1;
 }
 
 /* Adjust block heights and spacing */
@@ -535,21 +576,8 @@ svg {
 }
 
 [data-block-type="vector_store"] .block-content-wrapper {
-    margin-left: 110px;  /* Match the label offset */
+    margin-left: 0;  /* Remove the space previously used for permanent labels */
     padding-right: 10px;
-}
-
-/* Make input nodes more visible */
-.input-node {
-    width: 12px;  /* Slightly larger nodes for better visibility */
-    height: 12px;
-    background-color: #4444ff;
-    border: 2px solid #fff;  /* Thicker border */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    border-radius: 50%;
-    z-index: 2;
-    position: absolute;
-    left: 0;
 }
 
 /* Vector Store specific styling */
@@ -562,6 +590,7 @@ svg {
     background: #f8f9fa;
     border: 1px solid #eee;
     border-radius: 4px;
+    z-index: 1;
 }
 
 [data-block-type="vector_store"] .status-indicator {
@@ -581,12 +610,6 @@ svg {
     margin-top: 12px;
 }
 
-/* Hover effects */
-.input-node:hover {
-    transform: scale(1.2);
-    box-shadow: 0 0 6px rgba(68,68,255,0.5);
-    z-index: 3;
-}
 
 .vector-store .input-node-group {
     display: flex;
@@ -595,46 +618,15 @@ svg {
     margin: 10px 0;
 }
 
-.vector-store .storage-inputs,
-.vector-store .query-inputs {
-    margin: 20px 0;
-}
-
 .input-node-group {
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-.input-node {
-    position: relative;
-    width: 12px;
-    height: 12px;
-    background: #666;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.input-node:hover {
-    background: #888;
-}
-
 .input-node.input-node-hover {
     background: #4CAF50;
     box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
-}
-
-/* Add data-label display */
-.input-node[data-label]:before {
-    content: attr(data-label);
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 12px;
-    white-space: nowrap;
-    color: #666;
 }
 
 /* Debug info styling */
@@ -668,4 +660,32 @@ svg {
     padding: 8px 12px;
     margin: 8px 0;
     border-radius: 0 4px 4px 0;
+}
+
+/* Block content wrapper - establish base stacking context */
+.block-content-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+}
+
+/*
+/* Node container and nodes should be the bottom layer */
+.node-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -2;  /* Above connections, below content */
+}
+*/
+
+/* Block content and drag handle should be in front */
+.block-content, .block-drag-handle {
+    position: relative;
+    z-index: 2;
+    background: #fff;
 }

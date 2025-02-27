@@ -84,11 +84,11 @@
             <div class="block-templates-container">
                 <!-- Document Loading Block Template -->
                 <div class="block-template" draggable="true" data-block-type="pdf_loader">
-                    <div class="node-container">
-                        <div class="output-node" data-output="Documents"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">PDF Loader</div>
+                        <div class="node-container">
+                            <div class="output-node" data-output="Documents"></div>
+                        </div>
                         <div class="block-content">
                             <div class="input-group">
                                 <input type="file" class="file-input" accept=".pdf" multiple>
@@ -99,12 +99,12 @@
 
                 <!-- Text Splitter Block Template -->
                 <div class="block-template" draggable="true" data-block-type="text_splitter">
-                    <div class="node-container">
-                        <div class="input-node" data-input="Documents"></div>
-                        <div class="output-node" data-output="Chunks"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">Text Splitter</div>
+                        <div class="node-container">
+                            <div class="input-node" data-input="Documents"></div>
+                            <div class="output-node" data-output="Chunks"></div>
+                        </div>
                         <div class="block-content">
                             <div class="input-group">
                                 <label>Chunk Size:</label>
@@ -120,12 +120,12 @@
 
                 <!-- Embeddings Block Template -->
                 <div class="block-template" draggable="true" data-block-type="embedding">
-                    <div class="node-container">
-                        <div class="input-node" data-input="Text"></div>
-                        <div class="output-node" data-output="Embeddings"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">Embeddings</div>
+                        <div class="node-container">
+                            <div class="input-node" data-input="Text"></div>
+                            <div class="output-node" data-output="Embeddings"></div>
+                        </div>
                         <div class="block-content">
                             <select class="model-selector">
                                 <option value="nomic-embed-text">Nomic Embed</option>
@@ -136,15 +136,15 @@
 
                 <!-- Vector Store Block Template -->
                 <div class="block-template" draggable="true" data-block-type="vector_store">
-                    <div class="node-container">
-                        <div class="input-node-group storage-inputs">
-                            <div class="input-node" data-input="ChunksEmbedded" data-label="Chunks Embedded"></div>
-                            <div class="input-node" data-input="Query" data-label="Query"></div>
-                        </div>
-                        <div class="output-node" data-output="RetrievedDocs"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">Vector Store</div>
+                        <div class="node-container">
+                            <div class="input-node-group storage-inputs">
+                                <div class="input-node" data-input="ChunksEmbedded" data-label="Chunks Embedded"></div>
+                                <div class="input-node" data-input="Query" data-label="Query"></div>
+                            </div>
+                            <div class="output-node" data-output="RetrievedDocs"></div>
+                        </div>
                         <div class="block-content">
                             <div class="vector-store-status">
                                 <div class="status-indicator"></div>
@@ -160,11 +160,11 @@
 
                 <!-- Query Input Block Template -->
                 <div class="block-template" draggable="true" data-block-type="query_input">
-                    <div class="node-container">
-                        <div class="output-node" data-output="Query"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">Query Input</div>
+                        <div class="node-container">
+                            <div class="output-node" data-output="Query"></div>
+                        </div>
                         <div class="block-content">
                             <div class="chat-interface">
                                 <div class="chat-messages"></div>
@@ -179,12 +179,12 @@
 
                 <!-- Retrieval Ranking Block Template -->
                 <div class="block-template" draggable="true" data-block-type="retrieval_ranking">
-                    <div class="node-container">
-                        <div class="input-node" data-input="Chunks"></div>
-                        <div class="output-node" data-output="RankedContext"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">Retrieval Ranking</div>
+                        <div class="node-container">
+                            <div class="input-node" data-input="Chunks"></div>
+                            <div class="output-node" data-output="RankedContext"></div>
+                        </div>
                         <div class="block-content">
                             <div class="input-group">
                                 <label>Ranking Method:</label>
@@ -203,16 +203,16 @@
 
                 <!-- AI Model Block Template -->
                 <div class="block-template" draggable="true" data-block-type="ai_model">
-                    <div class="node-container">
-                        <!-- Model Inputs -->
-                        <div class="input-node-group model-inputs">
-                            <div class="input-node" data-input="Query" data-label="Query"></div>
-                            <div class="input-node" data-input="Context" data-label="Vector Store"></div>
-                        </div>
-                        <div class="output-node" data-output="Response"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">AI Model</div>
+                        <div class="node-container">
+                            <!-- Model Inputs -->
+                            <div class="input-node-group model-inputs">
+                                <div class="input-node" data-input="Query" data-label="Query"></div>
+                                <div class="input-node" data-input="Context" data-label="Vector Store"></div>
+                            </div>
+                            <div class="output-node" data-output="Response"></div>
+                        </div>
                         <div class="block-content">
                             <select class="model-selector">
                                 <option value="tinyllama">TinyLlama</option>
@@ -234,11 +234,11 @@ Answer:</textarea>
 
                 <!-- Answer Display Block Template -->
                 <div class="block-template" draggable="true" data-block-type="answer_display">
-                    <div class="node-container">
-                        <div class="input-node" data-input="Answer"></div>
-                    </div>
                     <div class="block-content-wrapper">
                         <div class="block-drag-handle">Answer Display</div>
+                        <div class="node-container">
+                            <div class="input-node" data-input="Answer"></div>
+                        </div>
                         <div class="block-content">
                             <div class="answer-display">No answer yet</div>
                             <div class="context-display">
