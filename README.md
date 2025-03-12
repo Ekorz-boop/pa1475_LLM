@@ -15,17 +15,20 @@ The LLM RAG Pipeline Builder is a visual tool that allows users to create and co
 ### Installation
 
 1. **Clone the Repository:**
+
    ```bash
    git clone <repository-url>
    cd <repository-directory>
    ```
 
 2. **Install the Required Packages:**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Install and Start Ollama:**
+
    1. Download and install Ollama from [Ollama's website](https://ollama.ai/download)
    2. Start Ollama:
       - **Windows**: Run the Ollama application from your Start menu
@@ -33,9 +36,11 @@ The LLM RAG Pipeline Builder is a visual tool that allows users to create and co
    3. Wait for Ollama to start (you should see "Ollama is running" in the terminal)
 
 4. **Run the Flask Server:**
+
    ```bash
    python server.py
    ```
+
    Note: On first run, the server will automatically download the TinyLlama model. This may take a few minutes depending on your internet connection.
 
 5. **Open the Application:**
@@ -54,6 +59,7 @@ The LLM RAG Pipeline Builder is a visual tool that allows users to create and co
 Add your custom function to `main.py`. The function should take specific input types and return a specific output type.
 
 Example:
+
 ```python
 def custom_function(data: str) -> str:
     return data.upper()
@@ -64,6 +70,7 @@ def custom_function(data: str) -> str:
 Register the function using the `register_function` method in `main.py`.
 
 Example:
+
 ```python
 register_function('custom_function', custom_function, str, str)
 ```
@@ -73,15 +80,16 @@ register_function('custom_function', custom_function, str, str)
 Open `static/index.html` and add a new block template in the sidebar section. This template should match the function's input and output structure.
 
 Example:
+
 ```html
 <div class="block-template" draggable="true" data-block-type="custom-function">
-    <div class="block-drag-handle">Custom Function</div>
-    <div class="block-content">
-        <div class="input-group">
-            <div class="input-node" data-input="Input"></div>
-        </div>
-        <div class="output-node" data-output="Output"></div>
+  <div class="block-drag-handle">Custom Function</div>
+  <div class="block-content">
+    <div class="input-group">
+      <div class="input-node" data-input="Input"></div>
     </div>
+    <div class="output-node" data-output="Output"></div>
+  </div>
 </div>
 ```
 
@@ -90,22 +98,25 @@ Example:
 Ensure that `static/app.js` can process the new block type. You may need to add logic to handle the execution of this block type if it's not already covered by your existing `processBlock` function.
 
 Example:
+
 ```javascript
 async function processBlock(block) {
-    const type = block.getAttribute('data-block-type');
-    switch (type) {
-        case 'custom-function':
-            const inputConnection = connections.find(conn => conn.target === block.id);
-            if (inputConnection) {
-                const sourceBlock = document.getElementById(inputConnection.source);
-                const inputData = sourceBlock.dataset.output;
-                const result = customFunction(inputData); // Call your custom function
-                block.dataset.output = result;
-                propagateData(block);
-            }
-            break;
-        // other cases...
-    }
+  const type = block.getAttribute("data-block-type");
+  switch (type) {
+    case "custom-function":
+      const inputConnection = connections.find(
+        (conn) => conn.target === block.id,
+      );
+      if (inputConnection) {
+        const sourceBlock = document.getElementById(inputConnection.source);
+        const inputData = sourceBlock.dataset.output;
+        const result = customFunction(inputData); // Call your custom function
+        block.dataset.output = result;
+        propagateData(block);
+      }
+      break;
+    // other cases...
+  }
 }
 ```
 
@@ -117,11 +128,13 @@ async function processBlock(block) {
 
 ## Structure
 
-- `flask_backend.py`: Flask server and API endpoints.
+- `server.py`: Flask server and API endpoints.
 - `main.py`: Python functions that can be connected to blocks.
 - `static/`: Frontend files.
   - `index.html`: Main HTML file.
   - `styles.css`: CSS styles.
   - `app.js`: Frontend JavaScript code.
 
+## License
 
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
