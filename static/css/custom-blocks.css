@@ -1,0 +1,46 @@
+/* Custom Blocks Message Styling */
+.custom-blocks-message {
+    text-align: center;
+    padding: 30px;
+    margin: 20px 0;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.custom-blocks-message h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 24px;
+}
+
+.custom-blocks-message p {
+    color: #555;
+    margin-bottom: 10px;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#create-custom-block-btn {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 15px;
+    transition: background-color 0.3s;
+}
+
+#create-custom-block-btn:hover {
+    background-color: #2980b9;
+}
+
+#custom-blocks-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+}
