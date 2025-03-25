@@ -198,14 +198,39 @@ class CustomBlockHandler {
      * Show the custom block modal
      */
     showModal() {
+        // Ensure modal element exists
+        if (!this.modal) {
+            this.initModal();
+        }
+
+        // Reset form to initial state when opening
+        this.resetForm();
+
+        // Set display style to flex to center content
         this.modal.style.display = 'block';
+
+        // Apply custom styles for scrolling
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+
+        // Make sure the modal is scrollable
+        this.modal.querySelector('.modal-content').style.maxHeight = '80vh';
+        this.modal.querySelector('.modal-content').style.overflowY = 'auto';
+
+        // Ensure we have the latest libraries
+        this.loadLibraries();
+
+        // Switch to first tab
+        this.switchTab('select-class');
     }
 
     /**
      * Close the custom block modal
      */
     closeModal() {
-        this.modal.style.display = 'none';
+        if (this.modal) {
+            this.modal.style.display = 'none';
+            document.body.style.overflow = ''; // Restore body scrolling
+        }
     }
 
     /**
@@ -1400,7 +1425,7 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
 // Function to save custom block to localStorage
 function saveCustomBlockToStorage(className, blockId, inputNodes, outputNodes) {
     // Get existing blocks or initialize empty array
-    const existingBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+    const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
     // Add new block if it doesn't already exist
     if (!existingBlocks.some(block => block.id === blockId)) {
@@ -1411,14 +1436,14 @@ function saveCustomBlockToStorage(className, blockId, inputNodes, outputNodes) {
             outputNodes: outputNodes
         });
 
-        // Save back to localStorage
-        localStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+        // Save back to sessionStorage instead of localStorage
+        sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
     }
 }
 
 // Function to load custom blocks from localStorage
 function loadCustomBlocks() {
-    const customBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+    const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
     customBlocks.forEach(block => {
         addCustomBlockToMenu(block.className, block.id, block.inputNodes, block.outputNodes);
     });
@@ -1449,6 +1474,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load saved custom blocks
     loadCustomBlocks();
+
+    // Add event listener to clear sessionStorage on page unload
+    window.addEventListener('beforeunload', () => {
+        // Clear all custom block data on page refresh or close
+        sessionStorage.removeItem('customBlocks');
+        sessionStorage.removeItem('moduleInfo');
+    });
 });
 
 // Function to update a block's nodes (for editing)
@@ -1513,8 +1545,8 @@ function updateBlockNodes(blockElement, className, inputNodes, outputNodes) {
 
 // Function to save module info for future edits
 function saveModuleInfo(className, library, module) {
-    // Get existing blocks from localStorage
-    const existingBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+    // Get existing blocks from sessionStorage
+    const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
     // Find the block with matching class name
     const blockIndex = existingBlocks.findIndex(block => block.className === className);
@@ -1536,8 +1568,8 @@ function saveModuleInfo(className, library, module) {
         });
     }
 
-    // Save back to localStorage
-    localStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+    // Save back to sessionStorage
+    sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
 }
 
 // Function to create a custom block on the canvas
@@ -1758,10 +1790,10 @@ function addDefaultMethods(methodSelect) {
     });
 }
 
-// Helper function to find module info for a class from localStorage
+// Helper function to find module info for a class from sessionStorage
 function findModuleInfoForClass(className) {
     try {
-        const moduleInfo = JSON.parse(localStorage.getItem('moduleInfo') || '{}');
+        const moduleInfo = JSON.parse(sessionStorage.getItem('moduleInfo') || '{}');
         return moduleInfo[className];
     } catch (error) {
         console.error(`Error finding module info for ${className}:`, error);
@@ -1769,10 +1801,10 @@ function findModuleInfoForClass(className) {
     }
 }
 
-// Helper function to save methods to localStorage
+// Helper function to save methods to sessionStorage
 function saveMethods(className, methods) {
     try {
-        const customBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
         const existingBlockIndex = customBlocks.findIndex(b => b.className === className);
 
         if (existingBlockIndex >= 0) {
@@ -1784,7 +1816,7 @@ function saveMethods(className, methods) {
             });
         }
 
-        localStorage.setItem('customBlocks', JSON.stringify(customBlocks));
+        sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
         console.log(`Saved methods for ${className}:`, methods);
     } catch (error) {
         console.error(`Error saving methods for ${className}:`, error);
