@@ -237,6 +237,38 @@ class Canvas:
         """Add a block to the canvas."""
         self.blocks[block_id] = block
 
+    def process_block(self, block_id: str, config: dict) -> dict:
+        """Process a block using its implementation."""
+        if block_id not in self.blocks:
+            return {
+                "status": "error",
+                "output": f"Block not found: {block_id}",
+                "block_id": block_id
+            }
+        
+        block = self.blocks[block_id]
+        
+        try:
+            # For now, return a simple success response
+            # In a real implementation, this would execute the block's function
+            # with the provided configuration
+            block_type = type(block).__name__
+            print(f"Processing block {block_id} of type {block_type}")
+            
+            # Example implementation - in a real system, this would use the
+            # block's function_string or other properties to execute logic
+            return {
+                "status": "success",
+                "output": f"Processed {block_type}",
+                "block_id": block_id
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "output": f"Error processing block: {str(e)}",
+                "block_id": block_id
+            }
+
     def connect_blocks(self, source_id: str, target_id: str) -> bool:
         """Connect two blocks and validate the connection."""
         if source_id not in self.blocks or target_id not in self.blocks:
