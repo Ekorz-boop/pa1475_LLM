@@ -118,15 +118,28 @@ def export_blocks():
         # Add blocks from the request
         for block_id, block_info in blocks_data.items():
             block_type = block_info.get("type")
+            config = block_info.get("config", {})
 
             # Create a custom block instance
             class CustomPipelineBlock(Block):
                 def __init__(self):
                     super().__init__()
                     self.block_type = block_type
-                    self.config = block_info.get("config", {})
-                    self.import_string = f"# Import for {block_type}"
-                    self.function_string = f"def create_{block_type.lower()}():\n    # Initialize {block_type}\n    return '{block_type} instance'"
+                    self.class_name = block_type  # Store the actual class name
+                    self.module_path = "langchain_community"  # Default module path
+                    self.config = config
+
+                    # Extract module path from block_type if it's a custom block
+                    if block_type.startswith("custom_"):
+                        self.class_name = block_type[7:]  # Remove 'custom_' prefix
+                        module_parts = self.class_name.split(".")
+                        if len(module_parts) > 1:
+                            self.class_name = module_parts[-1]  # Last part is the class name
+                            self.module_path = ".".join(module_parts[:-1])  # Rest is the module path
+
+                    # Set import string and function string with actual class name
+                    self.import_string = f"import {self.module_path}"
+                    self.function_string = f"def create_{self.class_name.lower()}():\n    # Initialize {self.class_name}\n    return '{self.class_name} instance'"
 
                 def validate_connections(self) -> bool:
                     return True
@@ -162,12 +175,12 @@ def export_blocks():
 
         # Return the code as part of the response
         return jsonify({
-                "status": "success",
+            "status": "success",
             "message": "Successfully generated Python code",
             "code": generated_code,
             "file": output_file,
         })
-            except Exception as e:
+    except Exception as e:
         print(f"Export error: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -186,22 +199,36 @@ def generate_python_code(blocks, connections):
     block_vars = {}
     for i, block_id in enumerate(execution_order):
         block = blocks[block_id]
-        block_type = block.block_type if hasattr(block, 'block_type') else type(block).__name__
-        var_name = f"{block_type.lower()}_{i+1}".replace(' ', '_')
+        # Use the actual class name for variable name
+        if hasattr(block, 'class_name'):
+            class_name = block.class_name
+        else:
+            class_name = type(block).__name__
+
+        # Clean up the class name to make a valid variable name
+        var_name = class_name.lower().replace(' ', '_').replace('.', '_')
+        # Add a number suffix to make it unique
+        var_name = f"{var_name}_{i+1}"
         block_vars[block_id] = var_name
 
     # Process blocks in execution order
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
-        block_type = block.block_type if hasattr(block, 'block_type') else type(block).__name__
 
-        # Add imports
+        # Get the actual class name
+        if hasattr(block, 'class_name'):
+            class_name = block.class_name
+        else:
+            class_name = type(block).__name__
+
+        # Get the module path
         if hasattr(block, 'module_path'):
-            imports.append(f"import {block.module_path}")
+            module_path = block.module_path
+            imports.append(f"import {module_path}")
 
         # Add class creation
-        class_creations.append(f"# Initialize {block_type}")
+        class_creations.append(f"# Initialize {class_name}")
 
         # If it's a custom block with parameters, use them
         if hasattr(block, 'config') and block.config:
@@ -212,9 +239,15 @@ def generate_python_code(blocks, connections):
                         param_value = f'"{param_value}"'
                 params.append(f"{param_name}={param_value}")
 
-            class_creations.append(f"{var_name} = {block_type}({', '.join(params)})")
+            if hasattr(block, 'module_path') and block.module_path:
+                class_creations.append(f"{var_name} = {module_path}.{class_name}({', '.join(params)})")
             else:
-            class_creations.append(f"{var_name} = {block_type}()")
+                class_creations.append(f"{var_name} = {class_name}({', '.join(params)})")
+        else:
+            if hasattr(block, 'module_path') and block.module_path:
+                class_creations.append(f"{var_name} = {module_path}.{class_name}()")
+            else:
+                class_creations.append(f"{var_name} = {class_name}()")
 
         # Add method calls based on block connections
         # The block at the end of the connection calls methods on the blocks at the start
@@ -226,7 +259,7 @@ def generate_python_code(blocks, connections):
                     for method in block.methods:
                         if method != "__init__":
                             method_calls.append(f"result = {var_name}.{method}({source_var})")
-                    else:
+                else:
                     method_calls.append(f"result = {var_name}.process({source_var})")
 
     # Assemble the final code
