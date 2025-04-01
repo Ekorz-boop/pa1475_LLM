@@ -1,16 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
-import os
 import importlib
 import inspect
 import pkgutil
-import platform
-import subprocess
-import time
 import traceback
-from werkzeug.utils import secure_filename
-from datetime import datetime
 from blocks import (
     Canvas,
     Block,
@@ -231,7 +224,7 @@ def list_langchain_classes():
         submodules = []
         try:
             # Check if module has __path__ attribute (indicating it's a package)
-            if hasattr(module, '__path__'):
+            if hasattr(module, "__path__"):
                 print(f"Scanning submodules in {module_path}")
                 # Get all modules in the package (both modules and packages)
                 for finder, name, ispkg in pkgutil.iter_modules(module.__path__):
@@ -239,10 +232,10 @@ def list_langchain_classes():
                     submodules.append(submodule_name)
 
                     # If this is a frequently used module, look deeper
-                    if name in ['document_loaders', 'embeddings', 'llms', 'vectorstores']:
+                    if name in ["document_loaders", "embeddings", "llms", "vectorstores"]:
                         try:
                             sub = importlib.import_module(submodule_name)
-                            if hasattr(sub, '__path__'):
+                            if hasattr(sub, "__path__"):
                                 for sub_finder, sub_name, sub_ispkg in pkgutil.iter_modules(sub.__path__):
                                     submodules.append(f"{submodule_name}.{sub_name}")
                         except ImportError:
@@ -263,11 +256,11 @@ def list_langchain_classes():
                 # Get all attributes in the module that are classes
                 for name, attr in inspect.getmembers(mod, inspect.isclass):
                     # Skip private attributes and avoid duplicates
-                    if name.startswith('_') or name in classes:
+                    if name.startswith("_") or name in classes:
                         continue
 
                     # Only include classes from this module or submodules
-                    if hasattr(attr, '__module__') and attr.__module__.startswith(module_path):
+                    if hasattr(attr, "__module__") and attr.__module__.startswith(module_path):
                         classes.append(name)
             except ImportError:
                 print(f"Could not import module {mod_path}")
@@ -277,12 +270,12 @@ def list_langchain_classes():
         classes = sorted(list(set(classes)))
 
         # Special case for document loaders - prioritize common classes
-        if 'document_loaders' in module_path:
+        if "document_loaders" in module_path:
             priority_classes = []
             regular_classes = []
 
             for cls in classes:
-                if cls in ['PyPDFLoader', 'TextLoader', 'CSVLoader', 'JSONLoader', 'WebBaseLoader']:
+                if cls in ["PyPDFLoader", "TextLoader", "CSVLoader", "JSONLoader", "WebBaseLoader"]:
                     priority_classes.append(cls)
                 else:
                     regular_classes.append(cls)
@@ -303,7 +296,7 @@ def list_langchain_classes():
 @app.route("/api/langchain/class_details", methods=["GET"])
 def get_langchain_class_details():
     """Get details about a specific class in LangChain."""
-    library = request.args.get("library", "langchain")
+    # library = request.args.get("library", "langchain")
     module_path = request.args.get("module", "")
     class_name = request.args.get("class_name", "")
 
@@ -328,7 +321,7 @@ def get_langchain_class_details():
             # Try to find the class in a submodule
             class_obj = None
 
-            for submodule_info in pkgutil.iter_modules(module.__path__ if hasattr(module, '__path__') else []):
+            for submodule_info in pkgutil.iter_modules(module.__path__ if hasattr(module, "__path__") else []):
                 submodule_name = f"{module_path}.{submodule_info.name}"
                 try:
                     submodule = importlib.import_module(submodule_name)
@@ -361,7 +354,7 @@ def get_langchain_class_details():
 
         for name, method in inspect.getmembers(class_obj, inspect.isfunction):
             # Skip private methods except __init__
-            if name.startswith('_') and not name == '__init__':
+            if name.startswith("_") and not name == "__init__":
                 continue
 
             method_names.append(name)
@@ -389,7 +382,7 @@ def get_langchain_class_details():
 
                 for param_name, param in sig.parameters.items():
                     # Skip self parameter
-                    if param_name == 'self':
+                    if param_name == "self":
                         continue
 
                     # Use the correct parameter name for embeddings
@@ -554,7 +547,7 @@ def get_langchain_class_details():
             init_sig = inspect.signature(class_obj.__init__)
 
             # Check if this might be a Pydantic model
-            has_pydantic_structure = '**data' in str(init_sig) or 'kwargs' in str(init_sig)
+            has_pydantic_structure = "**data" in str(init_sig) or "kwargs" in str(init_sig)
 
             if has_pydantic_structure:
                 # Try different ways to get fields for potential Pydantic models
@@ -566,40 +559,40 @@ def get_langchain_class_details():
                     instance = class_obj()
                     # Get fields from the instance
                     for field_name in dir(instance):
-                        if not field_name.startswith('_') and not callable(getattr(instance, field_name)):
+                        if not field_name.startswith("_") and not callable(getattr(instance, field_name)):
                             field_parameters.append({
                                 "name": field_name,
                                 "required": False,  # can't easily determine this
                                 "default": "None",
                                 "type": "Any"
                             })
-                except:
+                except Exception:
                     pass
 
                 # Try Pydantic v1
-                if not field_parameters and hasattr(class_obj, '__fields__'):
+                if not field_parameters and hasattr(class_obj, "__fields__"):
                     for field_name, field in class_obj.__fields__.items():
                         field_parameters.append({
                             "name": field_name,
-                            "required": field.required if hasattr(field, 'required') else False,
-                            "default": str(field.default) if hasattr(field, 'default') else "None",
-                            "type": str(field.type_) if hasattr(field, 'type_') else "Any"
+                            "required": field.required if hasattr(field, "required") else False,
+                            "default": str(field.default) if hasattr(field, "default") else "None",
+                            "type": str(field.type_) if hasattr(field, "type_") else "Any"
                         })
                     print(f"Found Pydantic v1 fields: {[p['name'] for p in field_parameters]}")
 
                 # Try Pydantic v2
-                if not field_parameters and hasattr(class_obj, 'model_fields'):
+                if not field_parameters and hasattr(class_obj, "model_fields"):
                     for field_name, field in class_obj.model_fields.items():
                         field_parameters.append({
                             "name": field_name,
-                            "required": not hasattr(field, 'default') or field.default is None,
-                            "default": str(field.default) if hasattr(field, 'default') else "None",
-                            "type": str(field.annotation) if hasattr(field, 'annotation') else "Any"
+                            "required": not hasattr(field, "default") or field.default is None,
+                            "default": str(field.default) if hasattr(field, "default") else "None",
+                            "type": str(field.annotation) if hasattr(field, "annotation") else "Any"
                         })
                     print(f"Found Pydantic v2 fields: {[p['name'] for p in field_parameters]}")
 
                 # Try __annotations__ as a fallback
-                if not field_parameters and hasattr(class_obj, '__annotations__'):
+                if not field_parameters and hasattr(class_obj, "__annotations__"):
                     for field_name, type_hint in class_obj.__annotations__.items():
                         field_parameters.append({
                             "name": field_name,
@@ -615,7 +608,7 @@ def get_langchain_class_details():
                         source = inspect.getsource(class_obj.__init__)
                         # Look for self.XXX = XXX patterns in constructor
                         import re
-                        matches = re.findall(r'self\.([a-zA-Z0-9_]+)\s*=', source)
+                        matches = re.findall(r"self\.([a-zA-Z0-9_]+)\s*=", source)
                         if matches:
                             for field_name in matches:
                                 field_parameters.append({
@@ -625,7 +618,7 @@ def get_langchain_class_details():
                                     "type": "Any"
                                 })
                             print(f"Found fields via source inspection: {[p['name'] for p in field_parameters]}")
-                    except:
+                    except Exception:
                         pass
 
                 if field_parameters:
@@ -641,7 +634,7 @@ def get_langchain_class_details():
                 else:
                     for param_name, param in init_sig.parameters.items():
                         # Skip self parameter
-                        if param_name == 'self':
+                        if param_name == "self":
                             continue
 
                         param_info = {
@@ -658,21 +651,29 @@ def get_langchain_class_details():
         class_type = []
         try:
             for base in class_obj.__mro__[1:]:  # Skip the class itself
-                if base.__module__.startswith('langchain'):
+                if base.__module__.startswith("langchain"):
                     class_type.append(base.__name__)
         except Exception as e:
             print(f"Error getting class inheritance: {str(e)}")
 
         # Add common methods for component types if they aren't already in methods
         component_type = ""
-        if "document_loaders" in module_path: component_type = "document_loaders"
-        elif "text_splitters" in module_path: component_type = "text_splitters"
-        elif "embedding" in module_path or "embed" in class_name.lower(): component_type = "embeddings"
-        elif "vectorstore" in module_path: component_type = "vectorstores"
-        elif "retriever" in module_path: component_type = "retrievers"
-        elif "llm" in module_path: component_type = "llms"
-        elif "chat" in module_path: component_type = "chat_models"
-        elif "chain" in module_path: component_type = "chains"
+        if "document_loaders" in module_path:
+            component_type = "document_loaders"
+        elif "text_splitters" in module_path:
+            component_type = "text_splitters"
+        elif "embedding" in module_path or "embed" in class_name.lower():
+            component_type = "embeddings"
+        elif "vectorstore" in module_path:
+            component_type = "vectorstores"
+        elif "retriever" in module_path:
+            component_type = "retrievers"
+        elif "llm" in module_path:
+            component_type = "llms"
+        elif "chat" in module_path:
+            component_type = "chat_models"
+        elif "chain" in module_path:
+            component_type = "chains"
 
         # Map of component types to their most commonly used methods
         common_methods = {
@@ -698,7 +699,7 @@ def get_langchain_class_details():
                             parameters = []
 
                             for param_name, param in sig.parameters.items():
-                                if param_name == 'self':
+                                if param_name == "self":
                                     continue
 
                                 param_info = {
@@ -772,7 +773,7 @@ def create_custom_block():
                 param_str = ", ".join([f"{k}={v}" for k, v in method_params.items()])
                 function_parts.append(f"    # Call {method} method")
                 function_parts.append(f"    result = instance.{method}({param_str})")
-                function_parts.append(f"    return result")
+                function_parts.append("    return result")
 
         function_string = "\n".join(function_parts)
 
