@@ -483,12 +483,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const inputNodes = JSON.parse(e.dataTransfer.getData('inputNodes') || '[]');
                 const outputNodes = JSON.parse(e.dataTransfer.getData('outputNodes') || '[]');
 
-                // Use the custom block creation function
-                const newBlockId = `custom-block-${Date.now()}`;
-                const newBlock = createCustomBlock(className, inputNodes, outputNodes, newBlockId);
+                console.log(`Creating custom block from drag with ID ${blockId} and class ${className}`);
+
+                // Create a canvas instance of the block with original blockId as reference
+                // This ensures we preserve the methods associated with this specific block
+                const newBlockId = `${blockId}-canvas-${Date.now()}`;
+
+                // Log the original block ID to help with debugging
+                console.log(`Using original block ID ${blockId} as reference for methods`);
+
+                const newBlock = createCustomBlock(className, inputNodes, outputNodes, newBlockId, blockId);
 
                 // Position the block
                 newBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+
+                // Ensure proper styling is applied
+                if (!newBlock.classList.contains('custom-block')) {
+                    newBlock.classList.add('custom-block');
+                }
 
                 // Make block draggable
                 makeBlockDraggable(newBlock);

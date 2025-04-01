@@ -402,187 +402,58 @@ class CustomBlockHandler {
      * Handle module selection change
      */
     async onModuleChange() {
-        const selectedModule = this.moduleSelect.value;
+        const moduleSelect = document.getElementById('module-select');
+        const classSelect = document.getElementById('class-select');
+        const selectedModule = moduleSelect.value;
+
+        // Clear and disable class select
+        classSelect.innerHTML = '<option value="">Select a class...</option>';
+        classSelect.disabled = true;
 
         if (!selectedModule) {
-            this.classSelect.innerHTML = '<option value="">Select a module first</option>';
             return;
         }
 
-        // Display loading message
-        this.classSelect.innerHTML = '<option value="">Loading classes...</option>';
-        this.classSelect.disabled = true; // Disable during loading
+        try {
+            // Fetch classes for the selected module
+            const response = await fetch(`/api/langchain/classes?module=${selectedModule}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
 
-        // Clean up any existing search container
-        const existingSearch = document.querySelector('.class-search-container');
-        if (existingSearch) {
-            existingSearch.remove();
-        }
-
-        // Add a small delay to ensure the UI updates before fetch
-        setTimeout(() => {
-            fetch(`/api/langchain/classes?module=${selectedModule}`)
-                .then(response => response.json())
-                .then(data => {
-                    // Clear the loading message
-                    this.classSelect.innerHTML = '';
-                    this.classSelect.disabled = false; // Re-enable the select
-
-                    if (data.error) {
-                        this.classSelect.innerHTML = `<option value="">${data.error}</option>`;
-                        return;
-                    }
-
-                    const classes = data.classes;
-
-                    if (classes.length === 0) {
-                        this.classSelect.innerHTML = '<option value="">No classes found</option>';
-                        return;
-                    }
-
-                    // Use the helper to populate the class select
-                    this.resetClassSelect(classes);
-
-                    // Add search capability for classes if more than 10
-                    if (classes.length > 10) {
-                        this.addClassSearch(classes);
-                    }
-
-                    // Set default selection if PyPDFLoader is available
-                    if (classes.includes('PyPDFLoader')) {
-                        this.classSelect.value = 'PyPDFLoader';
-                        this.onClassChange();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching classes:', error);
-                    this.classSelect.innerHTML = '<option value="">Error loading classes</option>';
-                    this.classSelect.disabled = false; // Re-enable the select
-                });
-        }, 50);
-    }
-
-    /**
-     * Add search functionality for classes
-     */
-    addClassSearch(classes) {
-        // Create container for search
-        const searchContainer = document.createElement('div');
-        searchContainer.className = 'class-search-container';
-
-        // Create search input
-        const searchInput = document.createElement('input');
-        searchInput.type = 'text';
-        searchInput.placeholder = 'Type to search classes...';
-        searchInput.className = 'class-search-input';
-
-        // Create search button
-        const searchButton = document.createElement('button');
-        searchButton.textContent = 'Search';
-        searchButton.className = 'class-search-button';
-
-        // Create clear button
-        const clearButton = document.createElement('button');
-        clearButton.textContent = 'Clear';
-        clearButton.className = 'class-search-clear-button';
-
-        // Add elements to container
-        searchContainer.appendChild(searchInput);
-        searchContainer.appendChild(searchButton);
-        searchContainer.appendChild(clearButton);
-
-        // Insert the search container before the class select
-        const formGroup = this.classSelect.closest('.form-group');
-        formGroup.insertBefore(searchContainer, this.classSelect);
-
-        // Add event listeners for search
-        const performSearch = () => {
-            const searchTerm = searchInput.value.toLowerCase();
-
-            if (!searchTerm) {
-                // Reset to showing first 50 classes if search is empty
-                this.resetClassSelect(classes);
-                return;
+            if (data.error) {
+                throw new Error(data.error);
             }
 
-            // Filter classes by search term
-            const filteredClasses = classes.filter(cls =>
-                cls.toLowerCase().includes(searchTerm)
-            );
+            // Add classes to select
+            data.classes.forEach(className => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                classSelect.appendChild(option);
+            });
 
-            // Update select with filtered classes
-            this.classSelect.innerHTML = '';
+            // Enable class select
+            classSelect.disabled = false;
 
-            if (filteredClasses.length === 0) {
-                const noResults = document.createElement('option');
-                noResults.value = '';
-                noResults.textContent = 'No matches found';
-                this.classSelect.appendChild(noResults);
-            } else {
-                // Add a prompt option
-                const promptOption = document.createElement('option');
-                promptOption.value = '';
-                promptOption.textContent = `Found ${filteredClasses.length} matches`;
-                this.classSelect.appendChild(promptOption);
+            // Reset class selection
+            this.selectedClass = null;
+            this.classDetails = null;
+            this.selectedMethods = [];
+            this.parameters = {};
 
-                // Add all matches
-                filteredClasses.forEach(className => {
-                    const option = document.createElement('option');
-                    option.value = className;
-                    option.textContent = className;
-                    this.classSelect.appendChild(option);
-                });
+            // Clear methods and parameters containers
+            this.methodsContainer.innerHTML = '';
+            this.parametersContainer.innerHTML = '';
 
-                // If only one match, select it automatically
-                if (filteredClasses.length === 1) {
-                    this.classSelect.value = filteredClasses[0];
-                    // Trigger class change to load methods
-                    this.onClassChange();
-                }
-            }
-        };
-
-        // Clear search and reset class select
-        const clearSearch = () => {
-            searchInput.value = '';
-            this.resetClassSelect(classes);
-        };
-
-        searchButton.addEventListener('click', performSearch);
-        clearButton.addEventListener('click', clearSearch);
-
-        searchInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                performSearch();
-            }
-        });
-    }
-
-    // Helper to reset class select to default state
-    resetClassSelect(classes) {
-        this.classSelect.innerHTML = '';
-
-        // Add an initial prompt
-        const promptOption = document.createElement('option');
-        promptOption.value = '';
-        promptOption.textContent = `Select a class (${classes.length} available)`;
-        this.classSelect.appendChild(promptOption);
-
-        // Show first 50 classes
-        const displayClasses = classes.slice(0, 50);
-
-        displayClasses.forEach(className => {
-            const option = document.createElement('option');
-            option.value = className;
-            option.textContent = className;
-            this.classSelect.appendChild(option);
-        });
-
-        if (classes.length > 50) {
-            const moreOption = document.createElement('option');
-            moreOption.disabled = true;
-            moreOption.textContent = `...and ${classes.length - 50} more classes`;
-            this.classSelect.appendChild(moreOption);
+            // Reset nodes
+            this.inputNodes = [];
+            this.outputNodes = [];
+            this.updateNodesDisplay();
+        } catch (error) {
+            console.error('Error fetching classes:', error);
+            showToast(`Error loading classes: ${error.message}`, 'error');
         }
     }
 
@@ -790,8 +661,13 @@ class CustomBlockHandler {
         let html = '<div class="methods-list">';
 
         // Initialize selected methods if needed
-        if (!this.selectedMethods) {
-            this.selectedMethods = [];
+        if (!this.selectedMethods || !Array.isArray(this.selectedMethods)) {
+            this.selectedMethods = ['__init__']; // Always include constructor
+        }
+
+        // Make sure __init__ is in the selected methods
+        if (!this.selectedMethods.includes('__init__')) {
+            this.selectedMethods.push('__init__');
         }
 
         // Add constructor (init_params) if available
@@ -807,11 +683,6 @@ class CustomBlockHandler {
                     </div>
                 </div>
             `;
-
-            // Add __init__ to selected methods if not already there
-            if (!this.selectedMethods.includes('__init__')) {
-                this.selectedMethods.push('__init__');
-            }
 
             // Store constructor parameters
             const constructorParams = this.classDetails.init_params.map(param => param.name);
@@ -832,9 +703,12 @@ class CustomBlockHandler {
             const methodDetail = methodDetailsByName[methodName] || null;
             const methodDoc = methodDetail ? methodDetail.doc : 'No documentation available';
 
+            // Check if this method was previously selected
+            const isChecked = this.selectedMethods.includes(methodName);
+
             html += `
                 <div class="method-item">
-                    <input type="checkbox" id="method-${methodName}" value="${methodName}" ${this.selectedMethods.includes(methodName) ? 'checked' : ''}>
+                    <input type="checkbox" id="method-${methodName}" value="${methodName}" ${isChecked ? 'checked' : ''}>
                     <label for="method-${methodName}">
                         <strong>${methodName}</strong>
                     </label>
@@ -873,11 +747,24 @@ class CustomBlockHandler {
 
                 // Update the parameters container
                 this.updateParametersContainer();
+
+                // Log the selected methods for debugging
+                console.log('Selected methods updated:', this.selectedMethods);
+
+                // Immediately save this selection to ensure it's not lost
+                if (this.editingBlockId && this.selectedClass) {
+                    saveMethods(this.selectedClass, this.selectedMethods, this.editingBlockId);
+                    console.log('Saved methods during editing:', this.selectedMethods);
+                }
             });
         });
 
         // Update parameters after setting up methods
         this.updateParametersContainer();
+
+        // Log all available methods for debugging
+        console.log('Available methods:', methods);
+        console.log('Currently selected methods:', this.selectedMethods);
     }
 
     /**
@@ -1103,8 +990,26 @@ class CustomBlockHandler {
                 return;
             }
 
+            // Make sure we have up-to-date selected methods
+            if (!this.selectedMethods || this.selectedMethods.length === 0) {
+                // If no methods selected, default to just the constructor
+                this.selectedMethods = ['__init__'];
+                console.warn('No methods selected, defaulting to constructor only');
+            } else if (!this.selectedMethods.includes('__init__')) {
+                // Make sure constructor is always included
+                this.selectedMethods.unshift('__init__');
+                console.log('Added constructor to selected methods');
+            }
+
+            // Log the methods we're about to save
+            console.log('Creating block with these methods:', this.selectedMethods);
+
             // Generate a unique ID for the block
             const blockId = `custom-block-${Date.now()}`;
+
+            // First save methods to ensure they're available
+            console.log(`Saving methods for new block ${blockId}:`, this.selectedMethods);
+            saveMethods(this.selectedClass, this.selectedMethods, blockId);
 
             // Create the block on the canvas
             createCustomBlock(
@@ -1155,11 +1060,21 @@ class CustomBlockHandler {
             return typeof node === 'string' ? node : node.name;
         });
 
+        // Try to load selected methods from storage
+        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        const blockData = customBlocks.find(b => b.id === blockId);
+        if (blockData && blockData.methods) {
+            this.selectedMethods = blockData.methods;
+        } else {
+            // Default to constructor method if no methods found
+            this.selectedMethods = ['__init__'];
+        }
+
         // Find the block's library and module
-        const blockData = this.findBlockData(className);
-        if (blockData) {
-            this.selectedLibrary = blockData.library;
-            this.selectedModule = blockData.module;
+        const blockData2 = this.findBlockData(className);
+        if (blockData2) {
+            this.selectedLibrary = blockData2.library;
+            this.selectedModule = blockData2.module;
         }
 
         // Show modal
@@ -1294,102 +1209,45 @@ function showToast(message, type = 'info') {
 
 // Function to add the custom block to the blocks menu
 function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
-    // Find the blocks menu (correct ID: blocks-menu, not block-menu)
+    // Find the blocks menu container
     const blocksMenu = document.getElementById('blocks-menu');
-    if (!blocksMenu) {
-        console.error('Blocks menu not found');
+    if (!blocksMenu) return;
+
+    // Find or create custom blocks section
+    let customBlocksSection = blocksMenu.querySelector('.custom-blocks-section');
+    if (!customBlocksSection) {
+        customBlocksSection = document.createElement('div');
+        customBlocksSection.className = 'custom-blocks-section';
+        customBlocksSection.innerHTML = '<div class="section-header">Custom Blocks</div>';
+        blocksMenu.appendChild(customBlocksSection);
+    }
+
+    // Check if this block already exists in the menu
+    if (customBlocksSection.querySelector(`[data-block-id="${blockId}"]`)) {
+        console.log(`Block ${blockId} already exists in menu, skipping`);
         return;
     }
 
-    // Find or create Custom Blocks section
-    let customBlocksSection = blocksMenu.querySelector('.block-templates-container .custom-blocks-section');
-    if (!customBlocksSection) {
-        // Create the custom blocks section if it doesn't exist
-        const blockTemplatesContainer = blocksMenu.querySelector('.block-templates-container');
-        if (!blockTemplatesContainer) {
-            console.error('Block templates container not found');
-            return;
-        }
-
-        // Create section header
-        const sectionHeader = document.createElement('h4');
-        sectionHeader.className = 'section-header';
-        sectionHeader.textContent = 'Custom Blocks';
-        blockTemplatesContainer.appendChild(sectionHeader);
-
-        // Create custom blocks section
-        customBlocksSection = document.createElement('div');
-        customBlocksSection.className = 'custom-blocks-section';
-        blockTemplatesContainer.appendChild(customBlocksSection);
-    }
-
-    // Check if block already exists
-    if (document.querySelector(`.block-template[data-id="${blockId}"]`)) {
-        return; // Block already exists in menu
-    }
-
-    // Create block template
+    // Create a block template
     const blockTemplate = document.createElement('div');
-    blockTemplate.className = 'block-template';
+    blockTemplate.className = 'block-template custom-block-template';
     blockTemplate.setAttribute('draggable', 'true');
     blockTemplate.setAttribute('data-block-type', 'custom');
-    blockTemplate.setAttribute('data-id', blockId);
+    blockTemplate.setAttribute('data-block-id', blockId);
     blockTemplate.setAttribute('data-class-name', className);
 
-    // Create preview content that exactly matches the structure in index.html
+    // Create simplified block structure for the menu
     blockTemplate.innerHTML = `
-        <div class="block-content-wrapper">
-            <div class="block-header">
-                <div class="block-drag-handle">${className}</div>
-                <div class="block-actions">
-                    <button class="edit-parameters-btn" title="Edit Parameters">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="node-container">
-                ${inputNodes.length > 0 ?
-                    `<div class="input-node-group">
-                        ${inputNodes.map(node =>
-                            `<div class="input-node" data-input="${typeof node === 'string' ? node : node.name}">
-                                <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
-                            </div>`
-                        ).join('')}
-                    </div>`
-                    : ''
-                }
-                ${outputNodes.length > 0 ?
-                    `<div class="output-node-group">
-                        ${outputNodes.map(node =>
-                            `<div class="output-node" data-output="${typeof node === 'string' ? node : node.name}">
-                                <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
-                            </div>`
-                        ).join('')}
-                    </div>`
-                    : ''
-                }
-            </div>
-            <div class="block-content">
-                <div class="custom-block-status">
-                    <div class="status-indicator"></div>
-                    <span class="status">Ready</span>
-                </div>
-                <div class="method-selectors">
-                    <select class="method-select" title="Select method to execute">
-                        <option value="">Select method...</option>
-                    </select>
-                    <button class="add-param-btn" title="Add parameter">+</button>
-                </div>
-                <div class="block-parameters">
-                    <!-- Parameters will be added here dynamically -->
-                </div>
-            </div>
+        <div class="block-header">
+            <div class="block-drag-handle">${className}</div>
+            <button class="edit-parameters-btn" title="Edit Parameters">
+                <i class="fas fa-cog"></i>
+            </button>
         </div>
     `;
 
-    // Make the block template draggable
+    // Add drag start event listener
     blockTemplate.addEventListener('dragstart', (e) => {
-        // Store data for dragging
         e.dataTransfer.setData('text/plain', 'custom');
         e.dataTransfer.setData('blockId', blockId);
         e.dataTransfer.setData('className', className);
@@ -1397,17 +1255,18 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
         e.dataTransfer.setData('outputNodes', JSON.stringify(outputNodes));
     });
 
-    // Add event listener for edit parameters button
-    const editParamsButton = blockTemplate.querySelector('.edit-parameters-btn');
-    if (editParamsButton) {
-        editParamsButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent triggering drag events
-            // Create custom block handler if not already created
+    // Add edit button click handler
+    const editButton = blockTemplate.querySelector('.edit-parameters-btn');
+    if (editButton) {
+        editButton.addEventListener('click', () => {
+            // Make sure custom block handler exists
             if (!customBlockHandler) {
                 customBlockHandler = new CustomBlockHandler();
+                // Make it globally accessible
+                window.customBlockHandler = customBlockHandler;
             }
 
-            // Load the block data for editing
+            // Call edit method
             customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
         });
     }
@@ -1415,7 +1274,7 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     // Add to custom blocks section
     customBlocksSection.appendChild(blockTemplate);
 
-    // Save to localStorage for persistence
+    // Save to sessionStorage for persistence
     saveCustomBlockToStorage(className, blockId, inputNodes, outputNodes);
 
     // Show success message
@@ -1427,18 +1286,54 @@ function saveCustomBlockToStorage(className, blockId, inputNodes, outputNodes) {
     // Get existing blocks or initialize empty array
     const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
-    // Add new block if it doesn't already exist
-    if (!existingBlocks.some(block => block.id === blockId)) {
+    // Get selected methods from the handler if it exists
+    const handler = window.customBlockHandler;
+    let selectedMethods = ['__init__']; // Default to constructor only
+
+    if (handler && handler.selectedMethods && handler.selectedMethods.length > 0) {
+        // Make sure we have all the methods the user selected
+        selectedMethods = [...handler.selectedMethods];
+        // Ensure __init__ is always included
+        if (!selectedMethods.includes('__init__')) {
+            selectedMethods.unshift('__init__');
+        }
+        console.log(`Using ${selectedMethods.length} methods from handler for ${blockId}:`, selectedMethods);
+    } else {
+        // Try to find existing methods for this class
+        const existingBlock = existingBlocks.find(b => b.className === className);
+        if (existingBlock && existingBlock.methods && existingBlock.methods.length > 0) {
+            selectedMethods = [...existingBlock.methods];
+            console.log(`Using ${selectedMethods.length} existing methods for ${blockId}:`, selectedMethods);
+        }
+    }
+
+    // Check if block already exists
+    const existingBlockIndex = existingBlocks.findIndex(block => block.id === blockId);
+
+    if (existingBlockIndex >= 0) {
+        // Update existing block
+        existingBlocks[existingBlockIndex] = {
+            ...existingBlocks[existingBlockIndex],
+            className: className,
+            inputNodes: inputNodes,
+            outputNodes: outputNodes,
+            methods: selectedMethods
+        };
+        console.log(`Updated existing block ${blockId} with ${selectedMethods.length} methods:`, selectedMethods);
+    } else {
+        // Add new block
         existingBlocks.push({
             id: blockId,
             className: className,
             inputNodes: inputNodes,
-            outputNodes: outputNodes
+            outputNodes: outputNodes,
+            methods: selectedMethods
         });
-
-        // Save back to sessionStorage instead of localStorage
-        sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+        console.log(`Added new block ${blockId} with ${selectedMethods.length} methods:`, selectedMethods);
     }
+
+    // Save back to sessionStorage
+    sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
 }
 
 // Function to load custom blocks from localStorage
@@ -1467,6 +1362,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addCustomBlockBtn.addEventListener('click', () => {
             if (!customBlockHandler) {
                 customBlockHandler = new CustomBlockHandler();
+                // Make it globally accessible
+                window.customBlockHandler = customBlockHandler;
             }
             customBlockHandler.showModal();
         });
@@ -1573,13 +1470,18 @@ function saveModuleInfo(className, library, module) {
 }
 
 // Function to create a custom block on the canvas
-function createCustomBlock(className, inputNodes, outputNodes, blockId) {
+function createCustomBlock(className, inputNodes, outputNodes, blockId, originalBlockId = null) {
     // Create a new block element
     const block = document.createElement('div');
     block.className = 'block custom-block';
     block.setAttribute('data-block-type', 'custom');
     block.setAttribute('data-class-name', className);
     block.id = blockId;
+
+    // Store reference to original block if provided
+    if (originalBlockId) {
+        block.setAttribute('data-original-block-id', originalBlockId);
+    }
 
     // Create the block content structure that matches regular blocks
     block.innerHTML = `
@@ -1661,15 +1563,12 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId) {
         });
     }
 
-    // Add event listeners for method selector
+    // Populate methods dropdown - pass the original block ID if available for method lookup
+    populateMethodsForBlock(block, className, originalBlockId || blockId);
+
+    // Handle method selection change
     const methodSelect = block.querySelector('.method-select');
-    const addParamBtn = block.querySelector('.add-param-btn');
-
-    if (methodSelect && addParamBtn) {
-        // Fetch available methods for this class
-        populateMethodsForBlock(block, className);
-
-        // Handle method selection change
+    if (methodSelect) {
         methodSelect.addEventListener('change', () => {
             const selectedMethod = methodSelect.value;
             console.log(`Method selected: ${selectedMethod}`);
@@ -1679,45 +1578,79 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId) {
         });
 
         // Handle add parameter button
-        addParamBtn.addEventListener('click', () => {
-            addCustomParameter(block);
-        });
+        const addParamBtn = block.querySelector('.add-param-btn');
+        if (addParamBtn) {
+            addParamBtn.addEventListener('click', () => {
+                addCustomParameter(block);
+            });
+        }
     }
 
     return block;
 }
 
 // Function to populate methods for a block
-function populateMethodsForBlock(block, className) {
+function populateMethodsForBlock(block, className, blockId) {
     const methodSelect = block.querySelector('.method-select');
     if (!methodSelect) return;
 
-    console.log(`Populating methods for ${className}`);
+    console.log(`Populating methods for ${className} (block ID: ${blockId})`);
 
-    // Clear existing options except the first one
+    // Clear existing options except the first one (Select method...)
     while (methodSelect.options.length > 1) {
         methodSelect.remove(1);
     }
 
-    // Try to find methods from localStorage
-    const customBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
-    const blockData = customBlocks.find(b => b.className === className);
+    // Try to find methods from sessionStorage for this specific block
+    let customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+
+    // First look for the specific block by ID
+    let blockData = blockId ? customBlocks.find(b => b.id === blockId) : null;
+
+    // If not found and this is a canvas instance, try to find the original block
+    if (!blockData && block.hasAttribute('data-original-block-id')) {
+        const originalId = block.getAttribute('data-original-block-id');
+        blockData = customBlocks.find(b => b.id === originalId);
+    }
+
+    // If still not found, try to find by className
+    if (!blockData) {
+        blockData = customBlocks.find(b => b.className === className);
+    }
+
+    // As a fallback, also check localStorage (for backward compatibility)
+    if (!blockData) {
+        try {
+            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+            blockData = localBlocks.find(b => b.className === className);
+        } catch (e) {
+            console.warn('Error reading from localStorage:', e);
+        }
+    }
 
     if (blockData && blockData.methods && blockData.methods.length > 0) {
-        console.log(`Found methods in localStorage: ${blockData.methods.join(', ')}`);
+        console.log(`Found ${blockData.methods.length} methods for ${blockId || className}: ${blockData.methods.join(', ')}`);
 
-        // Add methods to select
+        // Add all methods to select
         blockData.methods.forEach(method => {
             const option = document.createElement('option');
             option.value = method;
             option.textContent = method;
             methodSelect.appendChild(option);
         });
-    } else {
-        // If no methods found in localStorage, fetch them from the server
-        console.log(`No methods found in localStorage, fetching from server...`);
 
-        // Find module info from localStorage
+        // Set the first method as selected (often __init__)
+        if (methodSelect.options.length > 1) {
+            methodSelect.selectedIndex = 1;
+            // Trigger change event to update parameters
+            const changeEvent = new Event('change');
+            methodSelect.dispatchEvent(changeEvent);
+        }
+    } else {
+        // If no methods found, fetch them from the server or use defaults
+        console.log(`No methods found for ${blockId || className}, fetching from server...`);
+
+        // Find module info from sessionStorage
         const moduleInfo = findModuleInfoForClass(className);
 
         if (moduleInfo) {
@@ -1732,7 +1665,7 @@ function populateMethodsForBlock(block, className) {
                     return response.json();
                 })
                 .then(data => {
-                    console.log(`Fetched methods for ${className}:`, data);
+                    console.log(`Fetched methods for ${blockId || className}:`, data);
 
                     // Add constructor
                     const constructorOption = document.createElement('option');
@@ -1751,32 +1684,51 @@ function populateMethodsForBlock(block, className) {
                             methodSelect.appendChild(option);
                         });
 
-                        // Save methods to localStorage
-                        saveMethods(className, ['__init__', ...data.methods]);
+                        // Save methods to sessionStorage for this specific block
+                        const methodsToSave = ['__init__', ...data.methods];
+                        saveMethods(className, methodsToSave, blockId);
+                        console.log(`Saved ${methodsToSave.length} methods from API for ${blockId || className}`);
+
+                        // Set constructor as selected by default
+                        if (methodSelect.options.length > 1) {
+                            methodSelect.selectedIndex = 1;
+                            // Trigger change event to update parameters
+                            const changeEvent = new Event('change');
+                            methodSelect.dispatchEvent(changeEvent);
+                        }
                     }
                 })
                 .catch(error => {
-                    console.error(`Error fetching methods for ${className}:`, error);
+                    console.error(`Error fetching methods for ${blockId || className}:`, error);
 
                     // Add default methods as fallback
                     addDefaultMethods(methodSelect);
+
+                    // Set first method as selected
+                    if (methodSelect.options.length > 1) {
+                        methodSelect.selectedIndex = 1;
+                        // Trigger change event
+                        const changeEvent = new Event('change');
+                        methodSelect.dispatchEvent(changeEvent);
+                    }
                 });
         } else {
-            console.warn(`No module info found for ${className}, using default methods`);
+            console.warn(`No module info found for ${blockId || className}, using default methods`);
 
             // Add default methods
             addDefaultMethods(methodSelect);
+
+            // Set first method as selected
+            if (methodSelect.options.length > 1) {
+                methodSelect.selectedIndex = 1;
+                // Trigger change event
+                const changeEvent = new Event('change');
+                methodSelect.dispatchEvent(changeEvent);
+            }
         }
     }
 
-    // Add event listener for method selection change
-    methodSelect.addEventListener('change', () => {
-        const selectedMethod = methodSelect.value;
-        console.log(`Method selected: ${selectedMethod}`);
-
-        // Update block parameters based on selected method
-        updateBlockParameters(block, selectedMethod);
-    });
+    // Event listener for method selection is already added in createCustomBlock
 }
 
 // Helper function to add default methods
@@ -1802,24 +1754,33 @@ function findModuleInfoForClass(className) {
 }
 
 // Helper function to save methods to sessionStorage
-function saveMethods(className, methods) {
+function saveMethods(className, methods, blockId = null) {
     try {
         const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-        const existingBlockIndex = customBlocks.findIndex(b => b.className === className);
 
-        if (existingBlockIndex >= 0) {
-            customBlocks[existingBlockIndex].methods = methods;
+        if (blockId) {
+            // If blockId is provided, update that specific block
+            const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
+            if (existingBlockIndex >= 0) {
+                customBlocks[existingBlockIndex].methods = methods;
+            }
         } else {
-            customBlocks.push({
-                className,
-                methods
-            });
+            // If no blockId, update by className (legacy behavior)
+            const existingBlockIndex = customBlocks.findIndex(b => b.className === className);
+            if (existingBlockIndex >= 0) {
+                customBlocks[existingBlockIndex].methods = methods;
+            } else {
+                customBlocks.push({
+                    className,
+                    methods
+                });
+            }
         }
 
         sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
-        console.log(`Saved methods for ${className}:`, methods);
+        console.log(`Saved methods for ${blockId || className}:`, methods);
     } catch (error) {
-        console.error(`Error saving methods for ${className}:`, error);
+        console.error(`Error saving methods for ${blockId || className}:`, error);
     }
 }
 
