@@ -125,21 +125,98 @@ def export_blocks():
                 def __init__(self):
                     super().__init__()
                     self.block_type = block_type
-                    self.class_name = block_type  # Store the actual class name
-                    self.module_path = "langchain_community"  # Default module path
+                    self.class_name = None  # Will be set properly based on block_type
+                    self.module_path = ""  # Default empty module path
                     self.config = config
+                    self.component_type = ""  # Default empty component type
+                    self.selected_methods = []
+                    self.parameters = {}  # Store parameter info for methods
 
-                    # Extract module path from block_type if it's a custom block
+                    # Extract module path and class name from block_type
                     if block_type.startswith("custom_"):
-                        self.class_name = block_type[7:]  # Remove 'custom_' prefix
-                        module_parts = self.class_name.split(".")
-                        if len(module_parts) > 1:
-                            self.class_name = module_parts[-1]  # Last part is the class name
-                            self.module_path = ".".join(module_parts[:-1])  # Rest is the module path
+                        # Remove 'custom_' prefix to get the full class path
+                        full_class_path = block_type[7:]  # e.g. "langchain_community.llms.OpenAI"
 
-                    # Set import string and function string with actual class name
-                    self.import_string = f"import {self.module_path}"
-                    self.function_string = f"def create_{self.class_name.lower()}():\n    # Initialize {self.class_name}\n    return '{self.class_name} instance'"
+                        # Split the path to get module and class name
+                        parts = full_class_path.split(".")
+                        if len(parts) > 1:
+                            self.class_name = parts[-1]  # Last part is class name
+                            self.module_path = ".".join(parts[:-1])  # Rest is module path
+                        else:
+                            self.class_name = full_class_path  # If no dots, use as is
+                    else:
+                        # For non-custom blocks, use the block_type as class name
+                        self.class_name = block_type
+
+                    # Determine component type based on module path and class name
+                    if "document_loaders" in self.module_path or "loader" in self.class_name.lower():
+                        self.component_type = "document_loaders"
+                    elif "text_splitters" in self.module_path:
+                        self.component_type = "text_splitters"
+                    elif "embedding" in self.module_path or "embed" in self.class_name.lower():
+                        self.component_type = "embeddings"
+                    elif "vectorstore" in self.module_path:
+                        self.component_type = "vectorstores"
+                    elif "retriever" in self.module_path:
+                        self.component_type = "retrievers"
+                    elif "llm" in self.module_path:
+                        self.component_type = "llms"
+                    elif "chat" in self.module_path:
+                        self.component_type = "chat_models"
+                    elif "chain" in self.module_path:
+                        self.component_type = "chains"
+                    else:
+                        # Default to a generic type
+                        self.component_type = "utility"
+
+                    # Set import string and function string
+                    if self.module_path:
+                        self.import_string = f"from {self.module_path} import {self.class_name}"
+                    else:
+                        self.import_string = f"# Import for {self.class_name}"
+
+                    self.function_string = f"# Placeholder for {self.class_name} function"
+
+                    # Extract methods from block info or config
+                    if "methods" in config:
+                        self.selected_methods = config["methods"]
+                    elif "selected_methods" in config:
+                        self.selected_methods = config["selected_methods"]
+
+                    # Create placeholder for methods list (all available methods)
+                    self.methods = list(self.selected_methods) if self.selected_methods else []
+
+                    # Always add __init__ to methods if not present
+                    if "__init__" not in self.methods:
+                        self.methods.append("__init__")
+
+                    # Create default parameters for methods
+                    for method in self.methods:
+                        self.parameters[method] = []
+
+                    # Always add a default method if no methods are specified
+                    if not self.selected_methods or (len(self.selected_methods) == 1 and self.selected_methods[0] == "__init__"):
+                        if self.component_type == "embeddings":
+                            self.methods.append("embed_documents")
+                            self.selected_methods.append("embed_documents")
+                        elif self.component_type == "document_loaders":
+                            self.methods.append("load")
+                            self.selected_methods.append("load")
+                        elif self.component_type == "text_splitters":
+                            self.methods.append("split_documents")
+                            self.selected_methods.append("split_documents")
+                        elif self.component_type == "llms" or self.component_type == "chat_models":
+                            self.methods.append("invoke")
+                            self.selected_methods.append("invoke")
+                        elif self.component_type == "vectorstores":
+                            self.methods.append("similarity_search")
+                            self.selected_methods.append("similarity_search")
+                        elif self.component_type == "retrievers":
+                            self.methods.append("get_relevant_documents")
+                            self.selected_methods.append("get_relevant_documents")
+                        else:
+                            self.methods.append("run")
+                            self.selected_methods.append("run")
 
                 def validate_connections(self) -> bool:
                     return True
@@ -190,107 +267,234 @@ def generate_python_code(blocks, connections):
     # Determine execution order
     execution_order = determine_execution_order(blocks, connections)
 
-    # Initialize code sections
-    imports = []
-    class_creations = []
-    method_calls = []
+    # Initialize collections
+    imports = set()
+    init_code_lines = []
+    method_code_lines = []
 
-    # Generate variable names for each block
+    # Define method categories for proper ordering
+    producer_methods = ["load", "create_docs", "get_docs"]
+    consumer_methods = ["split_documents", "from_documents", "add_documents", "embed_documents", "embed_query"]
+
+    # Create variable names for each block
     block_vars = {}
     for i, block_id in enumerate(execution_order):
         block = blocks[block_id]
-        # Use the actual class name for variable name
-        if hasattr(block, 'class_name'):
-            class_name = block.class_name
-        else:
-            class_name = type(block).__name__
-
-        # Clean up the class name to make a valid variable name
-        var_name = class_name.lower().replace(' ', '_').replace('.', '_')
-        # Add a number suffix to make it unique
-        var_name = f"{var_name}_{i+1}"
+        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
+        var_name = f"{class_name.lower()}_{i+1}".replace(' ', '_').replace('-', '_')
         block_vars[block_id] = var_name
 
-    # Process blocks in execution order
+        # Add import for this block
+        if hasattr(block, 'module_path') and block.module_path:
+            imports.add(f"from {block.module_path} import {class_name}")
+
+    # Build connection maps for easier processing
+    connection_map = {}  # source -> [targets]
+    reverse_connection_map = {}  # target -> [sources]
+
+    for source_id, targets in connections.items():
+        if source_id not in connection_map:
+            connection_map[source_id] = []
+        for target_id in targets:
+            connection_map[source_id].append(target_id)
+            if target_id not in reverse_connection_map:
+                reverse_connection_map[target_id] = []
+            reverse_connection_map[target_id].append(source_id)
+
+    # First, handle all block initializations in the proper order
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
+        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
 
-        # Get the actual class name
-        if hasattr(block, 'class_name'):
-            class_name = block.class_name
-        else:
-            class_name = type(block).__name__
-
-        # Get the module path
-        if hasattr(block, 'module_path'):
-            module_path = block.module_path
-            imports.append(f"import {module_path}")
-
-        # Add class creation
-        class_creations.append(f"# Initialize {class_name}")
-
-        # If it's a custom block with parameters, use them
+        # Build initialization parameters
+        init_params = []
         if hasattr(block, 'config') and block.config:
-            params = []
             for param_name, param_value in block.config.items():
+                # Skip non-initialization parameters
+                if param_name in ['methods', 'selected_methods']:
+                    continue
+
+                # Format the value properly
                 if isinstance(param_value, str):
                     if not (param_value.startswith(("'", '"', "[", "{", "True", "False", "None")) or param_value.isdigit()):
                         param_value = f'"{param_value}"'
-                params.append(f"{param_name}={param_value}")
 
-            if hasattr(block, 'module_path') and block.module_path:
-                class_creations.append(f"{var_name} = {module_path}.{class_name}({', '.join(params)})")
-            else:
-                class_creations.append(f"{var_name} = {class_name}({', '.join(params)})")
-        else:
-            if hasattr(block, 'module_path') and block.module_path:
-                class_creations.append(f"{var_name} = {module_path}.{class_name}()")
-            else:
-                class_creations.append(f"{var_name} = {class_name}()")
+                init_params.append(f"{param_name}={param_value}")
 
-        # Add method calls based on block connections
-        # The block at the end of the connection calls methods on the blocks at the start
-        for source_id, targets in connections.items():
-            if block_id in targets:
-                source_var = block_vars[source_id]
-                method_calls.append(f"# Process data from {source_var}")
-                if hasattr(block, 'methods') and block.methods:
-                    for method in block.methods:
-                        if method != "__init__":
-                            method_calls.append(f"result = {var_name}.{method}({source_var})")
+        # Add initialization code
+        init_code_lines.append(f"# Initialize {class_name}")
+        init_code_lines.append(f"{var_name} = {class_name}({', '.join(init_params)})")
+
+    # Now generate method execution code
+    # First run all producer methods
+    for block_id in execution_order:
+        block = blocks[block_id]
+        var_name = block_vars[block_id]
+        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
+
+        # Get methods for this block (excluding __init__)
+        methods_to_execute = []
+        if hasattr(block, 'methods'):
+            methods_to_execute = [m for m in block.methods if m != "__init__"]
+        elif hasattr(block, 'selected_methods'):
+            methods_to_execute = [m for m in block.selected_methods if m != "__init__"]
+
+        # Run producer methods first
+        producer_methods_for_block = [m for m in methods_to_execute if m in producer_methods]
+
+        for method_name in producer_methods_for_block:
+            method_code_lines.append(f"# Execute {method_name} on {class_name}")
+
+            # If this block has incoming connections, use them as parameters
+            if block_id in reverse_connection_map:
+                source_ids = reverse_connection_map[block_id]
+                source_params = []
+                for source_id in source_ids:
+                    source_var = block_vars[source_id]
+                    source_params.append(f"{source_var}_output")
+
+                if source_params:
+                    # For methods like load() that typically don't take other blocks' outputs
+                    # We'll handle those specially
+                    if method_name == "load" and (
+                        hasattr(block, 'component_type') and block.component_type == "document_loaders"
+                    ):
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                    else:
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})")
                 else:
-                    method_calls.append(f"result = {var_name}.process({source_var})")
+                    method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+            else:
+                # No incoming connections, call with no parameters
+                method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
 
-    # Assemble the final code
-    code_parts = []
+    # Then run all consumer methods
+    for block_id in execution_order:
+        block = blocks[block_id]
+        var_name = block_vars[block_id]
+        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
+        component_type = block.component_type if hasattr(block, 'component_type') else ""
 
-    # Add imports
-    if imports:
-        code_parts.append("# Imports")
-        code_parts.extend(sorted(list(set(imports))))
-        code_parts.append("")
+        # Get methods for this block that aren't producers
+        methods_to_execute = []
+        if hasattr(block, 'methods'):
+            methods_to_execute = [m for m in block.methods if m != "__init__" and m not in producer_methods]
+        elif hasattr(block, 'selected_methods'):
+            methods_to_execute = [m for m in block.selected_methods if m != "__init__" and m not in producer_methods]
 
-    # Add class creations
-    if class_creations:
-        code_parts.append("# Initialize objects")
-        code_parts.extend(class_creations)
-        code_parts.append("")
+        # Skip if we already processed producer methods
+        if not methods_to_execute and producer_methods_for_block:
+            continue
+
+        # For blocks with no methods yet, determine appropriate methods based on type
+        if not methods_to_execute:
+            # For blocks with custom component type
+            if component_type:
+                if component_type == "embeddings":
+                    methods_to_execute = ["embed_documents"]
+                elif component_type == "document_loaders":
+                    methods_to_execute = ["load"]
+                elif component_type == "text_splitters":
+                    methods_to_execute = ["split_documents"]
+                elif component_type == "vectorstores":
+                    methods_to_execute = ["similarity_search"]
+                elif component_type == "retrievers":
+                    methods_to_execute = ["get_relevant_documents"]
+                elif component_type == "llms" or component_type == "chat_models":
+                    methods_to_execute = ["invoke"]
+                else:
+                    methods_to_execute = ["run"]  # Generic default
+            # For blocks without component_type, infer from module path or class name
+            elif hasattr(block, 'module_path') or hasattr(block, 'class_name'):
+                module_path = getattr(block, 'module_path', '')
+                class_name_lower = class_name.lower()
+
+                if "embeddings" in module_path or "embed" in class_name_lower:
+                    methods_to_execute = ["embed_documents"]
+                elif "document_loaders" in module_path or "loader" in class_name_lower:
+                    methods_to_execute = ["load"]
+                elif "text_splitters" in module_path:
+                    methods_to_execute = ["split_documents"]
+                elif "vectorstore" in module_path:
+                    methods_to_execute = ["similarity_search"]
+                elif "retriever" in module_path:
+                    methods_to_execute = ["get_relevant_documents"]
+                elif "llm" in module_path or "chat" in class_name_lower:
+                    methods_to_execute = ["invoke"]
+                else:
+                    methods_to_execute = ["run"]  # Generic default
+
+        for method_name in methods_to_execute:
+            method_code_lines.append(f"# Execute {method_name} on {class_name}")
+
+            # If this block has incoming connections, use them as parameters
+            if block_id in reverse_connection_map:
+                source_ids = reverse_connection_map[block_id]
+                source_params = []
+                for source_id in source_ids:
+                    source_var = block_vars[source_id]
+                    source_params.append(f"{source_var}_output")
+
+                if source_params:
+                    # For methods that take specific parameter names
+                    if method_name == "embed_documents":
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(texts={source_params[0]})")
+                    elif method_name == "embed_query":
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(text={source_params[0]})")
+                    elif method_name == "from_documents":
+                        if len(source_params) > 1:
+                            method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]}, embedding={source_params[1]})")
+                        else:
+                            method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})")
+                    elif method_name == "split_documents":
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})")
+                    elif method_name in ["invoke", "run"]:
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(input={source_params[0]})")
+                    else:
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})")
+                else:
+                    method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+            else:
+                # No incoming connections, call with no parameters
+                method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+
+    # Collect clean lines for the final code
+    clean_code_lines = []
+
+    # Add imports at the top
+    clean_code_lines.append("# Imports")
+    for imp in sorted(list(imports)):
+        clean_code_lines.append(imp)
+    clean_code_lines.append("")
+
+    # Add initialization code
+    clean_code_lines.append("# Initialize components")
+    clean_code_lines.extend(init_code_lines)
+    clean_code_lines.append("")
 
     # Add method calls
-    if method_calls:
-        code_parts.append("# Process data through the pipeline")
-        code_parts.extend(method_calls)
-        code_parts.append("")
+    clean_code_lines.append("# Process data through the pipeline")
+    clean_code_lines.extend(method_code_lines)
+    clean_code_lines.append("")
 
     # Add final print for the last block
     if execution_order:
         last_block_id = execution_order[-1]
         last_var = block_vars[last_block_id]
-        code_parts.append("# Print the final result")
-        code_parts.append(f"print({last_var})")
+        last_block = blocks[last_block_id]
+        last_class = last_block.class_name if hasattr(last_block, 'class_name') else type(last_block).__name__
 
-    return "\n".join(code_parts)
+        clean_code_lines.append("# Print the final result")
+        clean_code_lines.append(f'print("\\nFinal result from {last_class}:")')
+        clean_code_lines.append(f"print({last_var}_output)")
+
+    # Generate the final code
+    final_code = []
+    for line in clean_code_lines:
+        final_code.append(line)
+
+    return "\n".join(final_code)
 
 def determine_execution_order(blocks, connections):
     """Determine the order in which blocks should be executed using topological sort."""

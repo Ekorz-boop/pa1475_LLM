@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add pipeline validation function
     function validatePipeline() {
-        // Get all blocks
+        // Check if there are any blocks at all
         const blocks = document.querySelectorAll('.block');
 
         // Check if there are any blocks at all
@@ -322,11 +322,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             showProgress(false);
-            showToast('Pipeline exported successfully', 'success');
+            showToast('Code generated successfully', 'success');
         } catch (error) {
             console.error('Export error:', error);
             showProgress(false);
-            showToast('Failed to export pipeline: ' + error.message, 'error');
+            showToast('Failed to generate code: ' + error.message, 'error');
         }
     }
 
