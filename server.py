@@ -331,7 +331,7 @@ def list_blocks():
             block_id: type(block).__name__ for block_id, block in canvas.blocks.items()
         }
         return jsonify({"blocks": blocks, "connections": canvas.connections})
-            except Exception as e:
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/blocks/process", methods=["POST"])
@@ -343,7 +343,7 @@ def process_block():
         config = data.get("config", {})
         debug_mode = data.get("debug_mode", False)
 
-                    print(
+        print(
             f"\n[PROCESSING] Block: {block_type} (ID: {block_id}), Debug mode: {debug_mode}"
         )
 
@@ -842,18 +842,18 @@ def get_langchain_class_details():
                     # No special parameters by default
                     print(f"No special parameters defined for {class_name}")
                 else:
-                for param_name, param in init_sig.parameters.items():
-                    # Skip self parameter
-                    if param_name == 'self':
-                        continue
+                    for param_name, param in init_sig.parameters.items():
+                        # Skip self parameter
+                        if param_name == 'self':
+                            continue
 
-                    param_info = {
-                        "name": param_name,
-                        "required": param.default == inspect.Parameter.empty,
-                        "default": str(param.default) if param.default != inspect.Parameter.empty else None,
-                        "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
-                    }
-                    init_params.append(param_info)
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": str(param.default) if param.default != inspect.Parameter.empty else None,
+                            "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
+                        }
+                        init_params.append(param_info)
         except (ValueError, TypeError) as e:
             print(f"Error getting init parameters for {class_name}: {str(e)}")
 
