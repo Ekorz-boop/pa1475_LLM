@@ -91,12 +91,8 @@ from langchain_community.vectorstores import FAISS"""
 
     def validate_connections(self) -> bool:
         # Check if the inputs contain at least one TextSplitterBlock and one EmbeddingBlock
-        has_text_splitter = any(
-            isinstance(inp, TextSplitterBlock) for inp in self.inputs.values()
-        )
-        has_embedding = any(
-            isinstance(inp, EmbeddingBlock) for inp in self.inputs.values()
-        )
+        has_text_splitter = any(isinstance(inp, TextSplitterBlock) for inp in self.inputs.values())
+        has_embedding = any(isinstance(inp, EmbeddingBlock) for inp in self.inputs.values())
 
         return has_text_splitter and has_embedding
 
@@ -222,10 +218,7 @@ from langchain.chains import RetrievalQA"""
     return chain"""
 
     def validate_connections(self) -> bool:
-        return all(
-            isinstance(inp, (ChatModelBlock, VectorStoreBlock))
-            for inp in self.inputs.values()
-        )
+        return all(isinstance(inp, (ChatModelBlock, VectorStoreBlock)) for inp in self.inputs.values())
 
 
 class Canvas:
@@ -240,11 +233,7 @@ class Canvas:
     def process_block(self, block_id: str, config: dict) -> dict:
         """Process a block using its implementation."""
         if block_id not in self.blocks:
-            return {
-                "status": "error",
-                "output": f"Block not found: {block_id}",
-                "block_id": block_id
-            }
+            return {"status": "error", "output": f"Block not found: {block_id}", "block_id": block_id}
 
         block = self.blocks[block_id]
 
@@ -257,17 +246,9 @@ class Canvas:
 
             # Example implementation - in a real system, this would use the
             # block's function_string or other properties to execute logic
-            return {
-                "status": "success",
-                "output": f"Processed {block_type}",
-                "block_id": block_id
-            }
+            return {"status": "success", "output": f"Processed {block_type}", "block_id": block_id}
         except Exception as e:
-            return {
-                "status": "error",
-                "output": f"Error processing block: {str(e)}",
-                "block_id": block_id
-            }
+            return {"status": "error", "output": f"Error processing block: {str(e)}", "block_id": block_id}
 
     def connect_blocks(self, source_id: str, target_id: str) -> bool:
         """Connect two blocks and validate the connection."""
@@ -299,13 +280,13 @@ class Canvas:
         # Collect all imports
         imports = set()
         for block in self.blocks.values():
-            if hasattr(block, 'import_string'):
+            if hasattr(block, "import_string"):
                 imports.add(block.import_string)
 
         # Collect all functions
         functions = []
         for block in self.blocks.values():
-            if hasattr(block, 'function_string'):
+            if hasattr(block, "function_string"):
                 functions.append(block.function_string)
 
         # Create the main execution flow
@@ -376,7 +357,7 @@ class Canvas:
                 target_block = self.blocks[target_id]
 
                 # Handle custom blocks
-                if hasattr(target_block, 'input_nodes') and hasattr(source_block, 'output_nodes'):
+                if hasattr(target_block, "input_nodes") and hasattr(source_block, "output_nodes"):
                     # Map output nodes to input nodes based on connection
                     for i, output_node in enumerate(source_block.output_nodes):
                         if i < len(target_block.input_nodes):
@@ -386,7 +367,7 @@ class Canvas:
             block = self.blocks[block_id]
 
             # Handle custom blocks
-            if hasattr(block, 'class_name') and hasattr(block, 'methods'):
+            if hasattr(block, "class_name") and hasattr(block, "methods"):
                 # Get the function name based on class name
                 func_name = f"create_{block.class_name.lower()}"
 

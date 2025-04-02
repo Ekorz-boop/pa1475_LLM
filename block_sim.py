@@ -58,10 +58,7 @@ def list_available_modules(base_package: str) -> List[str]:
         package = importlib.import_module(base_package)
 
         # Get all modules in the package
-        modules = [
-            f"{base_package}.{name}"
-            for _, name, ispkg in pkgutil.iter_modules(package.__path__)
-        ]
+        modules = [f"{base_package}.{name}" for _, name, ispkg in pkgutil.iter_modules(package.__path__)]
 
         # Sort the modules alphabetically
         modules.sort()
@@ -223,21 +220,12 @@ class RAGPipelineSimulator:
 
             # Auto-add init method and prompt for parameters
             if "__init__" in self.blocks[self.current_block_index].methods:
-                if (
-                    "__init__"
-                    not in self.blocks[self.current_block_index].selected_methods
-                ):
-                    self.blocks[self.current_block_index].selected_methods.append(
-                        "__init__"
-                    )
-                    print(
-                        f"\n✓ Automatically added __init__ method to the {class_name} block"
-                    )
+                if "__init__" not in self.blocks[self.current_block_index].selected_methods:
+                    self.blocks[self.current_block_index].selected_methods.append("__init__")
+                    print(f"\n✓ Automatically added __init__ method to the {class_name} block")
 
                     # Prompt user to set parameters for __init__
-                    print(
-                        "\nLet's configure the required parameters for initialization:"
-                    )
+                    print("\nLet's configure the required parameters for initialization:")
                     self._prompt_set_parameters(self.current_block_index, "__init__")
 
             print(f"\n✓ Added {class_name} block to the pipeline")
@@ -288,9 +276,7 @@ class RAGPipelineSimulator:
                     block.cls.embed_query = patched_embed_query
 
             # Get all methods
-            for name, method in inspect.getmembers(
-                block.cls, predicate=inspect.isfunction
-            ):
+            for name, method in inspect.getmembers(block.cls, predicate=inspect.isfunction):
                 # Skip private methods except __init__
                 if name.startswith("_") and name != "__init__":
                     continue
@@ -312,9 +298,7 @@ class RAGPipelineSimulator:
                             instance = block.cls()
                             # Get fields from the instance
                             for field_name in dir(instance):
-                                if not field_name.startswith("_") and not callable(
-                                    getattr(instance, field_name)
-                                ):
+                                if not field_name.startswith("_") and not callable(getattr(instance, field_name)):
                                     field_parameters.append(field_name)
                         except Exception:
                             pass
@@ -330,9 +314,7 @@ class RAGPipelineSimulator:
                             print(f"Found Pydantic v2 fields: {field_parameters}")
 
                         # Try __annotations__ as a fallback
-                        if not field_parameters and hasattr(
-                            block.cls, "__annotations__"
-                        ):
+                        if not field_parameters and hasattr(block.cls, "__annotations__"):
                             field_parameters = list(block.cls.__annotations__.keys())
                             print(f"Found annotations: {field_parameters}")
 
@@ -343,14 +325,10 @@ class RAGPipelineSimulator:
                                 # Look for self.XXX = XXX patterns in constructor
                                 import re
 
-                                matches = re.findall(
-                                    r"self\.([a-zA-Z0-9_]+)\s*=", source
-                                )
+                                matches = re.findall(r"self\.([a-zA-Z0-9_]+)\s*=", source)
                                 if matches:
                                     field_parameters = matches
-                                    print(
-                                        f"Found fields via source inspection: {field_parameters}"
-                                    )
+                                    print(f"Found fields via source inspection: {field_parameters}")
                             except Exception:
                                 pass
 
@@ -358,15 +336,10 @@ class RAGPipelineSimulator:
                             parameters = ["self"] + field_parameters
                             print(f"Using dynamic field inspection: {parameters}")
                         else:
-                            print(
-                                f"Warning: Could not dynamically find fields for {block.class_name}"
-                            )
+                            print(f"Warning: Could not dynamically find fields for {block.class_name}")
 
                     # Force rename any 'data' parameters for embedding methods
-                    if (
-                        block.component_type == "embeddings"
-                        and name in embedding_param_mapping
-                    ):
+                    if block.component_type == "embeddings" and name in embedding_param_mapping:
                         for i, param in enumerate(parameters):
                             if param == "data":
                                 parameters[i] = embedding_param_mapping[name]
@@ -378,9 +351,7 @@ class RAGPipelineSimulator:
                         for param_name, param in sig.parameters.items():
                             if param_name == "data":
                                 new_param_name = embedding_param_mapping[name]
-                                new_params[new_param_name] = param.replace(
-                                    name=new_param_name
-                                )
+                                new_params[new_param_name] = param.replace(name=new_param_name)
                             else:
                                 new_params[param_name] = param
 
@@ -605,12 +576,8 @@ class RAGPipelineSimulator:
         print("\nCurrent pipeline connections:")
         print("---------------------------")
         for i, block in enumerate(self.blocks):
-            connection = (
-                " → " + str(self.blocks[block.connected_to])
-                if block.connected_to is not None
-                else ""
-            )
-            print(f"{i+1}. {block}{connection}")
+            connection = " → " + str(self.blocks[block.connected_to]) if block.connected_to is not None else ""
+            print(f"{i + 1}. {block}{connection}")
 
         # Select source block
         source_idx = -1
@@ -633,9 +600,7 @@ class RAGPipelineSimulator:
         # Select target block
         while True:
             try:
-                target = input(
-                    f"Connect {self.blocks[source_idx]} to which block? (or 0 to cancel): "
-                )
+                target = input(f"Connect {self.blocks[source_idx]} to which block? (or 0 to cancel): ")
                 if target == "0":
                     return
 
@@ -650,9 +615,7 @@ class RAGPipelineSimulator:
 
                 # Create the connection
                 self.blocks[source_idx].connected_to = target_idx
-                print(
-                    f"✓ Connected {self.blocks[source_idx]} → {self.blocks[target_idx]}"
-                )
+                print(f"✓ Connected {self.blocks[source_idx]} → {self.blocks[target_idx]}")
                 break
 
             except ValueError:
@@ -677,11 +640,7 @@ class RAGPipelineSimulator:
 
             # Display the header
             print("╔" + "═" * width + "╗")
-            print(
-                "║"
-                + f" {block.class_name} Block ({block.component_type}) ".center(width)
-                + "║"
-            )
+            print("║" + f" {block.class_name} Block ({block.component_type}) ".center(width) + "║")
             print("╠" + "═" * width + "╣")
 
             # Display methods
@@ -703,29 +662,15 @@ class RAGPipelineSimulator:
                     # If selected, show a bit of documentation in a lighter color
                     if name in block.selected_methods:
                         # Get first line of docstring
-                        doc = (
-                            info["doc"].split("\n")[0]
-                            if info["doc"]
-                            else "No documentation"
-                        )
+                        doc = info["doc"].split("\n")[0] if info["doc"] else "No documentation"
                         if len(doc) > width - 10:
                             doc = doc[: width - 13] + "..."
                         print(f"║    └─ {doc}")
 
             print("╠" + "═" * width + "╣")
             print("║" + " Commands ".center(width) + "║")
-            print(
-                "║"
-                + " [a] Add Method | [r] Remove Method | [p] Set Parameters ".center(
-                    width
-                )
-                + "║"
-            )
-            print(
-                "║"
-                + " [d] Method Details | [b] Back to Pipeline View ".center(width)
-                + "║"
-            )
+            print("║" + " [a] Add Method | [r] Remove Method | [p] Set Parameters ".center(width) + "║")
+            print("║" + " [d] Method Details | [b] Back to Pipeline View ".center(width) + "║")
             print("╚" + "═" * width + "╝")
 
             # Show current configuration if methods are selected
@@ -933,9 +878,7 @@ class RAGPipelineSimulator:
             pass
 
         # Handle list/dict syntax
-        if (value.startswith("[") and value.endswith("]")) or (
-            value.startswith("{") and value.endswith("}")
-        ):
+        if (value.startswith("[") and value.endswith("]")) or (value.startswith("{") and value.endswith("}")):
             try:
                 return eval(value)  # Note: This should be used cautiously
             except Exception:
@@ -957,9 +900,7 @@ class RAGPipelineSimulator:
         # Add edges
         for i, block in enumerate(self.blocks):
             if block.connected_to is not None:
-                graph[block.connected_to].append(
-                    i
-                )  # Reverse the edge for topological sort
+                graph[block.connected_to].append(i)  # Reverse the edge for topological sort
 
         # Find all nodes with no incoming edges (i.e., end nodes in our pipeline)
         end_nodes = []
@@ -1052,13 +993,11 @@ class RAGPipelineSimulator:
                         missing_params.append(param)
 
             if missing_params:
-                print(f"\n⚠ Block {i+1} ({block}) is missing required parameters:")
+                print(f"\n⚠ Block {i + 1} ({block}) is missing required parameters:")
                 for param in missing_params:
                     print(f"  - {param}")
 
-                set_now = input(
-                    "\nWould you like to set these parameters now? (y/n): "
-                ).lower()
+                set_now = input("\nWould you like to set these parameters now? (y/n): ").lower()
                 if set_now == "y":
                     self.current_block_index = i
                     self._prompt_set_parameters(i, "__init__")
@@ -1074,9 +1013,7 @@ class RAGPipelineSimulator:
         execution_order = self._topological_sort()
 
         if not execution_order:
-            print(
-                "\n⚠ Could not determine execution order. Check for circular dependencies."
-            )
+            print("\n⚠ Could not determine execution order. Check for circular dependencies.")
             input("\nPress Enter to continue...")
             return
 
@@ -1098,9 +1035,7 @@ class RAGPipelineSimulator:
                             and param in block.parameter_values
                             and block.parameter_values[param] is not None
                         ):
-                            value = self._convert_parameter_value(
-                                block.parameter_values[param]
-                            )
+                            value = self._convert_parameter_value(block.parameter_values[param])
                             init_params[param] = value
 
                     # Special handling for parameters that need other block outputs
@@ -1111,12 +1046,9 @@ class RAGPipelineSimulator:
                                 ref_block_idx = int(value.split(":", 1)[1]) - 1
                                 if (
                                     0 <= ref_block_idx < len(self.blocks)
-                                    and self.blocks[ref_block_idx].output_data
-                                    is not None
+                                    and self.blocks[ref_block_idx].output_data is not None
                                 ):
-                                    init_params[param] = self.blocks[
-                                        ref_block_idx
-                                    ].output_data
+                                    init_params[param] = self.blocks[ref_block_idx].output_data
                             except Exception:
                                 pass
 
@@ -1126,9 +1058,7 @@ class RAGPipelineSimulator:
                 else:
                     # Some classes don't have __init__, just use the class directly
                     block.instance = block.cls
-                    print(
-                        f"✓ Using {block.class_name} directly (no initialization required)"
-                    )
+                    print(f"✓ Using {block.class_name} directly (no initialization required)")
 
             # Now execute methods in order
             for block_idx in execution_order:
@@ -1136,8 +1066,7 @@ class RAGPipelineSimulator:
 
                 # Skip if there are no methods to execute
                 if not block.selected_methods or (
-                    len(block.selected_methods) == 1
-                    and block.selected_methods[0] == "__init__"
+                    len(block.selected_methods) == 1 and block.selected_methods[0] == "__init__"
                 ):
                     continue
 
@@ -1159,9 +1088,7 @@ class RAGPipelineSimulator:
                             and param in block.parameter_values
                             and block.parameter_values[param] is not None
                         ):
-                            value = self._convert_parameter_value(
-                                block.parameter_values[param]
-                            )
+                            value = self._convert_parameter_value(block.parameter_values[param])
                             method_params[param] = value
 
                     # Special handling for parameters that need other block outputs
@@ -1172,12 +1099,9 @@ class RAGPipelineSimulator:
                                 ref_block_idx = int(value.split(":", 1)[1]) - 1
                                 if (
                                     0 <= ref_block_idx < len(self.blocks)
-                                    and self.blocks[ref_block_idx].output_data
-                                    is not None
+                                    and self.blocks[ref_block_idx].output_data is not None
                                 ):
-                                    method_params[param] = self.blocks[
-                                        ref_block_idx
-                                    ].output_data
+                                    method_params[param] = self.blocks[ref_block_idx].output_data
                             except Exception:
                                 pass
 
@@ -1205,37 +1129,23 @@ class RAGPipelineSimulator:
                                 print("\n📑 Document sample:")
                                 print("-" * 40)
                                 sample_text = result[0].page_content[:500]
-                                print(
-                                    sample_text
-                                    + (
-                                        "..."
-                                        if len(result[0].page_content) > 500
-                                        else ""
-                                    )
-                                )
+                                print(sample_text + ("..." if len(result[0].page_content) > 500 else ""))
                                 print("-" * 40)
 
                                 if len(result) > 1:
-                                    print(
-                                        f"\nAnd {len(result)-1} more document(s)...\n"
-                                    )
+                                    print(f"\nAnd {len(result) - 1} more document(s)...\n")
                             else:
                                 # It's some other kind of list, show the first item
                                 print("\n📋 Sample item:")
                                 print("-" * 40)
-                                print(
-                                    str(result[0])[:500]
-                                    + ("..." if len(str(result[0])) > 500 else "")
-                                )
+                                print(str(result[0])[:500] + ("..." if len(str(result[0])) > 500 else ""))
                                 print("-" * 40)
                     else:
                         # It's not a collection, just show the result directly
                         print(f"  Result type: {type(result).__name__}")
                         result_str = str(result)
                         print("-" * 40)
-                        print(
-                            result_str[:500] + ("..." if len(result_str) > 500 else "")
-                        )
+                        print(result_str[:500] + ("..." if len(result_str) > 500 else ""))
                         print("-" * 40)
 
                 # If this block has a connection, pass the output data to the next block
@@ -1305,18 +1215,14 @@ class RAGPipelineSimulator:
                 break
 
         if not has_connections and len(self.blocks) > 1:
-            print(
-                "\n⚠ Warning: No connections between blocks. Use [c] to connect blocks first."
-            )
+            print("\n⚠ Warning: No connections between blocks. Use [c] to connect blocks first.")
             print("   The generated code will not represent a complete pipeline.")
 
         # Get execution order based on connections if they exist
         if has_connections:
             topo_order = self._topological_sort()
             if not topo_order:
-                print(
-                    "\n⚠ Could not determine execution order. Check for circular dependencies."
-                )
+                print("\n⚠ Could not determine execution order. Check for circular dependencies.")
                 input("\nPress Enter to continue...")
                 return
         else:
@@ -1327,11 +1233,7 @@ class RAGPipelineSimulator:
         execution_order = []
         for component_type in component_type_order:
             # Add blocks of this component type while preserving their relative order
-            type_blocks = [
-                idx
-                for idx in topo_order
-                if self.blocks[idx].component_type == component_type
-            ]
+            type_blocks = [idx for idx in topo_order if self.blocks[idx].component_type == component_type]
             execution_order.extend(type_blocks)
 
         # Add any blocks with component types not in our predefined order
@@ -1371,7 +1273,7 @@ class RAGPipelineSimulator:
         block_vars = {}
         for i, block_idx in enumerate(execution_order):
             block = self.blocks[block_idx]
-            var_name = f"{block.class_name.lower()}_{i+1}".replace(" ", "_")
+            var_name = f"{block.class_name.lower()}_{i + 1}".replace(" ", "_")
             block_vars[block_idx] = var_name
 
         # First, handle all block initializations in the proper order
@@ -1390,10 +1292,7 @@ class RAGPipelineSimulator:
                 if block.component_type == "text_splitters":
                     if "split_documents" in block.parameters:
                         for param in ["chunk_size", "chunk_overlap", "length_function"]:
-                            if (
-                                param in block.parameter_values
-                                and block.parameter_values[param] is not None
-                            ):
+                            if param in block.parameter_values and block.parameter_values[param] is not None:
                                 value = block.parameter_values[param]
                                 if isinstance(value, str):
                                     if value.isdigit():
@@ -1454,19 +1353,14 @@ class RAGPipelineSimulator:
                                         value = f'"{value}"'
                             # Regular strings
                             elif not (
-                                value.startswith(
-                                    ("'", '"', "[", "{", "True", "False", "None")
-                                )
-                                or value.isdigit()
+                                value.startswith(("'", '"', "[", "{", "True", "False", "None")) or value.isdigit()
                             ):
                                 value = f'"{value}"'
 
                         init_params.append(f"{param}={value}")
 
             init_code_lines.append(f"\n# Initialize {block.class_name}")
-            init_code_lines.append(
-                f"{var_name} = {block.module_path}.{block.class_name}({', '.join(init_params)})"
-            )
+            init_code_lines.append(f"{var_name} = {block.module_path}.{block.class_name}({', '.join(init_params)})")
 
         # Now generate method execution code in the correct order
         method_code_lines = []
@@ -1480,9 +1374,7 @@ class RAGPipelineSimulator:
             methods_to_execute = [m for m in block.selected_methods if m != "__init__"]
 
             # Run producer methods first
-            producer_methods_for_block = [
-                m for m in methods_to_execute if m in producer_methods
-            ]
+            producer_methods_for_block = [m for m in methods_to_execute if m in producer_methods]
 
             for method_name in producer_methods_for_block:
                 # Build method parameters
@@ -1490,10 +1382,7 @@ class RAGPipelineSimulator:
                 param_dict = {}
 
                 # Handle embedding methods with proper parameter names
-                if (
-                    block.component_type == "embeddings"
-                    and method_name in embedding_param_mapping
-                ):
+                if block.component_type == "embeddings" and method_name in embedding_param_mapping:
                     # Get the correct parameter name for this embedding method
                     correct_param = embedding_param_mapping[method_name]
 
@@ -1539,10 +1428,7 @@ class RAGPipelineSimulator:
                                     value = self._normalize_path(value)
                                     value = f'"{value}"'
                                 elif not (
-                                    value.startswith(
-                                        ("'", '"', "[", "{", "True", "False", "None")
-                                    )
-                                    or value.isdigit()
+                                    value.startswith(("'", '"', "[", "{", "True", "False", "None")) or value.isdigit()
                                 ):
                                     value = f'"{value}"'
 
@@ -1555,9 +1441,7 @@ class RAGPipelineSimulator:
                         if block_idx in reverse_connection_map:
                             for source_idx in reverse_connection_map[block_idx]:
                                 source_var = block_vars[source_idx]
-                                method_code_lines.append(
-                                    f"\n# Execute {method_name} on {block.class_name}"
-                                )
+                                method_code_lines.append(f"\n# Execute {method_name} on {block.class_name}")
                                 method_code_lines.append(
                                     f"{var_name}_output = {var_name}.{method_name}({correct_param}={source_var}_output)"
                                 )
@@ -1569,17 +1453,13 @@ class RAGPipelineSimulator:
                                 if correct_param == "texts"
                                 else "'What information do you have?'"
                             )
-                            method_code_lines.append(
-                                f"\n# Execute {method_name} on {block.class_name}"
-                            )
+                            method_code_lines.append(f"\n# Execute {method_name} on {block.class_name}")
                             method_code_lines.append(
                                 f"{var_name}_output = {var_name}.{method_name}({correct_param}={default_value})"
                             )
                     else:
                         # Use the user-defined parameters with correct naming
-                        method_code_lines.append(
-                            f"\n# Execute {method_name} on {block.class_name}"
-                        )
+                        method_code_lines.append(f"\n# Execute {method_name} on {block.class_name}")
                         method_code_lines.append(
                             f"{var_name}_output = {var_name}.{method_name}({', '.join(method_params)})"
                         )
@@ -1621,19 +1501,14 @@ class RAGPipelineSimulator:
                                     value = self._normalize_path(value)
                                     value = f'"{value}"'
                                 elif not (
-                                    value.startswith(
-                                        ("'", '"', "[", "{", "True", "False", "None")
-                                    )
-                                    or value.isdigit()
+                                    value.startswith(("'", '"', "[", "{", "True", "False", "None")) or value.isdigit()
                                 ):
                                     value = f'"{value}"'
 
                             param_dict[param] = value
                             method_params.append(f"{param}={value}")
 
-                    method_code_lines.append(
-                        f"\n# Execute {method_name} on {block.class_name}"
-                    )
+                    method_code_lines.append(f"\n# Execute {method_name} on {block.class_name}")
                     method_code_lines.append(
                         f"{var_name}_output = {var_name}.{method_name}({', '.join(method_params)})"
                     )
@@ -1644,18 +1519,11 @@ class RAGPipelineSimulator:
             var_name = block_vars[block_idx]
 
             # Get methods for this block (excluding __init__ and producer methods)
-            methods_to_execute = [
-                m
-                for m in block.selected_methods
-                if m != "__init__" and m not in producer_methods
-            ]
+            methods_to_execute = [m for m in block.selected_methods if m != "__init__" and m not in producer_methods]
 
             # For embeddings, only include embed_documents (not both embed methods)
             if block.component_type == "embeddings":
-                if (
-                    "embed_documents" in methods_to_execute
-                    and "embed_query" in methods_to_execute
-                ):
+                if "embed_documents" in methods_to_execute and "embed_query" in methods_to_execute:
                     # If both are present, only keep embed_documents
                     methods_to_execute.remove("embed_query")
 
@@ -1665,10 +1533,7 @@ class RAGPipelineSimulator:
                 param_dict = {}
 
                 # Special handling for embedding methods to ensure proper parameter names
-                if (
-                    block.component_type == "embeddings"
-                    and method_name in embedding_param_mapping
-                ):
+                if block.component_type == "embeddings" and method_name in embedding_param_mapping:
                     correct_param = embedding_param_mapping[method_name]
 
                     has_user_params = False
@@ -1712,10 +1577,7 @@ class RAGPipelineSimulator:
                                     value = self._normalize_path(value)
                                     value = f'"{value}"'
                                 elif not (
-                                    value.startswith(
-                                        ("'", '"', "[", "{", "True", "False", "None")
-                                    )
-                                    or value.isdigit()
+                                    value.startswith(("'", '"', "[", "{", "True", "False", "None")) or value.isdigit()
                                 ):
                                     value = f'"{value}"'
 
@@ -1723,9 +1585,7 @@ class RAGPipelineSimulator:
                             method_params.append(f"{param}={value}")
                             has_user_params = True
 
-                    method_code_lines.append(
-                        f"\n# Execute {method_name} on {block.class_name}"
-                    )
+                    method_code_lines.append(f"\n# Execute {method_name} on {block.class_name}")
 
                     # Check if this method has incoming connections
                     if block_idx in reverse_connection_map and not has_user_params:
@@ -1789,10 +1649,7 @@ class RAGPipelineSimulator:
                                     value = self._normalize_path(value)
                                     value = f'"{value}"'
                                 elif not (
-                                    value.startswith(
-                                        ("'", '"', "[", "{", "True", "False", "None")
-                                    )
-                                    or value.isdigit()
+                                    value.startswith(("'", '"', "[", "{", "True", "False", "None")) or value.isdigit()
                                 ):
                                     value = f'"{value}"'
 
@@ -1800,23 +1657,15 @@ class RAGPipelineSimulator:
                             method_params.append(f"{param}={value}")
 
                     # Handle special cases for consumer methods with connections
-                    method_code_lines.append(
-                        f"\n# Execute {method_name} on {block.class_name}"
-                    )
+                    method_code_lines.append(f"\n# Execute {method_name} on {block.class_name}")
 
-                    if (
-                        method_name in consumer_methods
-                        and block_idx in reverse_connection_map
-                    ):
+                    if method_name in consumer_methods and block_idx in reverse_connection_map:
                         source_block_indices = reverse_connection_map[block_idx]
                         if source_block_indices:
                             source_var = block_vars[source_block_indices[0]]
 
                             # Handle different method types specially
-                            if (
-                                method_name == "split_documents"
-                                and "documents" in block.parameters[method_name]
-                            ):
+                            if method_name == "split_documents" and "documents" in block.parameters[method_name]:
                                 other_params = []
                                 for p, v in param_dict.items():
                                     if p != "documents":
@@ -1826,18 +1675,9 @@ class RAGPipelineSimulator:
                                 if other_params:
                                     param_str += f", {', '.join(other_params)}"
 
-                                method_code_lines.append(
-                                    f"{var_name}_output = {var_name}.{method_name}({param_str})"
-                                )
-                            elif (
-                                method_name == "from_documents"
-                                and "documents" in block.parameters[method_name]
-                            ):
-                                other_params = [
-                                    f"{p}={v}"
-                                    for p, v in param_dict.items()
-                                    if p != "documents"
-                                ]
+                                method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}({param_str})")
+                            elif method_name == "from_documents" and "documents" in block.parameters[method_name]:
+                                other_params = [f"{p}={v}" for p, v in param_dict.items() if p != "documents"]
                                 param_str = ", ".join(other_params)
                                 if param_str:
                                     param_str = f", {param_str}"
@@ -1876,9 +1716,7 @@ class RAGPipelineSimulator:
 
             final_var = block_vars[final_block_idx]
             code_lines.append("\n# Display the final output from the RAG pipeline")
-            code_lines.append(
-                f'print(f"Final RAG pipeline output: {{type({final_var}_output).__name__}}")'
-            )
+            code_lines.append(f'print(f"Final RAG pipeline output: {{type({final_var}_output).__name__}}")')
             code_lines.append(f"print({final_var}_output)")
 
         # Remove debug print statements, only keep comments and actual code
@@ -1901,10 +1739,7 @@ class RAGPipelineSimulator:
 
         save = input("\nSave code to a file? (y/n): ").lower()
         if save == "y":
-            filename = (
-                input("Enter filename (default: rag_pipeline.py): ")
-                or "rag_pipeline.py"
-            )
+            filename = input("Enter filename (default: rag_pipeline.py): ") or "rag_pipeline.py"
             with open(filename, "w") as f:
                 for imp in sorted(list(imports)):
                     f.write(f"{imp}\n")
@@ -1933,9 +1768,7 @@ class RAGPipelineSimulator:
         if component_type == "text_splitters":
             if block.class_name == "TextSplitter":
                 # TextSplitter is abstract, warn user and suggest alternative
-                print(
-                    "⚠ Warning: TextSplitter is an abstract class and cannot be instantiated."
-                )
+                print("⚠ Warning: TextSplitter is an abstract class and cannot be instantiated.")
                 print("Automatically changing to RecursiveCharacterTextSplitter.")
                 block.class_name = "RecursiveCharacterTextSplitter"
                 block.module_path = "langchain_text_splitters"
@@ -1948,14 +1781,9 @@ class RAGPipelineSimulator:
             common_params = ["chunk_size", "chunk_overlap", "length_function"]
             for param in common_params:
                 # Check if the param exists in split_documents parameters and has a value
-                if (
-                    param in block.parameter_values
-                    and block.parameter_values[param] is not None
-                ):
+                if param in block.parameter_values and block.parameter_values[param] is not None:
                     # Ensure this parameter is transferred for initialization
-                    print(
-                        f"Moving parameter {param}={block.parameter_values[param]} to initialization"
-                    )
+                    print(f"Moving parameter {param}={block.parameter_values[param]} to initialization")
 
         # Map of component types to their most commonly used methods
         common_methods = {
@@ -1972,19 +1800,14 @@ class RAGPipelineSimulator:
         # Add common methods if they exist and aren't already selected
         if component_type in common_methods:
             for method_name in common_methods[component_type]:
-                if (
-                    method_name in block.methods
-                    and method_name not in block.selected_methods
-                ):
+                if method_name in block.methods and method_name not in block.selected_methods:
                     block.selected_methods.append(method_name)
 
     def _normalize_path(self, path: str) -> str:
         """Normalize a file path to use forward slashes."""
         return path.replace("\\", "/")
 
-    def _suggest_parameter_value(
-        self, block_index: int, method_name: str, param_name: str
-    ) -> Optional[str]:
+    def _suggest_parameter_value(self, block_index: int, method_name: str, param_name: str) -> Optional[str]:
         """Suggest appropriate parameter values based on component type and parameter name."""
         block = self.blocks[block_index]
         component_type = block.component_type
@@ -2004,7 +1827,7 @@ class RAGPipelineSimulator:
                     "document_loaders",
                     "text_splitters",
                 ]:
-                    return f"block:{i+1}"  # Reference to another block's output
+                    return f"block:{i + 1}"  # Reference to another block's output
 
         return None
 
@@ -2025,14 +1848,8 @@ class RAGPipelineSimulator:
         # Determine visualization style (simple text for now)
         for i, block in enumerate(self.blocks):
             marker = "→" if i == self.current_block_index else " "
-            connected_to = (
-                f" → {self.blocks[block.connected_to].class_name}"
-                if block.connected_to is not None
-                else ""
-            )
-            print(
-                f"{marker} {i+1}. {block.class_name} ({block.component_type}){connected_to}"
-            )
+            connected_to = f" → {self.blocks[block.connected_to].class_name}" if block.connected_to is not None else ""
+            print(f"{marker} {i + 1}. {block.class_name} ({block.component_type}){connected_to}")
 
             # Display selected methods if any
             if block.selected_methods:
