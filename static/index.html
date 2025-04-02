@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="/static/css/topbar.css">
     <link rel="stylesheet" href="/static/css/canvas.css">
     <link rel="stylesheet" href="/static/css/management_window.css">
+    <link rel="stylesheet" href="/static/css/custom-block-modal.css">
+    <link rel="stylesheet" href="/static/css/custom-blocks.css">
 </head>
 <body>
     <div id="app">
@@ -82,173 +84,15 @@
                 <input type="text" id="block-search" placeholder="Search blocks...">
             </div>
             <div class="block-templates-container">
-                <!-- Document Loading Block Template -->
-                <div class="block-template" draggable="true" data-block-type="pdf_loader">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">PDF Loader</div>
-                        <div class="node-container">
-                            <div class="output-node" data-output="Documents"></div>
-                        </div>
-                        <div class="block-content">
-                            <div class="input-group">
-                                <input type="file" class="file-input" accept=".pdf" multiple>
-                            </div>
-                        </div>
-                    </div>
+                <div class="custom-blocks-message">
+                    <h3>Custom Blocks Only</h3>
+                    <p>This application now uses only custom blocks created from LangChain components.</p>
+                    <p>Click the button below to create a custom block from any LangChain component.</p>
+                    <button id="create-custom-block-btn" class="primary-btn">Create Custom Block</button>
                 </div>
 
-                <!-- Text Splitter Block Template -->
-                <div class="block-template" draggable="true" data-block-type="text_splitter">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">Text Splitter</div>
-                        <div class="node-container">
-                            <div class="input-node" data-input="Documents"></div>
-                            <div class="output-node" data-output="Chunks"></div>
-                        </div>
-                        <div class="block-content">
-                            <div class="input-group">
-                                <label>Chunk Size:</label>
-                                <input type="number" class="chunk-size" value="1000" min="100" step="100">
-                            </div>
-                            <div class="input-group">
-                                <label>Overlap:</label>
-                                <input type="number" class="chunk-overlap" value="200" min="0" step="50">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Embeddings Block Template -->
-                <div class="block-template" draggable="true" data-block-type="embedding">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">Embeddings</div>
-                        <div class="node-container">
-                            <div class="input-node" data-input="Text"></div>
-                            <div class="output-node" data-output="Embeddings"></div>
-                        </div>
-                        <div class="block-content">
-                            <select class="model-selector">
-                                <option value="nomic-embed-text">Nomic Embed</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vector Store Block Template -->
-                <div class="block-template" draggable="true" data-block-type="vector_store">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">Vector Store</div>
-                        <div class="node-container">
-                            <div class="input-node-group storage-inputs">
-                                <div class="input-node" data-input="ChunksEmbedded" data-label="Chunks Embedded"></div>
-                                <div class="input-node" data-input="Query" data-label="Query"></div>
-                            </div>
-                            <div class="output-node" data-output="RetrievedDocs"></div>
-                        </div>
-                        <div class="block-content">
-                            <div class="vector-store-status">
-                                <div class="status-indicator"></div>
-                                <span class="status">Not initialized</span>
-                            </div>
-                            <div class="input-group">
-                                <label>Top K:</label>
-                                <input type="number" class="top-k" value="3" min="1" step="1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Query Input Block Template -->
-                <div class="block-template" draggable="true" data-block-type="query_input">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">Query Input</div>
-                        <div class="node-container">
-                            <div class="output-node" data-output="Query"></div>
-                        </div>
-                        <div class="block-content">
-                            <div class="chat-interface">
-                                <div class="chat-messages"></div>
-                                <div class="chat-input">
-                                    <input type="text" placeholder="Ask a question...">
-                                    <button>Send</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Retrieval Ranking Block Template -->
-                <div class="block-template" draggable="true" data-block-type="retrieval_ranking">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">Retrieval Ranking</div>
-                        <div class="node-container">
-                            <div class="input-node" data-input="Chunks"></div>
-                            <div class="output-node" data-output="RankedContext"></div>
-                        </div>
-                        <div class="block-content">
-                            <div class="input-group">
-                                <label>Ranking Method:</label>
-                                <select class="ranking-method">
-                                    <option value="similarity">Similarity Score</option>
-                                    <option value="mmr">MMR (Diversity)</option>
-                                </select>
-                            </div>
-                            <div class="input-group">
-                                <label>Diversity Weight (MMR):</label>
-                                <input type="number" class="diversity-weight" value="0.3" min="0" max="1" step="0.1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AI Model Block Template -->
-                <div class="block-template" draggable="true" data-block-type="ai_model">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">AI Model</div>
-                        <div class="node-container">
-                            <!-- Model Inputs -->
-                            <div class="input-node-group model-inputs">
-                                <div class="input-node" data-input="Query" data-label="Query"></div>
-                                <div class="input-node" data-input="Context" data-label="Vector Store"></div>
-                            </div>
-                            <div class="output-node" data-output="Response"></div>
-                        </div>
-                        <div class="block-content">
-                            <select class="model-selector">
-                                <option value="tinyllama">TinyLlama</option>
-                            </select>
-                            <div class="input-group">
-                                <label>Temperature:</label>
-                                <input type="number" class="temperature" value="0.75" min="0" max="1" step="0.1">
-                            </div>
-                            <textarea class="prompt-template" rows="4" placeholder="Enter your prompt template...">Answer the following question using the provided context. If the context doesn't contain enough information, say so.
-
-Context: {context}
-
-Question: {query}
-
-Answer:</textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Answer Display Block Template -->
-                <div class="block-template" draggable="true" data-block-type="answer_display">
-                    <div class="block-content-wrapper">
-                        <div class="block-drag-handle">Answer Display</div>
-                        <div class="node-container">
-                            <div class="input-node" data-input="Answer"></div>
-                        </div>
-                        <div class="block-content">
-                            <div class="answer-display">No answer yet</div>
-                            <div class="context-display">
-                                <h4>Used Context:</h4>
-                                <div class="context-chunks"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- Custom blocks will appear here -->
+                <div id="custom-blocks-container"></div>
             </div>
         </div>
 
@@ -282,6 +126,7 @@ Answer:</textarea>
         </div>
     </div>
     <script src="/static/app.js"></script>
+    <script src="/static/js/custom-block-handler.js"></script>
 
     <!-- Add this right after the body opening tag -->
     <div id="notification-system">

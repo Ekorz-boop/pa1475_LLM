@@ -73,10 +73,10 @@ from langchain_community.vectorstores import FAISS"""
     sys.stdout.reconfigure(encoding='utf-8')
     if not documents:
         raise ValueError("No documents provided to vector store")
-    
+
     if not embeddings:
         raise ValueError("No embeddings model provided to vector store")
-        
+
     print("🗄️  Creating vector store...")
     print(f"Input received: {len(documents)} document chunks")
     try:
@@ -120,10 +120,10 @@ from langchain_community.document_loaders import PyPDFLoader"""
             pdf_paths.append(path)
     else:
         pdf_paths = [pdf_path]
-    
+
     if not pdf_paths:
         raise ValueError("No PDF files provided")
-    
+
     all_pages = []
     sys.stdout.reconfigure(encoding='utf-8')
     print("📄 Loading PDFs...")
@@ -142,10 +142,10 @@ from langchain_community.document_loaders import PyPDFLoader"""
                 print(f"⚠️  Error loading {path}: {str(e)}")
                 pbar.update(1)
                 continue
-    
+
     if not all_pages:
         raise ValueError("No valid PDF files were loaded")
-    
+
     print(f"📚 Total pages loaded: {len(all_pages)}")
     return all_pages"""
 
@@ -163,10 +163,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter"""
     sys.stdout.reconfigure(encoding='utf-8')
     if not documents:
         raise ValueError("No documents provided to the text splitter")
-        
+
     print("✂️  Splitting text into chunks...")
     print(f"Input received: {len(documents)} document(s)")
-    
+
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
@@ -198,17 +198,17 @@ from langchain.chains import RetrievalQA"""
     sys.stdout.reconfigure(encoding='utf-8')
     print("⚡ Setting up RAG chain...")
     prompt_template = '''Use the following pieces of context to answer the question at the end.
-    
+
     Context:{context}
-    
+
     Question:{question}'''
-    
+
     with tqdm(total=2, desc="Creating RAG chain") as pbar:
         PROMPT = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]
         )
         pbar.update(1)
-        
+
         chain = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
@@ -236,6 +236,38 @@ class Canvas:
     def add_block(self, block_id: str, block: Block) -> None:
         """Add a block to the canvas."""
         self.blocks[block_id] = block
+
+    def process_block(self, block_id: str, config: dict) -> dict:
+        """Process a block using its implementation."""
+        if block_id not in self.blocks:
+            return {
+                "status": "error",
+                "output": f"Block not found: {block_id}",
+                "block_id": block_id,
+            }
+
+        block = self.blocks[block_id]
+
+        try:
+            # For now, return a simple success response
+            # In a real implementation, this would execute the block's function
+            # with the provided configuration
+            block_type = type(block).__name__
+            print(f"Processing block {block_id} of type {block_type}")
+
+            # Example implementation - in a real system, this would use the
+            # block's function_string or other properties to execute logic
+            return {
+                "status": "success",
+                "output": f"Processed {block_type}",
+                "block_id": block_id,
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "output": f"Error processing block: {str(e)}",
+                "block_id": block_id,
+            }
 
     def connect_blocks(self, source_id: str, target_id: str) -> bool:
         """Connect two blocks and validate the connection."""
@@ -449,3 +481,8 @@ class Canvas:
         code_lines.append('    print("\\n✅ Pipeline execution complete!")')
 
         return "\n".join(code_lines)
+
+    def clear(self):
+        """Clear all blocks and connections."""
+        self.blocks.clear()
+        self.connections.clear()

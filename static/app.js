@@ -2,20 +2,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuItems = document.querySelectorAll('.menu-item');
     const subMenus = document.querySelectorAll('.sub-menu');
 
+    // Initialize custom block handler
+    const customBlockHandler = new CustomBlockHandler();
+
+    // Connect create custom block button to show modal
+    document.getElementById('create-custom-block-btn')?.addEventListener('click', () => {
+        customBlockHandler.showModal();
+    });
+
     menuItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             // Remove active class from all menu items
             menuItems.forEach(mi => mi.classList.remove('active'));
-            
+
             // Add active class to clicked menu item
             item.classList.add('active');
-            
+
             const menuType = item.dataset.menu;
             const targetMenu = document.getElementById(`${menuType}-menu`);
             const sidebar = document.getElementById('sidebar');
-            
+
             // Close all open sub-menus
             subMenus.forEach(menu => {
                 if (menu.classList.contains('active')) {
@@ -23,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sidebar.classList.remove('menu-active');
                 }
             });
-            
+
             // Open selected sub-menu
             if (targetMenu) {
                 targetMenu.classList.add('active');
@@ -294,224 +302,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update block processing function
     async function processBlock(block) {
+        const blockId = block.id;
         const type = block.getAttribute('data-block-type');
-        const config = getBlockConfig(block);
+        const isCustomBlock = type.startsWith('custom_');
 
-        // Check for debug mode
-        const debugMode = document.getElementById('debug-mode')?.checked || false;
-
-        // Log for debugging
-        console.log(`Processing block: ${type} (ID: ${block.id}), Debug mode: ${debugMode}`);
+        updateBlockStatus(block, 'processing');
 
         try {
-            if (type === 'answer_display') {
-                // Find the input connection
-                const inputConnection = connections.find(conn => conn.target === block.id);
-                if (inputConnection) {
-                    const sourceBlock = document.getElementById(inputConnection.source);
-                    if (sourceBlock) {
-                        const display = block.querySelector('.answer-display');
-                        const sourceType = sourceBlock.getAttribute('data-block-type');
+            // Get the block configuration
+            const config = getBlockConfig(block);
 
-                        // Get the value from the source block
-                        let value;
-                        try {
-                            const blockData = JSON.parse(sourceBlock.dataset.output);
-                            // For AI model, use the answer field
-                            if (sourceType === 'ai_model' && blockData.answer) {
-                                value = blockData.answer;
-                            } else {
-                                value = blockData;
-                            }
-                        } catch (e) {
-                            console.log('Error parsing block data:', e);
-                            value = sourceBlock.dataset.output;
-                        }
+            // Add debug mode flag
+            const debugMode = document.getElementById('debug-mode')?.checked || false;
+            config.debug_mode = debugMode;
 
-                        console.log(`Display Block: Received value from ${sourceType}:`, value);
-
-                        // Format the output based on type
-                        if (value === undefined || value === null) {
-                            display.textContent = "No data available";
-                        } else if (typeof value === 'object') {
-                            try {
-                                display.innerHTML = `<pre class="json-output">${JSON.stringify(value, null, 2)}</pre>`;
-                            } catch (err) {
-                                display.textContent = `[Object]: ${value.toString()}`;
-                            }
-                        } else {
-                            display.textContent = value;
-                        }
-
-                        // Add block type info for debugging
-                        const chunks = block.querySelector('.context-chunks');
-                        chunks.innerHTML = `<div class="debug-info">Source: ${sourceType} block</div>`;
-
-                        // Store the value in the block's own dataset as well
-                        block.dataset.output = typeof value === 'object' ? JSON.stringify(value) : value;
-                    }
-                }
-                return;
-            }
-
-            // Get inputs from connected blocks before processing
-            const inputNodes = block.querySelectorAll('.input-node');
-            const inputData = {};
-
-            // For each input node, find connected blocks and get their output
-            for (const inputNode of inputNodes) {
-                const inputType = inputNode.getAttribute('data-input');
-
-                // Find connection where this block's input is the target
-                const connection = connections.find(conn =>
-                    conn.target === block.id && conn.inputId === inputType
-                );
-
-                if (connection) {
-                    const sourceBlock = document.getElementById(connection.source);
-                    if (sourceBlock && sourceBlock.dataset.output) {
-                        try {
-                            // Parse the output from the source block
-                            const sourceOutput = JSON.parse(sourceBlock.dataset.output);
-                            console.log(`Input for ${inputType} from ${sourceBlock.id}:`, sourceOutput);
-
-                            // Store based on the source block type
-                            const sourceType = sourceBlock.getAttribute('data-block-type');
-
-                            // Handle different source block types
-                            if (sourceType === 'query_input') {
-                                // Check for stored query first, then fall back to the output
-                                const persistentQuery = sourceBlock.getAttribute('data-last-query');
-                                let queryText = '';
-                                
-                                if (persistentQuery) {
-                                    console.log(`Using persistent query: ${persistentQuery}`);
-                                    queryText = persistentQuery;
-                                } else if (sourceOutput.query) {
-                                    queryText = sourceOutput.query;
-                                }
-                                
-                                // Store the query for different block types
-                                inputData.query = queryText;
-                                
-                                // If this is an embedding block, also add the query as a chunk to embed
-                                if (block.getAttribute('data-block-type') === 'embedding') {
-                                    console.log(`Adding query as chunk for embedding: ${queryText}`);
-                                    inputData.chunks = [queryText];
-                                }
-                            } else if (sourceType === 'pdf_loader' && sourceOutput.content) {
-                                inputData.content = sourceOutput.content;
-                            } else if (sourceType === 'text_splitter' && sourceOutput.chunks) {
-                                inputData.chunks = sourceOutput.chunks;
-                            } else if (sourceType === 'embedding' && sourceOutput.embeddings) {
-                                // Check if this is going to a vector store's query input
-                                if (inputType === 'Query') {
-                                    // This is an embedded query (single embedding for the Query input)
-                                    // Use the first embedding as the embedded query
-                                    console.log('Using embedding as query input:', sourceOutput.embeddings[0]);
-                                    inputData.embedded_query = sourceOutput.embeddings[0];
-                                } else {
-                                    // Normal embedding chunks (for ChunksEmbedded input)
-                                    inputData.chunks_embedded = sourceOutput.embeddings;
-                                }
-                            } else if (sourceType === 'vector_store') {
-                                // Get context from vector store (joined text)
-                                if (sourceOutput.context) {
-                                    inputData.context = sourceOutput.context;
-                                }
-
-                                // Get the individual chunks (preferred format for some blocks)
-                                if (sourceOutput.retrieved_chunks && sourceOutput.retrieved_chunks.length > 0) {
-                                    console.log(`Found ${sourceOutput.retrieved_chunks.length} retrieved chunks from vector store`);
-                                    inputData.chunks = sourceOutput.retrieved_chunks;
-                                } else if (sourceOutput.chunks && sourceOutput.chunks.length > 0) {
-                                    console.log(`Found ${sourceOutput.chunks.length} chunks from vector store`);
-                                    inputData.chunks = sourceOutput.chunks;
-                                } else {
-                                    console.log(`No chunks found in vector store output:`, sourceOutput);
-                                }
-
-                                // Also store the query if available for retrieval ranking
-                                if (sourceOutput.query) {
-                                    inputData.query = sourceOutput.query;
-                                }
-                            } else if (sourceType === 'ai_model' && sourceOutput.answer) {
-                                inputData.answer = sourceOutput.answer;
-                            }
-
-                            // Also store the direct input data with the input type as key
-                            inputData[inputType] = sourceOutput;
-                        } catch (e) {
-                            console.error(`Error parsing output from ${sourceBlock.id}:`, e);
-                        }
-                    }
+            // Special case for chat input to prevent overwriting
+            if (type === 'query_input') {
+                const messages = block.querySelector('.chat-messages');
+                const lastMessage = messages.lastElementChild;
+                if (lastMessage && lastMessage.classList.contains('user-message')) {
+                    config.chat_input = lastMessage.textContent.trim();
                 }
             }
 
-            // In debug mode, provide defaults for missing inputs
-            if (debugMode) {
-                console.log(`Debug mode: Checking for missing inputs on ${type} block`);
+            console.log(`Processing ${type} block:`, config);
 
-                // Handle specific block types
-                if (type === 'text_splitter' && !inputData.content) {
-                    console.log(`Debug mode: Providing sample text for text_splitter`);
-                    inputData.content = "Sample text for the text splitter block in debug mode. This is provided automatically because no input text was found.";
-                }
-                else if (type === 'vector_store' && (!inputData.chunks_embedded || (!inputData.query && !inputData.embedded_query))) {
-                    
-
-                    // Provide a sample embedded query if neither a text query nor an embedded query exists
-                    if (!inputData.query && !inputData.embedded_query) {
-                        console.log(`Debug mode: Providing sample embedded query for vector_store`);
-                        // Create a sample embedded query with similar structure to real embeddings
-                        inputData.embedded_query = {
-                            text: "sample query for debug mode",
-                            embedding: Array(768).fill(0).map(() => Math.random() - 0.5)
-                        };
-                    }
-                }
-            }
-
-            // Merge input data with the config
-            const mergedConfig = { ...config, ...inputData };
-            console.log(`Merged config for ${type}:`, mergedConfig);
-
+            // Make API call to process the block
             const response = await fetch('/api/blocks/process', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    block_id: block.id,
-                    type: type,
-                    config: mergedConfig,
+                    block_id: blockId,
+                    type: isCustomBlock ? type.substring(7) : type, // Remove 'custom_' prefix if it's a custom block
+                    config: config,
                     debug_mode: debugMode
                 })
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                console.error(`Error processing ${type} block:`, error);
-                throw new Error(error.message || 'Failed to process block');
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const result = await response.json();
-            console.log(`${type} block processed:`, result);
 
-            // Update block status
-            updateBlockStatus(block, 'success');
+            if (result.status === 'error') {
+                throw new Error(result.output || 'Unknown error');
+            }
 
-            // Store the entire result object in the block's dataset
-            block.dataset.output = JSON.stringify(result);
-            console.log(`${type} block output stored:`, block.dataset.output);
+            console.log(`${type} block result:`, result);
 
-            // After successfully processing, propagate data to connected blocks
+            // Update block content based on result
+            updateBlockContent(block, type, result);
+
+            // Propagate data to connected blocks
             propagateData(block);
 
+            updateBlockStatus(block, 'success');
             return result;
         } catch (error) {
-            console.error(`Error in ${type} block:`, error);
-            updateBlockStatus(block, 'error');
+            console.error(`Error processing ${type} block:`, error);
+            updateBlockStatus(block, 'error', error.message);
             throw error;
         }
     }
@@ -623,7 +475,45 @@ document.addEventListener('DOMContentLoaded', () => {
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom;
-            createBlock(blockType, x, y);
+
+            if (blockType === 'custom') {
+                // This is a custom block, retrieve the additional data
+                const blockId = e.dataTransfer.getData('blockId');
+                const className = e.dataTransfer.getData('className');
+                const inputNodes = JSON.parse(e.dataTransfer.getData('inputNodes') || '[]');
+                const outputNodes = JSON.parse(e.dataTransfer.getData('outputNodes') || '[]');
+
+                console.log(`Creating custom block from drag with ID ${blockId} and class ${className}`);
+
+                // Create a canvas instance of the block with original blockId as reference
+                // This ensures we preserve the methods associated with this specific block
+                const newBlockId = `${blockId}-canvas-${Date.now()}`;
+
+                // Log the original block ID to help with debugging
+                console.log(`Using original block ID ${blockId} as reference for methods`);
+
+                const newBlock = createCustomBlock(className, inputNodes, outputNodes, newBlockId, blockId);
+
+                // Position the block
+                newBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+
+                // Ensure proper styling is applied
+                if (!newBlock.classList.contains('custom-block')) {
+                    newBlock.classList.add('custom-block');
+                }
+
+                // Make block draggable
+                makeBlockDraggable(newBlock);
+
+                // Setup node connections
+                setupNodeConnections(newBlock);
+
+                // Add to canvas
+                blockContainer.appendChild(newBlock);
+            } else {
+                // Regular block
+                createBlock(blockType, x, y);
+            }
         }
     });
 
@@ -974,24 +864,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     const input = queryInterface.querySelector('input');
                     const sendButton = queryInterface.querySelector('button');
                     const messages = queryInterface.querySelector('.chat-messages');
-                    
+
                     // Initialize query history if not already present
                     if (!block.hasAttribute('data-query-history')) {
                         block.setAttribute('data-query-history', JSON.stringify([]));
                     }
-                    
+
                     // Function to update the messages display
                     const updateMessagesDisplay = () => {
                         try {
                             const queryHistory = JSON.parse(block.getAttribute('data-query-history') || '[]');
                             messages.innerHTML = '';
-                            
+
                             queryHistory.forEach((query, index) => {
                                 const messageDiv = document.createElement('div');
                                 messageDiv.className = 'message';
                                 messageDiv.textContent = query;
                                 messageDiv.setAttribute('data-index', index);
-                                
+
                                 // Add delete button
                                 const deleteBtn = document.createElement('span');
                                 deleteBtn.className = 'delete-message';
@@ -1001,7 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     // Remove this query from history
                                     queryHistory.splice(index, 1);
                                     block.setAttribute('data-query-history', JSON.stringify(queryHistory));
-                                    
+
                                     // Update the current query to the last one in history
                                     const lastQuery = queryHistory[queryHistory.length - 1] || '';
                                     const outputData = {
@@ -1011,12 +901,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                         block_id: block.id
                                     };
                                     block.dataset.output = JSON.stringify(outputData);
-                                    
+
                                     // Update display and propagate changes
                                     updateMessagesDisplay();
                                     propagateData(block);
                                 };
-                                
+
                                 // Make message clickable to select it
                                 messageDiv.onclick = () => {
                                     // Set this as the current query
@@ -1027,31 +917,31 @@ document.addEventListener('DOMContentLoaded', () => {
                                         block_id: block.id
                                     };
                                     block.dataset.output = JSON.stringify(outputData);
-                                    
+
                                     // Highlight this message
                                     document.querySelectorAll('.message.selected').forEach(el => {
                                         el.classList.remove('selected');
                                     });
                                     messageDiv.classList.add('selected');
-                                    
+
                                     // Propagate this query
                                     propagateData(block);
                                 };
-                                
+
                                 messageDiv.appendChild(deleteBtn);
                                 messages.appendChild(messageDiv);
                             });
-                            
+
                             // Scroll to bottom
                             messages.scrollTop = messages.scrollHeight;
                         } catch (e) {
                             console.error('Error updating messages display:', e);
                         }
                     };
-                    
+
                     // Initial display update
                     updateMessagesDisplay();
-                    
+
                     const sendMessage = () => {
                         const text = input.value.trim();
                         if (text) {
@@ -1060,10 +950,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const queryHistory = JSON.parse(block.getAttribute('data-query-history') || '[]');
                                 queryHistory.push(text);
                                 block.setAttribute('data-query-history', JSON.stringify(queryHistory));
-                                
+
                                 // Clear input
                                 input.value = '';
-                                
+
                                 // Update the output data with the new query
                                 const outputData = {
                                     status: 'success',
@@ -1072,7 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     block_id: block.id
                                 };
                                 block.dataset.output = JSON.stringify(outputData);
-                                
+
                                 // Update display and propagate
                                 updateMessagesDisplay();
                                 propagateData(block);
@@ -1081,7 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     };
-                    
+
                     sendButton.onclick = sendMessage;
                     input.onkeypress = (e) => {
                         if (e.key === 'Enter') sendMessage();
@@ -1209,41 +1099,6 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasContainer.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${zoom})`;
         zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
         updateConnections();
-    }
-
-    function createCustomBlock(type, inputs, outputs) {
-        const block = document.createElement('div');
-        block.className = 'block';
-        block.id = `block-${blockCounter++}`;
-        block.setAttribute('data-block-type', type);
-
-        const dragHandle = document.createElement('div');
-        dragHandle.className = 'block-drag-handle';
-        dragHandle.textContent = type;
-        block.appendChild(dragHandle);
-
-        const blockContent = document.createElement('div');
-        blockContent.className = 'block-content';
-
-        inputs.forEach(input => {
-            const inputGroup = document.createElement('div');
-            inputGroup.className = 'input-group';
-            const inputNode = document.createElement('div');
-            inputNode.className = 'input-node';
-            inputNode.setAttribute('data-input', input);
-            inputGroup.appendChild(inputNode);
-            blockContent.appendChild(inputGroup);
-        });
-
-        outputs.forEach(output => {
-            const outputNode = document.createElement('div');
-            outputNode.className = 'output-node';
-            outputNode.setAttribute('data-output', output);
-            blockContent.appendChild(outputNode);
-        });
-
-        block.appendChild(blockContent);
-        blockContainer.appendChild(block);
     }
 
     // System Management Panel
@@ -1567,6 +1422,177 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return config;
+    }
+
+    function updateBlockContent(block, type, result) {
+        // Store the entire result object in the block's dataset
+        block.dataset.output = JSON.stringify(result);
+
+        // Handle specific block types
+        if (type === 'query_input') {
+            // Update chat interface with the query
+            if (result.query) {
+                const messagesContainer = block.querySelector('.chat-messages');
+                // Store the last query for reference
+                block.setAttribute('data-last-query', result.query);
+            }
+        } else if (type === 'pdf_loader') {
+            // Update the block with information about loaded files
+            const statusText = block.querySelector('.status');
+            if (statusText) {
+                statusText.textContent = result.output || 'PDF loaded';
+            }
+        } else if (type === 'text_splitter') {
+            // Update with chunk count information
+            const chunksCount = result.chunks ? result.chunks.length : 0;
+            const statusText = block.querySelector('.status');
+            if (statusText) {
+                statusText.textContent = `${chunksCount} chunks created`;
+            }
+        } else if (type === 'embedding') {
+            // Update with embedding count information
+            const embeddingsCount = result.embeddings ? result.embeddings.length : 0;
+            const statusText = block.querySelector('.status');
+            if (statusText) {
+                statusText.textContent = `${embeddingsCount} embeddings created`;
+            }
+        } else if (type === 'vector_store') {
+            // Update with retrieved documents information
+            const retrievedCount = result.retrieved_chunks ? result.retrieved_chunks.length : 0;
+            const statusText = block.querySelector('.status');
+            if (statusText) {
+                statusText.textContent = `${retrievedCount} documents retrieved`;
+            }
+        } else if (type === 'ai_model') {
+            // Update with answer information
+            if (result.answer) {
+                const statusText = block.querySelector('.status');
+                if (statusText) {
+                    statusText.textContent = 'Answer generated';
+                }
+
+                // Update the answer display if it exists
+                const answerDisplay = block.querySelector('.answer-preview');
+                if (answerDisplay) {
+                    answerDisplay.textContent = result.answer.length > 100
+                        ? result.answer.substring(0, 100) + '...'
+                        : result.answer;
+                }
+            }
+        } else if (type === 'answer_display') {
+            // Update the answer display
+            const display = block.querySelector('.answer-display');
+            if (display) {
+                if (result.answer) {
+                    display.textContent = result.answer;
+                } else if (result.output) {
+                    display.textContent = result.output;
+                }
+            }
+        } else if (type === 'retrieval_ranking') {
+            // Update with ranked documents information
+            const rankedCount = result.ranked_chunks ? result.ranked_chunks.length : 0;
+            const statusText = block.querySelector('.status');
+            if (statusText) {
+                statusText.textContent = `${rankedCount} documents ranked`;
+            }
+        } else if (type.startsWith('custom_')) {
+            // Handle custom blocks
+            const statusText = block.querySelector('.status');
+            if (statusText) {
+                statusText.textContent = result.output || 'Processed successfully';
+            }
+        }
+    }
+
+    // Make a block draggable
+    function makeBlockDraggable(block) {
+        const dragHandle = block.querySelector('.block-drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return; // Only left mouse button
+                isDraggingBlock = true;
+                draggedBlock = block;
+
+                // Calculate offset from the mouse to the block's top-left corner
+                const rect = block.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+                dragOffset.x = (e.clientX - rect.left) / zoom;
+                dragOffset.y = (e.clientY - rect.top) / zoom;
+
+                block.style.zIndex = '1000';
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        }
+    }
+
+    // Setup node connections for a block
+    function setupNodeConnections(block) {
+        const outputNodes = block.querySelectorAll('.output-node');
+        const inputNodes = block.querySelectorAll('.input-node');
+
+        outputNodes.forEach(outputNode => {
+            outputNode.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                draggingConnection = true;
+                sourceNode = outputNode;
+
+                const rect = outputNode.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+
+                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
+                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
+
+                tempConnection.setAttribute('x1', x1);
+                tempConnection.setAttribute('y1', y1);
+                tempConnection.setAttribute('x2', x1);
+                tempConnection.setAttribute('y2', y1);
+                tempConnection.setAttribute('class', 'connection-line dragging');
+                connectionsContainer.appendChild(tempConnection);
+            });
+        });
+
+        inputNodes.forEach(inputNode => {
+            inputNode.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+
+            inputNode.addEventListener('mouseover', (e) => {
+                if (draggingConnection && sourceNode) {
+                    const sourceBlock = sourceNode.closest('.block');
+                    const targetBlock = inputNode.closest('.block');
+                    if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                        hoveredInputNode = inputNode;
+                        inputNode.classList.add('input-node-hover');
+                        e.stopPropagation();
+                    }
+                }
+            });
+
+            inputNode.addEventListener('mouseout', (e) => {
+                if (hoveredInputNode === inputNode) {
+                    hoveredInputNode = null;
+                    inputNode.classList.remove('input-node-hover');
+                    e.stopPropagation();
+                }
+            });
+        });
+    }
+
+    // Function to handle block deletion and clean up connections
+    function deleteBlockConnections(block) {
+        const blockId = block.id;
+
+        // Remove all connections to/from this block
+        connections = connections.filter(conn =>
+            conn.source !== blockId && conn.target !== blockId
+        );
+
+        // Update the visual connections
+        updateConnections();
     }
 });
 
