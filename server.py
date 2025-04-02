@@ -81,7 +81,10 @@ def create_block():
     if not block_type or not block_id:
         return jsonify({"error": "Missing block type or ID"}), 400
 
-    return jsonify({"error": "Invalid block type. Only custom blocks are allowed."}), 400
+    return (
+        jsonify({"error": "Invalid block type. Only custom blocks are allowed."}),
+        400,
+    )
 
 
 @app.route("/api/blocks/connect", methods=["POST"])
@@ -96,7 +99,9 @@ def connect_block_nodes():
     try:
         success = canvas.connect_blocks(source_id, target_id)
         if success:
-            return jsonify({"status": "success", "message": "Blocks connected successfully"})
+            return jsonify(
+                {"status": "success", "message": "Blocks connected successfully"}
+            )
         else:
             return jsonify({"error": "Invalid connection"}), 400
     except Exception as e:
@@ -134,13 +139,17 @@ def export_blocks():
                     # Extract module path and class name from block_type
                     if block_type.startswith("custom_"):
                         # Remove 'custom_' prefix to get the full class path
-                        full_class_path = block_type[7:]  # e.g. "langchain_community.llms.OpenAI"
+                        full_class_path = block_type[
+                            7:
+                        ]  # e.g. "langchain_community.llms.OpenAI"
 
                         # Split the path to get module and class name
                         parts = full_class_path.split(".")
                         if len(parts) > 1:
                             self.class_name = parts[-1]  # Last part is class name
-                            self.module_path = ".".join(parts[:-1])  # Rest is module path
+                            self.module_path = ".".join(
+                                parts[:-1]
+                            )  # Rest is module path
                         else:
                             self.class_name = full_class_path  # If no dots, use as is
                     else:
@@ -148,11 +157,17 @@ def export_blocks():
                         self.class_name = block_type
 
                     # Determine component type based on module path and class name
-                    if "document_loaders" in self.module_path or "loader" in self.class_name.lower():
+                    if (
+                        "document_loaders" in self.module_path
+                        or "loader" in self.class_name.lower()
+                    ):
                         self.component_type = "document_loaders"
                     elif "text_splitters" in self.module_path:
                         self.component_type = "text_splitters"
-                    elif "embedding" in self.module_path or "embed" in self.class_name.lower():
+                    elif (
+                        "embedding" in self.module_path
+                        or "embed" in self.class_name.lower()
+                    ):
                         self.component_type = "embeddings"
                     elif "vectorstore" in self.module_path:
                         self.component_type = "vectorstores"
@@ -170,11 +185,15 @@ def export_blocks():
 
                     # Set import string and function string
                     if self.module_path:
-                        self.import_string = f"from {self.module_path} import {self.class_name}"
+                        self.import_string = (
+                            f"from {self.module_path} import {self.class_name}"
+                        )
                     else:
                         self.import_string = f"# Import for {self.class_name}"
 
-                    self.function_string = f"# Placeholder for {self.class_name} function"
+                    self.function_string = (
+                        f"# Placeholder for {self.class_name} function"
+                    )
 
                     # Extract methods from block info or config
                     if "methods" in config:
@@ -183,7 +202,9 @@ def export_blocks():
                         self.selected_methods = config["selected_methods"]
 
                     # Create placeholder for methods list (all available methods)
-                    self.methods = list(self.selected_methods) if self.selected_methods else []
+                    self.methods = (
+                        list(self.selected_methods) if self.selected_methods else []
+                    )
 
                     # Always add __init__ to methods if not present
                     if "__init__" not in self.methods:
@@ -195,7 +216,8 @@ def export_blocks():
 
                     # Always add a default method if no methods are specified
                     if not self.selected_methods or (
-                        len(self.selected_methods) == 1 and self.selected_methods[0] == "__init__"
+                        len(self.selected_methods) == 1
+                        and self.selected_methods[0] == "__init__"
                     ):
                         if self.component_type == "embeddings":
                             self.methods.append("embed_documents")
@@ -206,7 +228,10 @@ def export_blocks():
                         elif self.component_type == "text_splitters":
                             self.methods.append("split_documents")
                             self.selected_methods.append("split_documents")
-                        elif self.component_type == "llms" or self.component_type == "chat_models":
+                        elif (
+                            self.component_type == "llms"
+                            or self.component_type == "chat_models"
+                        ):
                             self.methods.append("invoke")
                             self.selected_methods.append("invoke")
                         elif self.component_type == "vectorstores":
@@ -232,7 +257,12 @@ def export_blocks():
             source_id = conn.get("source")
             target_id = conn.get("target")
 
-            if source_id and target_id and source_id in temp_canvas.blocks and target_id in temp_canvas.blocks:
+            if (
+                source_id
+                and target_id
+                and source_id in temp_canvas.blocks
+                and target_id in temp_canvas.blocks
+            ):
                 if source_id not in canvas_connections:
                     canvas_connections[source_id] = []
                 if target_id not in canvas_connections[source_id]:
@@ -245,7 +275,9 @@ def export_blocks():
         temp_file = output_file
 
         # Export the code - using custom export logic similar to block_sim.py
-        generated_code = generate_python_code(temp_canvas.blocks, temp_canvas.connections)
+        generated_code = generate_python_code(
+            temp_canvas.blocks, temp_canvas.connections
+        )
 
         # Write the generated code to the file
         with open(temp_file, "w", encoding="utf-8") as f:
@@ -284,7 +316,9 @@ def generate_python_code(blocks, connections):
     block_vars = {}
     for i, block_id in enumerate(execution_order):
         block = blocks[block_id]
-        class_name = block.class_name if hasattr(block, "class_name") else type(block).__name__
+        class_name = (
+            block.class_name if hasattr(block, "class_name") else type(block).__name__
+        )
         var_name = f"{class_name.lower()}_{i + 1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
@@ -309,7 +343,9 @@ def generate_python_code(blocks, connections):
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
-        class_name = block.class_name if hasattr(block, "class_name") else type(block).__name__
+        class_name = (
+            block.class_name if hasattr(block, "class_name") else type(block).__name__
+        )
 
         # Build initialization parameters
         init_params = []
@@ -322,7 +358,10 @@ def generate_python_code(blocks, connections):
                 # Format the value properly
                 if isinstance(param_value, str):
                     if not (
-                        param_value.startswith(("'", '"', "[", "{", "True", "False", "None")) or param_value.isdigit()
+                        param_value.startswith(
+                            ("'", '"', "[", "{", "True", "False", "None")
+                        )
+                        or param_value.isdigit()
                     ):
                         param_value = f'"{param_value}"'
 
@@ -337,7 +376,9 @@ def generate_python_code(blocks, connections):
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
-        class_name = block.class_name if hasattr(block, "class_name") else type(block).__name__
+        class_name = (
+            block.class_name if hasattr(block, "class_name") else type(block).__name__
+        )
 
         # Get methods for this block (excluding __init__)
         methods_to_execute = []
@@ -347,7 +388,9 @@ def generate_python_code(blocks, connections):
             methods_to_execute = [m for m in block.selected_methods if m != "__init__"]
 
         # Run producer methods first
-        producer_methods_for_block = [m for m in methods_to_execute if m in producer_methods]
+        producer_methods_for_block = [
+            m for m in methods_to_execute if m in producer_methods
+        ]
 
         for method_name in producer_methods_for_block:
             method_code_lines.append(f"# Execute {method_name} on {class_name}")
@@ -364,32 +407,51 @@ def generate_python_code(blocks, connections):
                     # For methods like load() that typically don't take other blocks' outputs
                     # We'll handle those specially
                     if method_name == "load" and (
-                        hasattr(block, "component_type") and block.component_type == "document_loaders"
+                        hasattr(block, "component_type")
+                        and block.component_type == "document_loaders"
                     ):
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                        method_code_lines.append(
+                            f"{var_name}_output = {var_name}.{method_name}()"
+                        )
                     else:
                         method_code_lines.append(
                             f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})"
                         )
                 else:
-                    method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                    method_code_lines.append(
+                        f"{var_name}_output = {var_name}.{method_name}()"
+                    )
             else:
                 # No incoming connections, call with no parameters
-                method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                method_code_lines.append(
+                    f"{var_name}_output = {var_name}.{method_name}()"
+                )
 
     # Then run all consumer methods
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
-        class_name = block.class_name if hasattr(block, "class_name") else type(block).__name__
-        component_type = block.component_type if hasattr(block, "component_type") else ""
+        class_name = (
+            block.class_name if hasattr(block, "class_name") else type(block).__name__
+        )
+        component_type = (
+            block.component_type if hasattr(block, "component_type") else ""
+        )
 
         # Get methods for this block that aren't producers
         methods_to_execute = []
         if hasattr(block, "methods"):
-            methods_to_execute = [m for m in block.methods if m != "__init__" and m not in producer_methods]
+            methods_to_execute = [
+                m
+                for m in block.methods
+                if m != "__init__" and m not in producer_methods
+            ]
         elif hasattr(block, "selected_methods"):
-            methods_to_execute = [m for m in block.selected_methods if m != "__init__" and m not in producer_methods]
+            methods_to_execute = [
+                m
+                for m in block.selected_methods
+                if m != "__init__" and m not in producer_methods
+            ]
 
         # Skip if we already processed producer methods
         if not methods_to_execute and producer_methods_for_block:
@@ -476,10 +538,14 @@ def generate_python_code(blocks, connections):
                             f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})"
                         )
                 else:
-                    method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                    method_code_lines.append(
+                        f"{var_name}_output = {var_name}.{method_name}()"
+                    )
             else:
                 # No incoming connections, call with no parameters
-                method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                method_code_lines.append(
+                    f"{var_name}_output = {var_name}.{method_name}()"
+                )
 
     # Collect clean lines for the final code
     clean_code_lines = []
@@ -505,7 +571,11 @@ def generate_python_code(blocks, connections):
         last_block_id = execution_order[-1]
         last_var = block_vars[last_block_id]
         last_block = blocks[last_block_id]
-        last_class = last_block.class_name if hasattr(last_block, "class_name") else type(last_block).__name__
+        last_class = (
+            last_block.class_name
+            if hasattr(last_block, "class_name")
+            else type(last_block).__name__
+        )
 
         clean_code_lines.append("# Print the final result")
         clean_code_lines.append(f'print("\\nFinal result from {last_class}:")')
@@ -555,7 +625,9 @@ def determine_execution_order(blocks, connections):
 @app.route("/api/blocks/list", methods=["GET"])
 def list_blocks():
     try:
-        blocks = {block_id: type(block).__name__ for block_id, block in canvas.blocks.items()}
+        blocks = {
+            block_id: type(block).__name__ for block_id, block in canvas.blocks.items()
+        }
         return jsonify({"blocks": blocks, "connections": canvas.connections})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -570,7 +642,9 @@ def process_block():
         config = data.get("config", {})
         debug_mode = data.get("debug_mode", False)
 
-        print(f"\n[PROCESSING] Block: {block_type} (ID: {block_id}), Debug mode: {debug_mode}")
+        print(
+            f"\n[PROCESSING] Block: {block_type} (ID: {block_id}), Debug mode: {debug_mode}"
+        )
 
         # Check if the block exists in the canvas
         block = canvas.blocks.get(block_id)
@@ -672,11 +746,20 @@ def list_langchain_classes():
                     submodules.append(submodule_name)
 
                     # If this is a frequently used module, look deeper
-                    if name in ["document_loaders", "embeddings", "llms", "vectorstores"]:
+                    if name in [
+                        "document_loaders",
+                        "embeddings",
+                        "llms",
+                        "vectorstores",
+                    ]:
                         try:
                             sub = importlib.import_module(submodule_name)
                             if hasattr(sub, "__path__"):
-                                for sub_finder, sub_name, sub_ispkg in pkgutil.iter_modules(sub.__path__):
+                                for (
+                                    sub_finder,
+                                    sub_name,
+                                    sub_ispkg,
+                                ) in pkgutil.iter_modules(sub.__path__):
                                     submodules.append(f"{submodule_name}.{sub_name}")
                         except ImportError:
                             pass
@@ -700,7 +783,9 @@ def list_langchain_classes():
                         continue
 
                     # Only include classes from this module or submodules
-                    if hasattr(attr, "__module__") and attr.__module__.startswith(module_path):
+                    if hasattr(attr, "__module__") and attr.__module__.startswith(
+                        module_path
+                    ):
                         classes.append(name)
             except ImportError:
                 print(f"Could not import module {mod_path}")
@@ -715,7 +800,13 @@ def list_langchain_classes():
             regular_classes = []
 
             for cls in classes:
-                if cls in ["PyPDFLoader", "TextLoader", "CSVLoader", "JSONLoader", "WebBaseLoader"]:
+                if cls in [
+                    "PyPDFLoader",
+                    "TextLoader",
+                    "CSVLoader",
+                    "JSONLoader",
+                    "WebBaseLoader",
+                ]:
                     priority_classes.append(cls)
                 else:
                     regular_classes.append(cls)
@@ -762,7 +853,9 @@ def get_langchain_class_details():
             # Try to find the class in a submodule
             class_obj = None
 
-            for submodule_info in pkgutil.iter_modules(module.__path__ if hasattr(module, "__path__") else []):
+            for submodule_info in pkgutil.iter_modules(
+                module.__path__ if hasattr(module, "__path__") else []
+            ):
                 submodule_name = f"{module_path}.{submodule_info.name}"
                 try:
                     submodule = importlib.import_module(submodule_name)
@@ -773,7 +866,14 @@ def get_langchain_class_details():
                     continue
 
             if class_obj is None:
-                return jsonify({"error": f"Class {class_name} not found in module {module_path}"}), 404
+                return (
+                    jsonify(
+                        {
+                            "error": f"Class {class_name} not found in module {module_path}"
+                        }
+                    ),
+                    404,
+                )
         else:
             class_obj = getattr(module, class_name)
 
@@ -784,7 +884,9 @@ def get_langchain_class_details():
         embedding_param_mapping = {"embed_documents": "texts", "embed_query": "text"}
 
         # Special patching for embedding classes to fix parameter names
-        is_embedding_class = "embedding" in module_path.lower() or "embed" in class_name.lower()
+        is_embedding_class = (
+            "embedding" in module_path.lower() or "embed" in class_name.lower()
+        )
 
         # Get methods and patch them if needed
         methods = []
@@ -803,13 +905,19 @@ def get_langchain_class_details():
                 parameters = []
 
                 # Handle special case for embeddings
-                if is_embedding_class and name in embedding_param_mapping and "data" in sig.parameters:
+                if (
+                    is_embedding_class
+                    and name in embedding_param_mapping
+                    and "data" in sig.parameters
+                ):
                     # Create new parameters dictionary with renamed parameter
                     new_params = {}
                     for param_name, param in sig.parameters.items():
                         if param_name == "data":
                             new_param_name = embedding_param_mapping[name]
-                            new_params[new_param_name] = param.replace(name=new_param_name)
+                            new_params[new_param_name] = param.replace(
+                                name=new_param_name
+                            )
                         else:
                             new_params[param_name] = param
 
@@ -822,14 +930,26 @@ def get_langchain_class_details():
                         continue
 
                     # Use the correct parameter name for embeddings
-                    if is_embedding_class and param_name == "data" and name in embedding_param_mapping:
+                    if (
+                        is_embedding_class
+                        and param_name == "data"
+                        and name in embedding_param_mapping
+                    ):
                         param_name = embedding_param_mapping[name]
 
                     param_info = {
                         "name": param_name,
                         "required": param.default == inspect.Parameter.empty,
-                        "default": (str(param.default) if param.default != inspect.Parameter.empty else None),
-                        "type": (str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"),
+                        "default": (
+                            str(param.default)
+                            if param.default != inspect.Parameter.empty
+                            else None
+                        ),
+                        "type": (
+                            str(param.annotation)
+                            if param.annotation != inspect.Parameter.empty
+                            else "Any"
+                        ),
                     }
                     parameters.append(param_info)
 
@@ -848,14 +968,23 @@ def get_langchain_class_details():
         init_params = []
 
         # Special handling for document loaders - applied before any automatic detection
-        is_document_loader = "document_loader" in module_path.lower() or "loader" in class_name.lower()
+        is_document_loader = (
+            "document_loader" in module_path.lower() or "loader" in class_name.lower()
+        )
 
         # Document loader special cases
         if is_document_loader:
             # PyPDFLoader - Override with correct parameters
             if class_name == "PyPDFLoader":
                 print(f"Applying override parameters for {class_name}")
-                init_params = [{"name": "file_path", "required": True, "default": None, "type": "str"}]
+                init_params = [
+                    {
+                        "name": "file_path",
+                        "required": True,
+                        "default": None,
+                        "type": "str",
+                    }
+                ]
                 # Return early to skip automatic parameter detection completely
                 class_type = ["DocumentLoader"]
                 component_type = "document_loaders"
@@ -877,8 +1006,18 @@ def get_langchain_class_details():
             # TextLoader
             elif class_name == "TextLoader":
                 init_params = [
-                    {"name": "file_path", "required": True, "default": None, "type": "str"},
-                    {"name": "encoding", "required": False, "default": "utf-8", "type": "str"},
+                    {
+                        "name": "file_path",
+                        "required": True,
+                        "default": None,
+                        "type": "str",
+                    },
+                    {
+                        "name": "encoding",
+                        "required": False,
+                        "default": "utf-8",
+                        "type": "str",
+                    },
                 ]
                 # Return early to skip automatic parameter detection
                 class_type = ["DocumentLoader"]
@@ -898,8 +1037,18 @@ def get_langchain_class_details():
             # CSVLoader
             elif class_name == "CSVLoader":
                 init_params = [
-                    {"name": "file_path", "required": True, "default": None, "type": "str"},
-                    {"name": "csv_args", "required": False, "default": "{}", "type": "dict"},
+                    {
+                        "name": "file_path",
+                        "required": True,
+                        "default": None,
+                        "type": "str",
+                    },
+                    {
+                        "name": "csv_args",
+                        "required": False,
+                        "default": "{}",
+                        "type": "dict",
+                    },
                 ]
                 # Return early
                 class_type = ["DocumentLoader"]
@@ -918,7 +1067,14 @@ def get_langchain_class_details():
                 return jsonify(result)
             # WebBaseLoader
             elif class_name == "WebBaseLoader":
-                init_params = [{"name": "web_paths", "required": True, "default": None, "type": "List[str]"}]
+                init_params = [
+                    {
+                        "name": "web_paths",
+                        "required": True,
+                        "default": None,
+                        "type": "List[str]",
+                    }
+                ]
                 # Return early
                 class_type = ["DocumentLoader"]
                 component_type = "document_loaders"
@@ -940,7 +1096,9 @@ def get_langchain_class_details():
             init_sig = inspect.signature(class_obj.__init__)
 
             # Check if this might be a Pydantic model
-            has_pydantic_structure = "**data" in str(init_sig) or "kwargs" in str(init_sig)
+            has_pydantic_structure = "**data" in str(init_sig) or "kwargs" in str(
+                init_sig
+            )
 
             if has_pydantic_structure:
                 # Try different ways to get fields for potential Pydantic models
@@ -952,7 +1110,9 @@ def get_langchain_class_details():
                     instance = class_obj()
                     # Get fields from the instance
                     for field_name in dir(instance):
-                        if not field_name.startswith("_") and not callable(getattr(instance, field_name)):
+                        if not field_name.startswith("_") and not callable(
+                            getattr(instance, field_name)
+                        ):
                             field_parameters.append(
                                 {
                                     "name": field_name,
@@ -971,12 +1131,26 @@ def get_langchain_class_details():
                         field_parameters.append(
                             {
                                 "name": field_name,
-                                "required": field.required if hasattr(field, "required") else False,
-                                "default": str(field.default) if hasattr(field, "default") else "None",
-                                "type": str(field.type_) if hasattr(field, "type_") else "Any",
+                                "required": (
+                                    field.required
+                                    if hasattr(field, "required")
+                                    else False
+                                ),
+                                "default": (
+                                    str(field.default)
+                                    if hasattr(field, "default")
+                                    else "None"
+                                ),
+                                "type": (
+                                    str(field.type_)
+                                    if hasattr(field, "type_")
+                                    else "Any"
+                                ),
                             }
                         )
-                    print(f"Found Pydantic v1 fields: {[p['name'] for p in field_parameters]}")
+                    print(
+                        f"Found Pydantic v1 fields: {[p['name'] for p in field_parameters]}"
+                    )
 
                 # Try Pydantic v2
                 if not field_parameters and hasattr(class_obj, "model_fields"):
@@ -984,12 +1158,23 @@ def get_langchain_class_details():
                         field_parameters.append(
                             {
                                 "name": field_name,
-                                "required": not hasattr(field, "default") or field.default is None,
-                                "default": str(field.default) if hasattr(field, "default") else "None",
-                                "type": str(field.annotation) if hasattr(field, "annotation") else "Any",
+                                "required": not hasattr(field, "default")
+                                or field.default is None,
+                                "default": (
+                                    str(field.default)
+                                    if hasattr(field, "default")
+                                    else "None"
+                                ),
+                                "type": (
+                                    str(field.annotation)
+                                    if hasattr(field, "annotation")
+                                    else "Any"
+                                ),
                             }
                         )
-                    print(f"Found Pydantic v2 fields: {[p['name'] for p in field_parameters]}")
+                    print(
+                        f"Found Pydantic v2 fields: {[p['name'] for p in field_parameters]}"
+                    )
 
                 # Try __annotations__ as a fallback
                 if not field_parameters and hasattr(class_obj, "__annotations__"):
@@ -1022,14 +1207,18 @@ def get_langchain_class_details():
                                         "type": "Any",
                                     }
                                 )
-                            print(f"Found fields via source inspection: {[p['name'] for p in field_parameters]}")
+                            print(
+                                f"Found fields via source inspection: {[p['name'] for p in field_parameters]}"
+                            )
                     except (OSError, TypeError, AttributeError) as e:
                         print(f"Failed to inspect source code: {str(e)}")
                         pass
 
                 if field_parameters:
                     init_params = field_parameters
-                    print(f"Using dynamic field inspection for {class_name}: {len(field_parameters)} fields found")
+                    print(
+                        f"Using dynamic field inspection for {class_name}: {len(field_parameters)} fields found"
+                    )
 
             # If no fields found from Pydantic-style inspection, use regular signature inspection
             if not init_params:
@@ -1046,8 +1235,16 @@ def get_langchain_class_details():
                         param_info = {
                             "name": param_name,
                             "required": param.default == inspect.Parameter.empty,
-                            "default": str(param.default) if param.default != inspect.Parameter.empty else None,
-                            "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any",
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
                         }
                         init_params.append(param_info)
         except (TypeError, ValueError, AttributeError) as e:
@@ -1110,22 +1307,32 @@ def get_langchain_class_details():
 
                                 param_info = {
                                     "name": param_name,
-                                    "required": param.default == inspect.Parameter.empty,
-                                    "default": str(param.default) if param.default != inspect.Parameter.empty else None,
-                                    "type": str(param.annotation)
-                                    if param.annotation != inspect.Parameter.empty
-                                    else "Any",
+                                    "required": param.default
+                                    == inspect.Parameter.empty,
+                                    "default": (
+                                        str(param.default)
+                                        if param.default != inspect.Parameter.empty
+                                        else None
+                                    ),
+                                    "type": (
+                                        str(param.annotation)
+                                        if param.annotation != inspect.Parameter.empty
+                                        else "Any"
+                                    ),
                                 }
                                 parameters.append(param_info)
 
                             method_info = {
                                 "name": method_name,
-                                "doc": inspect.getdoc(method) or "No documentation available",
+                                "doc": inspect.getdoc(method)
+                                or "No documentation available",
                                 "parameters": parameters,
                             }
                             methods.append(method_info)
                             method_names.append(method_name)
-                            print(f"Added common method {method_name} for {component_type}")
+                            print(
+                                f"Added common method {method_name} for {component_type}"
+                            )
                         except Exception as e:
                             print(f"Error adding common method {method_name}: {str(e)}")
 
@@ -1179,7 +1386,9 @@ def create_custom_block():
 
         # Add additional method calls if provided
         for method in methods:
-            if method != "__init__":  # Skip __init__ as it's handled in the instantiation
+            if (
+                method != "__init__"
+            ):  # Skip __init__ as it's handled in the instantiation
                 method_params = data.get(f"params_{method}", {})
                 param_str = ", ".join([f"{k}={v}" for k, v in method_params.items()])
                 function_parts.append(f"    # Call {method} method")

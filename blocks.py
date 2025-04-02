@@ -91,8 +91,12 @@ from langchain_community.vectorstores import FAISS"""
 
     def validate_connections(self) -> bool:
         # Check if the inputs contain at least one TextSplitterBlock and one EmbeddingBlock
-        has_text_splitter = any(isinstance(inp, TextSplitterBlock) for inp in self.inputs.values())
-        has_embedding = any(isinstance(inp, EmbeddingBlock) for inp in self.inputs.values())
+        has_text_splitter = any(
+            isinstance(inp, TextSplitterBlock) for inp in self.inputs.values()
+        )
+        has_embedding = any(
+            isinstance(inp, EmbeddingBlock) for inp in self.inputs.values()
+        )
 
         return has_text_splitter and has_embedding
 
@@ -218,7 +222,10 @@ from langchain.chains import RetrievalQA"""
     return chain"""
 
     def validate_connections(self) -> bool:
-        return all(isinstance(inp, (ChatModelBlock, VectorStoreBlock)) for inp in self.inputs.values())
+        return all(
+            isinstance(inp, (ChatModelBlock, VectorStoreBlock))
+            for inp in self.inputs.values()
+        )
 
 
 class Canvas:
@@ -233,7 +240,11 @@ class Canvas:
     def process_block(self, block_id: str, config: dict) -> dict:
         """Process a block using its implementation."""
         if block_id not in self.blocks:
-            return {"status": "error", "output": f"Block not found: {block_id}", "block_id": block_id}
+            return {
+                "status": "error",
+                "output": f"Block not found: {block_id}",
+                "block_id": block_id,
+            }
 
         block = self.blocks[block_id]
 
@@ -246,9 +257,17 @@ class Canvas:
 
             # Example implementation - in a real system, this would use the
             # block's function_string or other properties to execute logic
-            return {"status": "success", "output": f"Processed {block_type}", "block_id": block_id}
+            return {
+                "status": "success",
+                "output": f"Processed {block_type}",
+                "block_id": block_id,
+            }
         except Exception as e:
-            return {"status": "error", "output": f"Error processing block: {str(e)}", "block_id": block_id}
+            return {
+                "status": "error",
+                "output": f"Error processing block: {str(e)}",
+                "block_id": block_id,
+            }
 
     def connect_blocks(self, source_id: str, target_id: str) -> bool:
         """Connect two blocks and validate the connection."""
@@ -307,7 +326,9 @@ class Canvas:
             # Write main execution
             f.write("if __name__ == '__main__':\n")
             f.write("    print('Welcome to the RAG Pipeline Application!')\n")
-            f.write("    print('This application will help you analyze documents using AI.')\n")
+            f.write(
+                "    print('This application will help you analyze documents using AI.')\n"
+            )
             f.write("    print()\n")
             f.write(main_code)
 
@@ -357,11 +378,15 @@ class Canvas:
                 target_block = self.blocks[target_id]
 
                 # Handle custom blocks
-                if hasattr(target_block, "input_nodes") and hasattr(source_block, "output_nodes"):
+                if hasattr(target_block, "input_nodes") and hasattr(
+                    source_block, "output_nodes"
+                ):
                     # Map output nodes to input nodes based on connection
                     for i, output_node in enumerate(source_block.output_nodes):
                         if i < len(target_block.input_nodes):
-                            input_map[target_id][target_block.input_nodes[i]] = source_id
+                            input_map[target_id][
+                                target_block.input_nodes[i]
+                            ] = source_id
 
         for block_id in execution_order:
             block = self.blocks[block_id]
@@ -382,23 +407,31 @@ class Canvas:
 
                 # Add the function call
                 code_lines.append(f"    # Create {block.class_name}")
-                code_lines.append(f"    {block_id}_result = {func_name}({', '.join(params)})")
+                code_lines.append(
+                    f"    {block_id}_result = {func_name}({', '.join(params)})"
+                )
                 results[block_id] = f"{block_id}_result"
 
             # Handle standard blocks
             elif isinstance(block, PDFLoaderBlock):
                 code_lines.append("    # Load PDF")
-                code_lines.append(f"    {block_id}_result = load_pdf('your_pdf_file.pdf')")
+                code_lines.append(
+                    f"    {block_id}_result = load_pdf('your_pdf_file.pdf')"
+                )
                 results[block_id] = f"{block_id}_result"
 
             elif isinstance(block, TextSplitterBlock):
                 if block_id in input_map and "documents" in input_map[block_id]:
                     input_var = results[input_map[block_id]["documents"]]
                     code_lines.append("    # Split text")
-                    code_lines.append(f"    {block_id}_result = split_text({input_var})")
+                    code_lines.append(
+                        f"    {block_id}_result = split_text({input_var})"
+                    )
                     results[block_id] = f"{block_id}_result"
                 else:
-                    code_lines.append("    # WARNING: TextSplitterBlock missing document input")
+                    code_lines.append(
+                        "    # WARNING: TextSplitterBlock missing document input"
+                    )
                     code_lines.append(f"    {block_id}_result = split_text([])")
                     results[block_id] = f"{block_id}_result"
 
@@ -408,14 +441,22 @@ class Canvas:
                 results[block_id] = f"{block_id}_result"
 
             elif isinstance(block, VectorStoreBlock):
-                if block_id in input_map and "documents" in input_map[block_id] and "embeddings" in input_map[block_id]:
+                if (
+                    block_id in input_map
+                    and "documents" in input_map[block_id]
+                    and "embeddings" in input_map[block_id]
+                ):
                     docs_var = results[input_map[block_id]["documents"]]
                     emb_var = results[input_map[block_id]["embeddings"]]
                     code_lines.append("    # Create vector store")
-                    code_lines.append(f"    {block_id}_result = create_vectorstore({docs_var}, {emb_var})")
+                    code_lines.append(
+                        f"    {block_id}_result = create_vectorstore({docs_var}, {emb_var})"
+                    )
                     results[block_id] = f"{block_id}_result"
                 else:
-                    code_lines.append("    # WARNING: VectorStoreBlock missing required inputs")
+                    code_lines.append(
+                        "    # WARNING: VectorStoreBlock missing required inputs"
+                    )
                     if "documents" not in input_map.get(block_id, {}):
                         code_lines.append("    # Missing document chunks input")
                     if "embeddings" not in input_map.get(block_id, {}):
@@ -428,14 +469,22 @@ class Canvas:
                 results[block_id] = f"{block_id}_result"
 
             elif isinstance(block, RAGPromptBlock):
-                if block_id in input_map and "llm" in input_map[block_id] and "vectorstore" in input_map[block_id]:
+                if (
+                    block_id in input_map
+                    and "llm" in input_map[block_id]
+                    and "vectorstore" in input_map[block_id]
+                ):
                     llm_var = results[input_map[block_id]["llm"]]
                     vs_var = results[input_map[block_id]["vectorstore"]]
                     code_lines.append("    # Create RAG chain")
-                    code_lines.append(f"    {block_id}_result = create_rag_chain({llm_var}, {vs_var})")
+                    code_lines.append(
+                        f"    {block_id}_result = create_rag_chain({llm_var}, {vs_var})"
+                    )
                     results[block_id] = f"{block_id}_result"
                 else:
-                    code_lines.append("    # WARNING: RAGPromptBlock missing required inputs")
+                    code_lines.append(
+                        "    # WARNING: RAGPromptBlock missing required inputs"
+                    )
                     if "llm" not in input_map.get(block_id, {}):
                         code_lines.append("    # Missing LLM input")
                     if "vectorstore" not in input_map.get(block_id, {}):
