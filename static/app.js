@@ -505,14 +505,16 @@ document.addEventListener('DOMContentLoaded', () => {
         e.dataTransfer.dropEffect = 'move';
     });
 
+    // When a custom block template is dropped on the canvas
     canvas.addEventListener('drop', (e) => {
         e.preventDefault();
         const blockType = e.dataTransfer.getData('text/plain');
+        
         if (blockType) {
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom;
-
+            
             if (blockType === 'custom') {
                 // This is a custom block, retrieve the additional data
                 const blockId = e.dataTransfer.getData('blockId');
@@ -539,17 +541,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     newBlock.classList.add('custom-block');
                 }
 
-                // Make block draggable
-                makeBlockDraggable(newBlock);
-
-                // Setup node connections
-                setupNodeConnections(newBlock);
+                // Make sure the block is properly set up
+                setupCustomBlock(newBlock);
 
                 // Add to canvas
                 blockContainer.appendChild(newBlock);
             } else {
                 // Regular block
-                createBlock(blockType, x, y);
+                const block = createBlock(blockType, x, y);
+                if (block && blockType.startsWith('custom_')) {
+                    setupCustomBlock(block);
+                }
             }
         }
     });
@@ -661,14 +663,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (draggingConnection) {
+            console.log('Connection dragging ended');
             const elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+            console.log('Element under mouse:', elemUnderMouse);
+            
             if (elemUnderMouse && elemUnderMouse.classList.contains('input-node') && sourceNode) {
+                console.log('Found input node under mouse');
                 const sourceBlock = sourceNode.closest('.block');
                 const targetBlock = elemUnderMouse.closest('.block');
+                console.log('Source block:', sourceBlock ? sourceBlock.id : 'none');
+                console.log('Target block:', targetBlock ? targetBlock.id : 'none');
+                
                 if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                     const inputId = elemUnderMouse.getAttribute('data-input');
+                    console.log('Input ID:', inputId);
                     removeConnectionsToInput(targetBlock.id, inputId);
                     createConnection(sourceBlock, targetBlock, inputId);
+                    console.log('Connection created between', sourceBlock.id, 'and', targetBlock.id);
+                } else {
+                    console.log('Invalid connection - same block or missing block');
+                }
+            } else {
+                console.log('No valid input node found under mouse or source node is missing');
+                if (!sourceNode) {
+                    console.log('Source node is null - this should not happen');
                 }
             }
 
@@ -726,6 +744,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         connections.push(connection);
         updateConnections();
+        
+        // Send the connection to the server API
+        fetch('/api/blocks/connect', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                source: source.id,
+                target: target.id
+            })
+        }).catch(error => {
+            console.error('Error connecting blocks on server:', error);
+        });
+        
         processBlock(target);
     }
 
@@ -790,77 +823,10 @@ document.addEventListener('DOMContentLoaded', () => {
         block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
 
         // Make block draggable
-        const dragHandle = block.querySelector('.block-drag-handle');
-        if (dragHandle) {
-            dragHandle.addEventListener('mousedown', (e) => {
-                if (e.button !== 0) return; // Only left mouse button
-                isDraggingBlock = true;
-                draggedBlock = block;
+        makeBlockDraggable(block);
 
-                // Calculate offset from the mouse to the block's top-left corner
-                const rect = block.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-                dragOffset.x = (e.clientX - rect.left) / zoom;
-                dragOffset.y = (e.clientY - rect.top) / zoom;
-
-                block.style.zIndex = '1000';
-                e.preventDefault();
-                e.stopPropagation();
-            });
-        }
-
-        // Add connection handling
-        const outputNode = block.querySelector('.output-node');
-        const inputNodes = block.querySelectorAll('.input-node');
-
-        if (outputNode) {
-            outputNode.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                draggingConnection = true;
-                sourceNode = outputNode;
-
-                const rect = outputNode.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-
-                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
-                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
-
-                tempConnection.setAttribute('x1', x1);
-                tempConnection.setAttribute('y1', y1);
-                tempConnection.setAttribute('x2', x1);
-                tempConnection.setAttribute('y2', y1);
-                tempConnection.setAttribute('class', 'connection-line dragging');
-                connectionsContainer.appendChild(tempConnection);
-            });
-        }
-
-        inputNodes.forEach(inputNode => {
-            inputNode.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-            });
-
-            inputNode.addEventListener('mouseover', (e) => {
-                if (draggingConnection && sourceNode) {
-                    const sourceBlock = sourceNode.closest('.block');
-                    const targetBlock = inputNode.closest('.block');
-                    if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
-                        hoveredInputNode = inputNode;
-                        inputNode.classList.add('input-node-hover');
-                        e.stopPropagation();
-                    }
-                }
-            });
-
-            inputNode.addEventListener('mouseout', (e) => {
-                if (hoveredInputNode === inputNode) {
-                    hoveredInputNode = null;
-                    inputNode.classList.remove('input-node-hover');
-                    e.stopPropagation();
-                }
-            });
-        });
+        // Add connection handling for input and output nodes
+        setupNodeConnections(block);
 
         // Handle file input changes
         const fileInput = block.querySelector('.file-input');
@@ -890,6 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize block based on type
         initializeBlock(block, type);
 
+        console.log(`Created new block: ${type} with ID ${block.id}`);
         return block;
     }
 
@@ -1626,6 +1593,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update the visual connections
         updateConnections();
+    }
+
+    // Function to ensure custom blocks have proper node setup
+    function setupCustomBlock(block) {
+        console.log('Setting up custom block:', block.id);
+        
+        // Make sure the block is draggable
+        makeBlockDraggable(block);
+        
+        // Set up node connections
+        setupNodeConnections(block);
+        
+        // Position block on canvas if not already positioned
+        if (!block.style.transform) {
+            const canvas = document.querySelector('.canvas-container');
+            if (canvas) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const x = (Math.random() * 200) + 100;
+                const y = (Math.random() * 200) + 100;
+                block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+            }
+        }
+        
+        return block;
     }
 });
 

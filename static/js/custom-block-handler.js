@@ -1477,21 +1477,19 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
             <div class="node-container">
                 ${inputNodes && inputNodes.length > 0 ?
                     `<div class="input-node-group">
-                        ${inputNodes.map(node =>
-                            `<div class="input-node" data-input="${typeof node === 'string' ? node : node.name}">
-                                <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
-                            </div>`
-                        ).join('')}
+                        ${inputNodes.map(node => {
+                            const nodeName = typeof node === 'string' ? node : node.name;
+                            return `<div class="input-node" data-input="${nodeName}"></div>`;
+                        }).join('')}
                     </div>`
                     : ''
                 }
                 ${outputNodes && outputNodes.length > 0 ?
                     `<div class="output-node-group">
-                        ${outputNodes.map(node =>
-                            `<div class="output-node" data-output="${typeof node === 'string' ? node : node.name}">
-                                <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
-                            </div>`
-                        ).join('')}
+                        ${outputNodes.map(node => {
+                            const nodeName = typeof node === 'string' ? node : node.name;
+                            return `<div class="output-node" data-output="${nodeName}"></div>`;
+                        }).join('')}
                     </div>`
                     : ''
                 }
