@@ -610,7 +610,8 @@ class RAGPipelineSimulator:
                 if block.connected_to is not None
                 else ""
             )
-            print(f"{i + 1}. {block}{connection}")
+
+            print(f"{i+1}. {block}{connection}")
 
         # Select source block
         source_idx = -1
@@ -1052,7 +1053,7 @@ class RAGPipelineSimulator:
                         missing_params.append(param)
 
             if missing_params:
-                print(f"\n⚠ Block {i + 1} ({block}) is missing required parameters:")
+                print(f"\n⚠ Block {i+1} ({block}) is missing required parameters:")
                 for param in missing_params:
                     print(f"  - {param}")
 
@@ -1217,7 +1218,7 @@ class RAGPipelineSimulator:
 
                                 if len(result) > 1:
                                     print(
-                                        f"\nAnd {len(result) - 1} more document(s)...\n"
+                                        f"\nAnd {len(result)-1} more document(s)...\n"
                                     )
                             else:
                                 # It's some other kind of list, show the first item
@@ -1371,7 +1372,7 @@ class RAGPipelineSimulator:
         block_vars = {}
         for i, block_idx in enumerate(execution_order):
             block = self.blocks[block_idx]
-            var_name = f"{block.class_name.lower()}_{i + 1}".replace(" ", "_")
+            var_name = f"{block.class_name.lower()}_{i+1}".replace(" ", "_")
             block_vars[block_idx] = var_name
 
         # First, handle all block initializations in the proper order
@@ -2004,7 +2005,8 @@ class RAGPipelineSimulator:
                     "document_loaders",
                     "text_splitters",
                 ]:
-                    return f"block:{i + 1}"  # Reference to another block's output
+                    return f"block:{i+1}"  # Reference to another block's output
+
 
         return None
 
@@ -2031,7 +2033,7 @@ class RAGPipelineSimulator:
                 else ""
             )
             print(
-                f"{marker} {i + 1}. {block.class_name} ({block.component_type}){connected_to}"
+                f"{marker} {i+1}. {block.class_name} ({block.component_type}){connected_to}"
             )
 
             # Display selected methods if any
