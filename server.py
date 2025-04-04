@@ -346,13 +346,32 @@ def generate_python_code(blocks, connections):
         # Build initialization parameters
         init_params = []
         if hasattr(block, "config") and block.config:
+            # First check for parameters dictionary (from dropdown UI)
+            if "parameters" in block.config and isinstance(
+                block.config["parameters"], dict
+            ):
+                for param_name, param_value in block.config["parameters"].items():
+                    # Format the value properly
+                    if isinstance(param_value, str):
+                        if not (
+                            param_value.startswith(
+                                ("'", '"', "[", "{", "True", "False", "None")
+                            )
+                            or param_value.isdigit()
+                        ):
+                            param_value = f'"{param_value}"'
+
+                    init_params.append(f"{param_name}={param_value}")
+
+            # Then add other parameters from config (excluding non-initialization ones)
             for param_name, param_value in block.config.items():
-                # Skip non-initialization parameters and class_name
+                # Skip non-initialization parameters, class_name and parameters dict itself
                 if param_name in [
                     "methods",
                     "selected_methods",
                     "selected_method",
                     "class_name",
+                    "parameters",
                 ]:
                     continue
 

@@ -1486,17 +1486,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     config.selected_method = methodSelect.value;
                 }
 
-                // Get any parameter values
+                // Get any parameter values - support both dropdown and text input
                 const paramRows = block.querySelectorAll('.parameter-row');
                 if (paramRows.length > 0) {
                     config.parameters = {};
 
                     paramRows.forEach(row => {
+                        // Check for dropdown parameter selector first (new style)
+                        const nameDropdown = row.querySelector('.param-name-select');
                         const nameInput = row.querySelector('.param-name');
                         const valueInput = row.querySelector('.param-value');
 
-                        if (nameInput && valueInput && nameInput.value) {
-                            config.parameters[nameInput.value] = valueInput.value;
+                        let paramName = '';
+                        if (nameDropdown && nameDropdown.value) {
+                            paramName = nameDropdown.value;
+                        } else if (nameInput && nameInput.value) {
+                            paramName = nameInput.value;
+                        }
+
+                        if (paramName && valueInput) {
+                            config.parameters[paramName] = valueInput.value;
                         }
                     });
                 }
