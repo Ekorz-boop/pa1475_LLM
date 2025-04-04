@@ -351,6 +351,10 @@ def generate_python_code(blocks, connections):
                 block.config["parameters"], dict
             ):
                 for param_name, param_value in block.config["parameters"].items():
+                    # Skip empty string values
+                    if param_value == "":
+                        continue
+
                     # Format the value properly
                     if isinstance(param_value, str):
                         if not (
@@ -373,6 +377,10 @@ def generate_python_code(blocks, connections):
                     "class_name",
                     "parameters",
                 ]:
+                    continue
+
+                # Skip empty string values
+                if param_value == "":
                     continue
 
                 # Format the value properly
@@ -513,8 +521,12 @@ def generate_python_code(blocks, connections):
                             f"{var_name}_output = {var_name}.{method_name}(input={source_params[0]})"
                         )
                     else:
+                        # Filter out any empty parameters
+                        filtered_params = [
+                            p for p in source_params if p and p.strip() != ""
+                        ]
                         method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})"
+                            f"{var_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
                         )
                 else:
                     method_code_lines.append(
