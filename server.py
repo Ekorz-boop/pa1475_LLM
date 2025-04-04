@@ -308,20 +308,18 @@ def generate_python_code(blocks, connections):
     init_code_lines = []
     method_code_lines = []
 
-    # Define method categories for proper ordering
-    producer_methods = ["load", "create_docs", "get_docs"]
-    consumer_methods = ["split_documents", "from_documents", "add_documents", "embed_documents", "embed_query"]
-
     # Create variable names for each block
     block_vars = {}
     for i, block_id in enumerate(execution_order):
         block = blocks[block_id]
-        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
-        var_name = f"{class_name.lower()}_{i+1}".replace(' ', '_').replace('-', '_')
+        class_name = (
+            block.class_name if hasattr(block, "class_name") else type(block).__name__
+        )
+        var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
         # Add import for this block
-        if hasattr(block, 'module_path') and block.module_path:
+        if hasattr(block, "module_path") and block.module_path:
             imports.add(f"from {block.module_path} import {class_name}")
 
     # Build connection maps for easier processing
@@ -341,19 +339,26 @@ def generate_python_code(blocks, connections):
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
-        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
+        class_name = (
+            block.class_name if hasattr(block, "class_name") else type(block).__name__
+        )
 
         # Build initialization parameters
         init_params = []
-        if hasattr(block, 'config') and block.config:
+        if hasattr(block, "config") and block.config:
             for param_name, param_value in block.config.items():
                 # Skip non-initialization parameters
-                if param_name in ['methods', 'selected_methods', 'selected_method']:
+                if param_name in ["methods", "selected_methods", "selected_method"]:
                     continue
 
                 # Format the value properly
                 if isinstance(param_value, str):
-                    if not (param_value.startswith(("'", '"', "[", "{", "True", "False", "None")) or param_value.isdigit()):
+                    if not (
+                        param_value.startswith(
+                            ("'", '"', "[", "{", "True", "False", "None")
+                        )
+                        or param_value.isdigit()
+                    ):
                         param_value = f'"{param_value}"'
 
                 init_params.append(f"{param_name}={param_value}")
@@ -369,19 +374,23 @@ def generate_python_code(blocks, connections):
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
-        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
-        component_type = block.component_type if hasattr(block, 'component_type') else ""
+        class_name = (
+            block.class_name if hasattr(block, "class_name") else type(block).__name__
+        )
+        component_type = (
+            block.component_type if hasattr(block, "component_type") else ""
+        )
 
         # Get the selected method from config if available
         selected_method = None
-        if hasattr(block, 'config') and block.config:
-            selected_method = block.config.get('selected_method')
+        if hasattr(block, "config") and block.config:
+            selected_method = block.config.get("selected_method")
 
         # Get methods for this block (excluding __init__)
         methods_to_execute = []
-        if hasattr(block, 'methods'):
+        if hasattr(block, "methods"):
             methods_to_execute = [m for m in block.methods if m != "__init__"]
-        elif hasattr(block, 'selected_methods'):
+        elif hasattr(block, "selected_methods"):
             methods_to_execute = [m for m in block.selected_methods if m != "__init__"]
 
         # If a specific method is selected and valid, prioritize that
@@ -408,8 +417,8 @@ def generate_python_code(blocks, connections):
                 else:
                     methods_to_execute = ["run"]  # Generic default
             # For blocks without component_type, infer from module path or class name
-            elif hasattr(block, 'module_path') or hasattr(block, 'class_name'):
-                module_path = getattr(block, 'module_path', '')
+            elif hasattr(block, "module_path") or hasattr(block, "class_name"):
+                module_path = getattr(block, "module_path", "")
                 class_name_lower = class_name.lower()
 
                 if "embeddings" in module_path or "embed" in class_name_lower:
@@ -447,30 +456,51 @@ def generate_python_code(blocks, connections):
                     # For methods like load() that typically don't take other blocks' outputs
                     # We'll handle those specially
                     if method_name == "load" and (
-                        hasattr(block, 'component_type') and block.component_type == "document_loaders"
+                        hasattr(block, "component_type")
+                        and block.component_type == "document_loaders"
                     ):
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                        method_code_lines.append(
+                            f"{var_name}_output = {var_name}.{method_name}()"
+                        )
                     # For methods that take specific parameter names
                     elif method_name == "embed_documents":
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(texts={source_params[0]})")
+                        method_code_lines.append(
+                            f"{var_name}_output = {var_name}.{method_name}(texts={source_params[0]})"
+                        )
                     elif method_name == "embed_query":
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(text={source_params[0]})")
+                        method_code_lines.append(
+                            f"{var_name}_output = {var_name}.{method_name}(text={source_params[0]})"
+                        )
                     elif method_name == "from_documents":
                         if len(source_params) > 1:
-                            method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]}, embedding={source_params[1]})")
+                            method_code_lines.append(
+                                f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]}, embedding={source_params[1]})"
+                            )
                         else:
-                            method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})")
+                            method_code_lines.append(
+                                f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})"
+                            )
                     elif method_name == "split_documents":
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})")
+                        method_code_lines.append(
+                            f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})"
+                        )
                     elif method_name in ["invoke", "run"]:
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(input={source_params[0]})")
+                        method_code_lines.append(
+                            f"{var_name}_output = {var_name}.{method_name}(input={source_params[0]})"
+                        )
                     else:
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})")
+                        method_code_lines.append(
+                            f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})"
+                        )
                 else:
-                    method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                    method_code_lines.append(
+                        f"{var_name}_output = {var_name}.{method_name}()"
+                    )
             else:
                 # No incoming connections, call with no parameters
-                method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
+                method_code_lines.append(
+                    f"{var_name}_output = {var_name}.{method_name}()"
+                )
 
             # Mark this method as processed
             processed_methods[block_id].add(method_name)
@@ -503,7 +533,11 @@ def generate_python_code(blocks, connections):
         last_block_id = execution_order[-1]
         last_var = block_vars[last_block_id]
         last_block = blocks[last_block_id]
-        last_class = last_block.class_name if hasattr(last_block, 'class_name') else type(last_block).__name__
+        last_class = (
+            last_block.class_name
+            if hasattr(last_block, "class_name")
+            else type(last_block).__name__
+        )
 
         clean_code_lines.append("# Print the final result")
         clean_code_lines.append(f'print("\\nFinal result from {last_class}:")')
@@ -586,10 +620,10 @@ def process_block():
             # Handle custom block processing through the custom block API
             return jsonify(
                 {
-                "status": "error",
+                    "status": "error",
                     "output": f"Block not found or not implemented: {block_type}",
-                "block_id": block_id,
-            }
+                    "block_id": block_id,
+                }
             )
     except Exception as e:
         print(f"[ERROR] Block processing error: {str(e)}")
@@ -1043,9 +1077,9 @@ def get_langchain_class_details():
                         ):
                             field_parameters.append(
                                 {
-                                "name": field_name,
-                                "required": False,  # can't easily determine this
-                                "default": "None",
+                                    "name": field_name,
+                                    "required": False,  # can't easily determine this
+                                    "default": "None",
                                     "type": "Any",
                                 }
                             )
@@ -1058,7 +1092,7 @@ def get_langchain_class_details():
                     for field_name, field in class_obj.__fields__.items():
                         field_parameters.append(
                             {
-                            "name": field_name,
+                                "name": field_name,
                                 "required": (
                                     field.required
                                     if hasattr(field, "required")
@@ -1085,7 +1119,7 @@ def get_langchain_class_details():
                     for field_name, field in class_obj.model_fields.items():
                         field_parameters.append(
                             {
-                            "name": field_name,
+                                "name": field_name,
                                 "required": not hasattr(field, "default")
                                 or field.default is None,
                                 "default": (
@@ -1109,9 +1143,9 @@ def get_langchain_class_details():
                     for field_name, type_hint in class_obj.__annotations__.items():
                         field_parameters.append(
                             {
-                            "name": field_name,
-                            "required": True,  # assume required since we can't tell
-                            "default": "None",
+                                "name": field_name,
+                                "required": True,  # assume required since we can't tell
+                                "default": "None",
                                 "type": str(type_hint),
                             }
                         )
@@ -1129,9 +1163,9 @@ def get_langchain_class_details():
                             for field_name in matches:
                                 field_parameters.append(
                                     {
-                                    "name": field_name,
-                                    "required": False,  # assume not required
-                                    "default": "None",
+                                        "name": field_name,
+                                        "required": False,  # assume not required
+                                        "default": "None",
                                         "type": "Any",
                                     }
                                 )
@@ -1156,23 +1190,23 @@ def get_langchain_class_details():
                     print(f"No special parameters defined for {class_name}")
                 else:
                     for param_name, param in init_sig.parameters.items():
-                    # Skip self parameter
+                        # Skip self parameter
                         if param_name == "self":
                             continue
 
                     param_info = {
                         "name": param_name,
                         "required": param.default == inspect.Parameter.empty,
-                            "default": (
-                                str(param.default)
-                                if param.default != inspect.Parameter.empty
-                                else None
-                            ),
-                            "type": (
-                                str(param.annotation)
-                                if param.annotation != inspect.Parameter.empty
-                                else "Any"
-                            ),
+                        "default": (
+                            str(param.default)
+                            if param.default != inspect.Parameter.empty
+                            else None
+                        ),
+                        "type": (
+                            str(param.annotation)
+                            if param.annotation != inspect.Parameter.empty
+                            else "Any"
+                        ),
                     }
                     init_params.append(param_info)
         except (TypeError, ValueError, AttributeError) as e:
@@ -1308,7 +1342,7 @@ def create_custom_block():
         # Generate function string based on selected methods
         function_parts = [
             f"def create_{class_name.lower()}({', '.join([p for p in parameters])}):",
-                         f"    instance = {module_path}.{class_name}({', '.join([f'{k}={k}' for k in parameters])})",
+            f"    instance = {module_path}.{class_name}({', '.join([f'{k}={k}' for k in parameters])})",
             "    return instance",
         ]
 
@@ -1347,10 +1381,10 @@ def create_custom_block():
 
         return jsonify(
             {
-            "status": "success",
-            "message": f"Created custom block for {class_name}",
-            "block_id": block_id,
-            "input_nodes": input_nodes,
+                "status": "success",
+                "message": f"Created custom block for {class_name}",
+                "block_id": block_id,
+                "input_nodes": input_nodes,
                 "output_nodes": output_nodes,
             }
         )
