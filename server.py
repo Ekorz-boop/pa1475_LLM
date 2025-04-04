@@ -240,9 +240,9 @@ def export_blocks():
                         elif self.component_type == "retrievers":
                             self.methods.append("get_relevant_documents")
                             self.selected_methods.append("get_relevant_documents")
-                        else:
-                            self.methods.append("run")
-                            self.selected_methods.append("run")
+                    else:
+                        self.methods.append("run")
+                        self.selected_methods.append("run")
 
                 def validate_connections(self) -> bool:
                     return True
@@ -347,8 +347,13 @@ def generate_python_code(blocks, connections):
         init_params = []
         if hasattr(block, "config") and block.config:
             for param_name, param_value in block.config.items():
-                # Skip non-initialization parameters
-                if param_name in ["methods", "selected_methods", "selected_method"]:
+                # Skip non-initialization parameters and class_name
+                if param_name in [
+                    "methods",
+                    "selected_methods",
+                    "selected_method",
+                    "class_name",
+                ]:
                     continue
 
                 # Format the value properly
@@ -1194,21 +1199,21 @@ def get_langchain_class_details():
                         if param_name == "self":
                             continue
 
-                    param_info = {
-                        "name": param_name,
-                        "required": param.default == inspect.Parameter.empty,
-                        "default": (
-                            str(param.default)
-                            if param.default != inspect.Parameter.empty
-                            else None
-                        ),
-                        "type": (
-                            str(param.annotation)
-                            if param.annotation != inspect.Parameter.empty
-                            else "Any"
-                        ),
-                    }
-                    init_params.append(param_info)
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                        init_params.append(param_info)
         except (TypeError, ValueError, AttributeError) as e:
             print(f"Error getting init parameters for {class_name}: {str(e)}")
 
