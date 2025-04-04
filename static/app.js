@@ -232,10 +232,69 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.block').forEach(block => {
                 const blockId = block.getAttribute('id');
                 const blockType = block.getAttribute('data-block-type');
+
+                // For custom blocks, include the full module path and class name
+                let finalBlockType = blockType;
+                if (blockType === 'custom') {
+                    const className = block.getAttribute('data-class-name');
+
+                    // Find module info from sessionStorage to get the full path
+                    let moduleInfo = null;
+
+                    // First try to find in customBlocks array in sessionStorage
+                    try {
+                        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                        const blockData = customBlocks.find(b => b.className === className || b.id === blockId);
+                        if (blockData && blockData.moduleInfo) {
+                            moduleInfo = blockData.moduleInfo;
+                        }
+                    } catch (e) {
+                        console.warn('Error finding module info in sessionStorage:', e);
+                    }
+
+                    // If not found, try localStorage as a fallback
+                    if (!moduleInfo) {
+                        try {
+                            const localStorageData = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+                            const localData = localStorageData.find(b => b.className === className);
+                            if (localData && localData.moduleInfo) {
+                                moduleInfo = localData.moduleInfo;
+                            }
+                        } catch (e) {
+                            console.warn('Error finding module info in localStorage:', e);
+                        }
+                    }
+
+                    // If we found module info, build the full path
+                    if (moduleInfo && moduleInfo.module) {
+                        finalBlockType = `custom_${moduleInfo.module}.${className}`;
+                        console.log(`Using full path for custom block: ${finalBlockType}`);
+                    } else {
+                        // Default to just using the class name
+                        finalBlockType = `custom_${className}`;
+                        console.log(`Using just class name for custom block: ${finalBlockType}`);
+                    }
+                }
+
+                // Get methods from sessionStorage if available
+                let methods = [];
+                try {
+                    const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                    const blockData = customBlocks.find(b => b.id === blockId);
+                    if (blockData && blockData.methods) {
+                        methods = blockData.methods;
+                    }
+                } catch (e) {
+                    console.warn('Error reading methods from sessionStorage:', e);
+                }
+
                 blockConfigs[blockId] = {
                     id: blockId,
-                    type: blockType,
-                    config: getBlockConfig(block)
+                    type: finalBlockType,
+                    config: {
+                        ...getBlockConfig(block),
+                        methods: methods
+                    }
                 };
             });
 
@@ -509,12 +568,12 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('drop', (e) => {
         e.preventDefault();
         const blockType = e.dataTransfer.getData('text/plain');
-        
+
         if (blockType) {
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom;
-            
+
             if (blockType === 'custom') {
                 // This is a custom block, retrieve the additional data
                 const blockId = e.dataTransfer.getData('blockId');
@@ -666,14 +725,14 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Connection dragging ended');
             const elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
             console.log('Element under mouse:', elemUnderMouse);
-            
+
             if (elemUnderMouse && elemUnderMouse.classList.contains('input-node') && sourceNode) {
                 console.log('Found input node under mouse');
                 const sourceBlock = sourceNode.closest('.block');
                 const targetBlock = elemUnderMouse.closest('.block');
                 console.log('Source block:', sourceBlock ? sourceBlock.id : 'none');
                 console.log('Target block:', targetBlock ? targetBlock.id : 'none');
-                
+
                 if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                     const inputId = elemUnderMouse.getAttribute('data-input');
                     console.log('Input ID:', inputId);
@@ -744,7 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         connections.push(connection);
         updateConnections();
-        
+
         // Send the connection to the server API
         fetch('/api/blocks/connect', {
             method: 'POST',
@@ -758,7 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(error => {
             console.error('Error connecting blocks on server:', error);
         });
-        
+
         processBlock(target);
     }
 
@@ -1419,6 +1478,58 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 break;
+
+            case 'custom':
+                // For custom blocks, get the selected method
+                const methodSelect = block.querySelector('.method-select');
+                if (methodSelect && methodSelect.value) {
+                    config.selected_method = methodSelect.value;
+                }
+
+                // Get any parameter values
+                const paramRows = block.querySelectorAll('.parameter-row');
+                if (paramRows.length > 0) {
+                    config.parameters = {};
+
+                    paramRows.forEach(row => {
+                        const nameInput = row.querySelector('.param-name');
+                        const valueInput = row.querySelector('.param-value');
+
+                        if (nameInput && valueInput && nameInput.value) {
+                            config.parameters[nameInput.value] = valueInput.value;
+                        }
+                    });
+                }
+
+                // Get the class name
+                const className = block.getAttribute('data-class-name');
+                if (className) {
+                    config.class_name = className;
+                }
+
+                // Try to get methods from sessionStorage
+                try {
+                    const blockId = block.id;
+                    const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                    const blockData = customBlocks.find(b => b.id === blockId);
+
+                    if (blockData && blockData.methods) {
+                        config.methods = blockData.methods;
+
+                        // If selected_method isn't already set, use the first method or __init__
+                        if (!config.selected_method) {
+                            const nonInitMethods = blockData.methods.filter(m => m !== '__init__');
+                            if (nonInitMethods.length > 0) {
+                                config.selected_method = nonInitMethods[0];
+                            } else if (blockData.methods.includes('__init__')) {
+                                config.selected_method = '__init__';
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Error getting methods from sessionStorage:', e);
+                }
+                break;
         }
 
         return config;
@@ -1598,13 +1709,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to ensure custom blocks have proper node setup
     function setupCustomBlock(block) {
         console.log('Setting up custom block:', block.id);
-        
+
         // Make sure the block is draggable
         makeBlockDraggable(block);
-        
+
         // Set up node connections
         setupNodeConnections(block);
-        
+
         // Position block on canvas if not already positioned
         if (!block.style.transform) {
             const canvas = document.querySelector('.canvas-container');
@@ -1615,7 +1726,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             }
         }
-        
+
         return block;
     }
 });

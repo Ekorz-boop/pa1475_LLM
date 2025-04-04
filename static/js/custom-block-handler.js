@@ -1023,7 +1023,7 @@ class CustomBlockHandler {
             addCustomBlockToMenu(this.selectedClass, blockId, this.inputNodes, this.outputNodes);
 
             // Save module info for this class
-            saveModuleInfo(this.selectedClass, this.librarySelect.value, this.moduleSelect.value);
+            saveModuleInfo(this.selectedClass, this.librarySelect.value, this.moduleSelect.value, blockId);
 
             // Close the modal
             this.closeModal();
@@ -1421,32 +1421,58 @@ function updateBlockNodes(blockElement, className, inputNodes, outputNodes) {
 }
 
 // Function to save module info for future edits
-function saveModuleInfo(className, library, module) {
+function saveModuleInfo(className, library, module, blockId = null) {
     // Get existing blocks from sessionStorage
     const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
     // Find the block with matching class name
     const blockIndex = existingBlocks.findIndex(block => block.className === className);
 
+    const moduleInfo = {
+        library: library,
+        module: module
+    };
+
     if (blockIndex >= 0) {
         // Update existing block's module info
-        existingBlocks[blockIndex].moduleInfo = {
-            library: library,
-            module: module
-        };
+        existingBlocks[blockIndex].moduleInfo = moduleInfo;
+
+        // If a block ID was provided, update it
+        if (blockId && existingBlocks[blockIndex].id !== blockId) {
+            existingBlocks[blockIndex].id = blockId;
+        }
     } else {
         // Create a new entry if block not found
         existingBlocks.push({
             className: className,
-            moduleInfo: {
-                library: library,
-                module: module
-            }
+            id: blockId || `class-${Date.now()}`, // Use provided ID or generate one
+            moduleInfo: moduleInfo
         });
     }
 
     // Save back to sessionStorage
     sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+
+    console.log(`Saved module info for ${className}: ${module}`);
+
+    // Also save to localStorage as a backup
+    try {
+        const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+        const localBlockIndex = localBlocks.findIndex(block => block.className === className);
+
+        if (localBlockIndex >= 0) {
+            localBlocks[localBlockIndex].moduleInfo = moduleInfo;
+        } else {
+            localBlocks.push({
+                className: className,
+                moduleInfo: moduleInfo
+            });
+        }
+
+        localStorage.setItem('customBlocks', JSON.stringify(localBlocks));
+    } catch (e) {
+        console.warn('Failed to save to localStorage:', e);
+    }
 }
 
 // Function to create a custom block on the canvas
@@ -1741,6 +1767,15 @@ function saveMethods(className, methods, blockId = null) {
             const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
             if (existingBlockIndex >= 0) {
                 customBlocks[existingBlockIndex].methods = methods;
+                // Make sure className is also set
+                customBlocks[existingBlockIndex].className = className;
+            } else {
+                // Create new entry with both blockId and className
+                customBlocks.push({
+                    id: blockId,
+                    className: className,
+                    methods: methods
+                });
             }
         } else {
             // If no blockId, update by className (legacy behavior)
@@ -1749,14 +1784,34 @@ function saveMethods(className, methods, blockId = null) {
                 customBlocks[existingBlockIndex].methods = methods;
             } else {
                 customBlocks.push({
-                    className,
-                    methods
+                    id: `class-${Date.now()}`,
+                    className: className,
+                    methods: methods
                 });
             }
         }
 
         sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
         console.log(`Saved methods for ${blockId || className}:`, methods);
+
+        // Also save to localStorage as a backup but only for className (not specific blocks)
+        try {
+            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+            const existingBlockIndex = localBlocks.findIndex(b => b.className === className);
+
+            if (existingBlockIndex >= 0) {
+                localBlocks[existingBlockIndex].methods = methods;
+            } else {
+                localBlocks.push({
+                    className: className,
+                    methods: methods
+                });
+            }
+
+            localStorage.setItem('customBlocks', JSON.stringify(localBlocks));
+        } catch (e) {
+            console.warn('Failed to save methods to localStorage:', e);
+        }
     } catch (error) {
         console.error(`Error saving methods for ${blockId || className}:`, error);
     }
