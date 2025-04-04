@@ -348,7 +348,7 @@ def generate_python_code(blocks, connections):
         if hasattr(block, 'config') and block.config:
             for param_name, param_value in block.config.items():
                 # Skip non-initialization parameters
-                if param_name in ['methods', 'selected_methods']:
+                if param_name in ['methods', 'selected_methods', 'selected_method']:
                     continue
 
                 # Format the value properly
@@ -365,12 +365,17 @@ def generate_python_code(blocks, connections):
     # Track processed methods to avoid duplicates
     processed_methods = {block_id: set() for block_id in blocks}
 
-    # Now generate method execution code
-    # First run all producer methods
+    # Now generate method execution code for each block
     for block_id in execution_order:
         block = blocks[block_id]
         var_name = block_vars[block_id]
         class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
+        component_type = block.component_type if hasattr(block, 'component_type') else ""
+
+        # Get the selected method from config if available
+        selected_method = None
+        if hasattr(block, 'config') and block.config:
+            selected_method = block.config.get('selected_method')
 
         # Get methods for this block (excluding __init__)
         methods_to_execute = []
@@ -379,63 +384,14 @@ def generate_python_code(blocks, connections):
         elif hasattr(block, 'selected_methods'):
             methods_to_execute = [m for m in block.selected_methods if m != "__init__"]
 
-        # Run producer methods first
-        producer_methods_for_block = [m for m in methods_to_execute if m in producer_methods]
-
-        for method_name in producer_methods_for_block:
-            # Skip if this method has already been processed for this block
-            if method_name in processed_methods[block_id]:
-                continue
-
-            method_code_lines.append(f"# Execute {method_name} on {class_name}")
-
-            # If this block has incoming connections, use them as parameters
-            if block_id in reverse_connection_map:
-                source_ids = reverse_connection_map[block_id]
-                source_params = []
-                for source_id in source_ids:
-                    source_var = block_vars[source_id]
-                    source_params.append(f"{source_var}_output")
-
-                if source_params:
-                    # For methods like load() that typically don't take other blocks' outputs
-                    # We'll handle those specially
-                    if method_name == "load" and (
-                        hasattr(block, 'component_type') and block.component_type == "document_loaders"
-                    ):
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
-                    else:
-                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}({', '.join(source_params)})")
-                else:
-                    method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
-            else:
-                # No incoming connections, call with no parameters
-                method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
-
-            # Mark this method as processed
-            processed_methods[block_id].add(method_name)
-
-    # Then run all consumer methods
-    for block_id in execution_order:
-        block = blocks[block_id]
-        var_name = block_vars[block_id]
-        class_name = block.class_name if hasattr(block, 'class_name') else type(block).__name__
-        component_type = block.component_type if hasattr(block, 'component_type') else ""
-
-        # Get methods for this block that aren't producers
-        methods_to_execute = []
-        if hasattr(block, 'methods'):
-            methods_to_execute = [m for m in block.methods if m != "__init__" and m not in producer_methods]
-        elif hasattr(block, 'selected_methods'):
-            methods_to_execute = [m for m in block.selected_methods if m != "__init__" and m not in producer_methods]
-
-        # Skip if we already processed producer methods
-        if not methods_to_execute and producer_methods_for_block:
-            continue
-
-        # For blocks with no methods yet, determine appropriate methods based on type
-        if not methods_to_execute:
-            # For blocks with custom component type
+        # If a specific method is selected and valid, prioritize that
+        if selected_method and selected_method != "__init__":
+            # Make sure selected_method is at the start of the list
+            if selected_method in methods_to_execute:
+                methods_to_execute.remove(selected_method)
+            methods_to_execute.insert(0, selected_method)
+        # If no methods are specified, determine appropriate method based on component type
+        elif not methods_to_execute:
             if component_type:
                 if component_type == "embeddings":
                     methods_to_execute = ["embed_documents"]
@@ -471,6 +427,7 @@ def generate_python_code(blocks, connections):
                 else:
                     methods_to_execute = ["run"]  # Generic default
 
+        # Execute methods for this block
         for method_name in methods_to_execute:
             # Skip if this method has already been processed for this block
             if method_name in processed_methods[block_id]:
@@ -487,8 +444,14 @@ def generate_python_code(blocks, connections):
                     source_params.append(f"{source_var}_output")
 
                 if source_params:
+                    # For methods like load() that typically don't take other blocks' outputs
+                    # We'll handle those specially
+                    if method_name == "load" and (
+                        hasattr(block, 'component_type') and block.component_type == "document_loaders"
+                    ):
+                        method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}()")
                     # For methods that take specific parameter names
-                    if method_name == "embed_documents":
+                    elif method_name == "embed_documents":
                         method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(texts={source_params[0]})")
                     elif method_name == "embed_query":
                         method_code_lines.append(f"{var_name}_output = {var_name}.{method_name}(text={source_params[0]})")
@@ -511,6 +474,10 @@ def generate_python_code(blocks, connections):
 
             # Mark this method as processed
             processed_methods[block_id].add(method_name)
+
+            # If it's the selected method, we can stop after processing it
+            if method_name == selected_method:
+                break
 
     # Collect clean lines for the final code
     clean_code_lines = []
