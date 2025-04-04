@@ -1894,15 +1894,21 @@ function updateBlockParameters(block, methodName) {
                 // Find method details
                 let methodParams = [];
 
-                if (data.method_details) {
+                if (methodName === '__init__') {
+                    // For constructor, use init_params from class details
+                    if (data.init_params) {
+                        methodParams = data.init_params;
+                    }
+                } else if (data.method_details) {
+                    // For other methods, find the specific method
                     const methodDetail = data.method_details.find(m => m.name === methodName);
                     if (methodDetail && methodDetail.parameters) {
                         methodParams = methodDetail.parameters;
                     }
                 }
 
-                // If no method parameters found, use constructor parameters as fallback
-                if (methodParams.length === 0 && data.init_params) {
+                // If no method parameters found and not __init__, use constructor parameters as fallback
+                if (methodParams.length === 0 && methodName !== '__init__' && data.init_params) {
                     methodParams = data.init_params;
                 }
 
