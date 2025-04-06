@@ -46,11 +46,6 @@
 }
 
 /* Custom Block Styling */
-.custom-block {
-    border: 2px solid #3498db !important;
-    background-color: #ecf0f1 !important;
-}
-
 .custom-block .block-header {
     background-color: #3498db !important;
     color: white !important;
@@ -58,36 +53,40 @@
     border-radius: 6px 6px 0 0 !important;
 }
 
+.edit-parameters-btn {
+    position: absolute;
+    top: -8px;
+    right: 20px;
+    width: 20px;
+    height: 20px;
+    background-color: #27ae60;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 2;
+}
+
+.block:hover .edit-parameters-btn {
+    opacity: 1;
+}
+
+.edit-parameters-btn:hover {
+    transform: scale(1.1);
+    background-color: #219a52;
+}
+
 .custom-block .block-drag-handle {
     font-weight: bold !important;
     font-size: 14px !important;
-    cursor: move !important;
-    transition: background-color 0.2s ease !important;
-}
-
-.custom-block .block-drag-handle:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-.custom-block .block-drag-handle:focus {
-    background-color: rgba(255, 255, 255, 0.3) !important;
-    outline: 2px solid rgba(255, 255, 255, 0.5) !important;
-    outline-offset: -2px !important;
-    cursor: text !important;
-}
-
-.custom-block .custom-block-status {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.custom-block .status-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: #2ecc71;
-    margin-right: 6px;
 }
 
 .custom-block .method-selectors {
@@ -145,21 +144,69 @@
 }
 
 /* Node styling for custom blocks */
-.custom-block .input-node,
-.custom-block .output-node {
-    background-color: #3498db !important;
+.input-node, .output-node {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #666;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    margin: 5px 0;
+    flex-shrink: 0;
+    pointer-events: all;
+    z-index: 2;
 }
 
-.custom-block .node-label {
-    color: white !important;
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    z-index: 999;
+}
+
+.node-label {
+    visibility: hidden;
+    opacity: 0;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.tooltip-container:hover .node-label {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Add a small arrow to the tooltip */
+.node-label::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
 }
 
 /* Custom Block Template in Sidebar */
 .block-template[data-block-type="custom"] {
-    border: 2px solid #3498db !important;
-    background-color: #ecf0f1 !important;
+    border: 1px solid #ddd !important;
+    background-color: #fff !important;
     margin-bottom: 10px;
-    overflow: hidden;
+    overflow: visible;
     max-height: 36px;
     position: relative;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -167,53 +214,49 @@
 }
 
 .block-template[data-block-type="custom"] .block-header {
+    width: 100%;
+    height: 30%;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom: 1px solid #eee;
     background-color: #3498db !important;
     padding: 0 !important;
-    border-radius: 4px !important;
     height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 .block-template[data-block-type="custom"] .block-drag-handle {
-    font-weight: bold !important;
-    font-size: 13px !important;
-    color: white !important;
-    background-color: transparent !important;
-    border-bottom: none !important;
-    padding: 8px !important;
-    display: block !important;
-    width: 85% !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    cursor: move !important;
-    transition: background-color 0.2s ease !important;
+    font-weight: bold;
+    font-size: 13px;
+    color: white;
+    background-color: transparent;
+    border-bottom: 1px solid #eee;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
 }
 
-.block-template[data-block-type="custom"] .block-drag-handle:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-/* Remove focus styles for sidebar templates */
-.block-template[data-block-type="custom"] .block-drag-handle:focus {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    outline: none !important;
-    cursor: move !important;
+.block-template[data-block-type="custom"] .edit-parameters-btn {
+    top: -8px;
+    right: -8px;
 }
 
 .block-template[data-block-type="custom"] .block-content {
     display: none;  /* Simplified view in sidebar */
 }
-
-.block-template[data-block-type="custom"] .edit-parameters-btn {
-    background: transparent;
-    border: none;
-    color: white;
-    cursor: pointer;
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 12px;
+    
+.block-template[data-block-type="custom"]:hover .edit-parameters-btn {
+    opacity: 1;
 }
 
 .block-template[data-block-type="custom"] .block-actions {

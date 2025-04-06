@@ -53,17 +53,6 @@
     color: #999;
 }
 
-/* Adjust block templates for collapsed state */
-.block-template {
-    display: flex;
-    align-items: center;
-}
-
-.block-template .block-drag-handle {
-    white-space: nowrap;
-    overflow: hidden;
-}
-
 .main-menu {
     display: flex;
     flex-direction: column;
