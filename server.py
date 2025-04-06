@@ -598,6 +598,7 @@ def list_langchain_libraries():
         "langchain_google_genai",
         "langchain_pinecone",
         "langchain_chroma",
+        "langchain_text_splitters",
     ]
 
     # Try to import each library to check if it's installed
@@ -619,6 +620,11 @@ def list_langchain_modules():
     library = request.args.get("library", "langchain_community")
 
     try:
+        # Special case for langchain_text_splitters which has classes at root level
+        if library == "langchain_text_splitters":
+            # Return the library itself as the only "module"
+            return jsonify({"modules": [library]})
+
         # Import the base package
         package = importlib.import_module(library)
 
@@ -648,6 +654,30 @@ def list_langchain_classes():
         return jsonify({"classes": cached_result})
 
     try:
+        # Special case for langchain_text_splitters
+        if module_path == "langchain_text_splitters":
+            # Import the module
+            module = importlib.import_module(module_path)
+            classes = []
+
+            # Get all attributes in the module that are classes
+            for name, attr in inspect.getmembers(module, inspect.isclass):
+                # Skip private attributes
+                if name.startswith("_"):
+                    continue
+
+                # Make sure it's from the langchain_text_splitters module
+                if hasattr(attr, "__module__") and attr.__module__.startswith(
+                    module_path
+                ):
+                    classes.append(name)
+
+            # Sort and cache the results
+            classes = sorted(classes)
+            print(f"Found {len(classes)} classes in {module_path}")
+            module_classes_cache.set(module_path, classes)
+            return jsonify({"classes": classes})
+
         # Import the base package
         module = importlib.import_module(module_path)
         classes = []
