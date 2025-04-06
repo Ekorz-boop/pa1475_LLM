@@ -379,9 +379,9 @@ def generate_python_code(blocks, connections):
         class_name = (
             block.class_name if hasattr(block, "class_name") else type(block).__name__
         )
-        #component_type = (
+        # component_type = (
         #    block.component_type if hasattr(block, "component_type") else ""
-        #)
+        # )
 
         # Get the selected method from config if available
         selected_method = None
