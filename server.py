@@ -739,23 +739,25 @@ def list_langchain_classes():
             # Import the module
             module = importlib.import_module(module_path)
             classes = []
-            
+
             # Get all attributes in the module that are classes
             for name, attr in inspect.getmembers(module, inspect.isclass):
                 # Skip private attributes
                 if name.startswith("_"):
                     continue
-                
+
                 # Make sure it's from the langchain_text_splitters module
-                if hasattr(attr, "__module__") and attr.__module__.startswith(module_path):
+                if hasattr(attr, "__module__") and attr.__module__.startswith(
+                    module_path
+                ):
                     classes.append(name)
-            
+
             # Sort and cache the results
             classes = sorted(classes)
             print(f"Found {len(classes)} classes in {module_path}")
             module_classes_cache.set(module_path, classes)
             return jsonify({"classes": classes})
-        
+
         # Import the base package
         module = importlib.import_module(module_path)
         classes = []
