@@ -228,7 +228,7 @@ class CustomBlockHandler {
      */
     closeModal() {
         if (this.modal) {
-            this.modal.style.display = 'none';
+        this.modal.style.display = 'none';
             document.body.style.overflow = ''; // Restore body scrolling
         }
     }
@@ -422,15 +422,15 @@ class CustomBlockHandler {
             }
             const data = await response.json();
 
-            if (data.error) {
+                    if (data.error) {
                 throw new Error(data.error);
             }
 
             // Add classes to select
             data.classes.forEach(className => {
-                const option = document.createElement('option');
-                option.value = className;
-                option.textContent = className;
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = className;
                 classSelect.appendChild(option);
             });
 
@@ -1238,11 +1238,11 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
 
     // Create simplified block structure for the menu
     blockTemplate.innerHTML = `
-        <div class="block-header">
-            <div class="block-drag-handle">${className}</div>
-            <button class="edit-parameters-btn" title="Edit Parameters">
-                <i class="fas fa-cog"></i>
-            </button>
+            <div class="block-header">
+                <div class="block-drag-handle">${className}</div>
+                    <button class="edit-parameters-btn" title="Edit Parameters">
+                        <i class="fas fa-cog"></i>
+                    </button>
         </div>
     `;
 
@@ -1429,9 +1429,9 @@ function saveModuleInfo(className, library, module, blockId = null) {
     const blockIndex = existingBlocks.findIndex(block => block.className === className);
 
     const moduleInfo = {
-        library: library,
-        module: module
-    };
+            library: library,
+            module: module
+        };
 
     if (blockIndex >= 0) {
         // Update existing block's module info
@@ -1570,7 +1570,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     // Populate methods dropdown - pass the original block ID if available for method lookup
     populateMethodsForBlock(block, className, originalBlockId || blockId);
 
-    // Handle method selection change
+        // Handle method selection change
     const methodSelect = block.querySelector('.method-select');
     if (methodSelect) {
         methodSelect.addEventListener('change', () => {
@@ -1584,9 +1584,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         // Handle add parameter button
         const addParamBtn = block.querySelector('.add-param-btn');
         if (addParamBtn) {
-            addParamBtn.addEventListener('click', () => {
-                addCustomParameter(block);
-            });
+        addParamBtn.addEventListener('click', () => {
+            addCustomParameter(block);
+        });
         }
     }
 
@@ -1765,13 +1765,13 @@ function saveMethods(className, methods, blockId = null) {
         if (blockId) {
             // If blockId is provided, update that specific block
             const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
-            if (existingBlockIndex >= 0) {
-                customBlocks[existingBlockIndex].methods = methods;
+        if (existingBlockIndex >= 0) {
+            customBlocks[existingBlockIndex].methods = methods;
                 // Make sure className is also set
                 customBlocks[existingBlockIndex].className = className;
-            } else {
+        } else {
                 // Create new entry with both blockId and className
-                customBlocks.push({
+            customBlocks.push({
                     id: blockId,
                     className: className,
                     methods: methods
@@ -1824,6 +1824,26 @@ function updateBlockParameters(block, methodName) {
     const paramsContainer = block.querySelector('.block-parameters');
     if (!paramsContainer) return;
 
+    // Store current parameter values before clearing container
+    const currentParams = {};
+    const paramRows = paramsContainer.querySelectorAll('.parameter-row');
+    paramRows.forEach(row => {
+        const nameSelect = row.querySelector('.param-name-select');
+        const nameInput = row.querySelector('.param-name');
+        const valueInput = row.querySelector('.param-value');
+
+        let paramName = '';
+        if (nameSelect && nameSelect.value) {
+            paramName = nameSelect.value;
+        } else if (nameInput && nameInput.value) {
+            paramName = nameInput.value;
+        }
+
+        if (paramName && valueInput) {
+            currentParams[paramName] = valueInput.value;
+        }
+    });
+
     // Clear existing parameters
     paramsContainer.innerHTML = '';
 
@@ -1866,6 +1886,15 @@ function updateBlockParameters(block, methodName) {
         }
     }
 
+    // Get ALL saved parameters for this block from localStorage, not just for the current method
+    let savedMethodParams = {};
+    try {
+        const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+        savedMethodParams = savedParams;
+    } catch (e) {
+        console.warn('Error fetching saved parameters:', e);
+    }
+
     // If we found module info, try to fetch class details
     if (moduleInfo && moduleInfo.module) {
         const library = moduleInfo.library || '';
@@ -1891,7 +1920,30 @@ function updateBlockParameters(block, methodName) {
                 // Remove loading message
                 paramsContainer.innerHTML = '';
 
-                // Find method details
+                // Collect parameters from all methods for complete parameter list
+                let allMethodParams = [];
+
+                // First add init params
+                if (data.init_params) {
+                    allMethodParams = [...data.init_params];
+                }
+
+                // Then add parameters from all methods
+                if (data.method_details) {
+                    data.method_details.forEach(methodDetail => {
+                        if (methodDetail.parameters) {
+                            methodDetail.parameters.forEach(param => {
+                                // Check if this parameter is already in our list
+                                const exists = allMethodParams.some(p => p.name === param.name);
+                                if (!exists && param.name !== 'self') {
+                                    allMethodParams.push(param);
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // Find method details for the current method
                 let methodParams = [];
 
                 if (methodName === '__init__') {
@@ -1907,22 +1959,169 @@ function updateBlockParameters(block, methodName) {
                     }
                 }
 
-                // If no method parameters found and not __init__, use constructor parameters as fallback
-                if (methodParams.length === 0 && methodName !== '__init__' && data.init_params) {
-                    methodParams = data.init_params;
-                }
+                // Create parameter selection dropdown
+                const paramSelectRow = document.createElement('div');
+                paramSelectRow.className = 'parameter-select-row';
 
-                // If still no parameters, add a default empty one
-                if (methodParams.length === 0) {
-                    addEmptyParameterRow(paramsContainer);
-                } else {
-                    // Add parameter rows for each found parameter
-                    methodParams.forEach(param => {
-                        if (param.name === 'self') return; // Skip 'self' parameter
+                const paramSelectLabel = document.createElement('label');
+                paramSelectLabel.textContent = 'Add parameter:';
+                paramSelectLabel.className = 'param-select-label';
 
-                        addParameterRow(paramsContainer, param.name, '', methodParams);
-                    });
-                }
+                const paramSelect = document.createElement('select');
+                paramSelect.className = 'param-select-dropdown';
+
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select parameter...';
+                paramSelect.appendChild(defaultOption);
+
+                // Add available parameters to dropdown
+                allMethodParams.forEach(param => {
+                    if (param.name === 'self') return; // Skip 'self' parameter
+
+                    const option = document.createElement('option');
+                    option.value = param.name;
+
+                    // Show parameter name with type and required status if available
+                    let optionText = param.name;
+                    if (param.type && param.type !== 'Any') {
+                        optionText += ` (${param.type})`;
+                    }
+                    if (param.required) {
+                        optionText += ' *';
+                    }
+                    option.textContent = optionText;
+                    paramSelect.appendChild(option);
+                });
+
+                // Add event listener for parameter selection
+                paramSelect.addEventListener('change', () => {
+                    if (!paramSelect.value) return;
+
+                    // Check if this parameter is already added
+                    const existingParam = paramsContainer.querySelector(`.parameter-row[data-param-name="${paramSelect.value}"]`);
+                    if (existingParam) {
+                        // Highlight the existing parameter briefly
+                        existingParam.classList.add('highlight');
+                        setTimeout(() => {
+                            existingParam.classList.remove('highlight');
+                        }, 1000);
+                        paramSelect.value = '';
+                        return;
+                    }
+
+                    // Find the parameter details
+                    const paramInfo = allMethodParams.find(p => p.name === paramSelect.value);
+                    if (paramInfo) {
+                        // Get value from saved parameters or current params
+                        let savedValue = '';
+                        if (savedMethodParams[paramInfo.name]) {
+                            savedValue = savedMethodParams[paramInfo.name];
+                        } else if (currentParams[paramInfo.name]) {
+                            savedValue = currentParams[paramInfo.name];
+                        }
+
+                        // Add the parameter row
+                        const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId);
+
+                        // Focus on the value input to encourage the user to enter a value
+                        const valueInput = paramRow.querySelector('.param-value');
+                        if (valueInput) {
+                            valueInput.focus();
+                            valueInput.select();
+                        }
+
+                        // Reset dropdown
+                        paramSelect.value = '';
+                    }
+                });
+
+                paramSelectRow.appendChild(paramSelectLabel);
+                paramSelectRow.appendChild(paramSelect);
+                paramsContainer.appendChild(paramSelectRow);
+
+                // Create divider
+                const divider = document.createElement('div');
+                divider.className = 'params-divider';
+                paramsContainer.appendChild(divider);
+
+                // Create parameters container
+                const activeParamsContainer = document.createElement('div');
+                activeParamsContainer.className = 'active-parameters';
+                paramsContainer.appendChild(activeParamsContainer);
+
+                // Create a set of parameters we will display
+                const displayedParams = new Set();
+
+                // First, show parameters for the current method that have values or are required
+                methodParams.forEach(param => {
+                    if (param.name === 'self') return; // Skip 'self' parameter
+
+                    // Check if we have a saved value for this parameter
+                    let hasValue = false;
+                    let savedValue = '';
+
+                    if (savedMethodParams[param.name]) {
+                        hasValue = true;
+                        savedValue = savedMethodParams[param.name];
+                    } else if (currentParams[param.name]) {
+                        hasValue = true;
+                        savedValue = currentParams[param.name];
+                    }
+
+                    // Always show parameters with values
+                    if (hasValue && savedValue.trim() !== '') {
+                        addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
+                        displayedParams.add(param.name);
+                    }
+                });
+
+                // Then show any saved parameters from other methods that have values
+                Object.keys(savedMethodParams).forEach(paramName => {
+                    // Skip if already displayed
+                    if (displayedParams.has(paramName)) return;
+
+                    const savedValue = savedMethodParams[paramName];
+
+                    // If parameter has a value, show it even if it's not part of the current method
+                    if (savedValue && savedValue.trim() !== '') {
+                        // Find parameter info if available
+                        const paramInfo = allMethodParams.find(p => p.name === paramName);
+                        if (paramInfo) {
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, allMethodParams, blockId);
+                            displayedParams.add(paramName);
+                        } else {
+                            // Handle case where param info is not available (fallback)
+                            const genericParams = [{name: paramName, type: 'Any', required: false}];
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, genericParams, blockId);
+                            displayedParams.add(paramName);
+                        }
+                    }
+                });
+
+                // Also show any current parameters with values not in saved params
+                Object.keys(currentParams).forEach(paramName => {
+                    // Skip if already displayed
+                    if (displayedParams.has(paramName)) return;
+
+                    const value = currentParams[paramName];
+
+                    // If parameter has a value, show it
+                    if (value && value.trim() !== '') {
+                        // Find parameter info if available
+                        const paramInfo = allMethodParams.find(p => p.name === paramName);
+                        if (paramInfo) {
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, allMethodParams, blockId);
+                            displayedParams.add(paramName);
+                        } else {
+                            // Handle case where param info is not available (fallback)
+                            const genericParams = [{name: paramName, type: 'Any', required: false}];
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockId);
+                            displayedParams.add(paramName);
+                        }
+                    }
+                });
             })
             .catch(error => {
                 console.error(`Error fetching parameters for ${className}.${methodName}:`, error);
@@ -1939,44 +2138,29 @@ function updateBlockParameters(block, methodName) {
     }
 }
 
-// Helper function to add a parameter row with a dropdown of available parameters
-function addParameterRow(container, selectedParam = '', value = '', availableParams = []) {
+// Helper function to add a parameter row with an already selected parameter
+function addParameterRowForMethod(container, paramName, value = '', availableParams = [], blockId = '') {
     // Create a new parameter row
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
+    paramRow.setAttribute('data-param-name', paramName);
 
-    // Create param name dropdown
-    const paramNameSelect = document.createElement('select');
-    paramNameSelect.className = 'param-name-select';
+    // Create param name label
+    const paramNameLabel = document.createElement('div');
+    paramNameLabel.className = 'param-name-label';
 
-    // Add blank option
-    const blankOption = document.createElement('option');
-    blankOption.value = '';
-    blankOption.textContent = 'Select parameter';
-    paramNameSelect.appendChild(blankOption);
-
-    // Add options for all available parameters
-    availableParams.forEach(param => {
-        if (param.name === 'self') return; // Skip 'self' parameter
-
-        const option = document.createElement('option');
-        option.value = param.name;
-        // Show parameter name with type and required status if available
-        let optionText = param.name;
-        if (param.type && param.type !== 'Any') {
-            optionText += ` (${param.type})`;
+    // Get parameter info for display
+    let displayName = paramName;
+    const paramInfo = availableParams.find(p => p.name === paramName);
+    if (paramInfo) {
+        if (paramInfo.type && paramInfo.type !== 'Any') {
+            displayName += ` (${paramInfo.type})`;
         }
-        if (param.required) {
-            optionText += ' *';
+        if (paramInfo.required) {
+            displayName += ' *';
         }
-        option.textContent = optionText;
-        paramNameSelect.appendChild(option);
-    });
-
-    // Set selected parameter if provided
-    if (selectedParam) {
-        paramNameSelect.value = selectedParam;
     }
+    paramNameLabel.textContent = displayName;
 
     // Create value input
     const valueInput = document.createElement('input');
@@ -1985,23 +2169,66 @@ function addParameterRow(container, selectedParam = '', value = '', availablePar
     valueInput.placeholder = 'Value';
     valueInput.value = value;
 
+    // Save value on input instead of just change event to be more responsive
+    valueInput.addEventListener('input', () => {
+        saveParameterValue(blockId, paramName, valueInput.value);
+    });
+
+    // Also keep the change event for compatibility
+    valueInput.addEventListener('change', () => {
+        saveParameterValue(blockId, paramName, valueInput.value);
+    });
+
     // Create remove button
     const removeBtn = document.createElement('button');
     removeBtn.className = 'remove-param-btn';
     removeBtn.innerHTML = '×';
     removeBtn.addEventListener('click', () => {
+        // When removing, also remove from saved parameters
+        if (blockId) {
+            try {
+                const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+                delete savedParams[paramName];
+                localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+            } catch (e) {
+                console.warn('Error removing saved parameter:', e);
+            }
+        }
         paramRow.remove();
     });
 
+    // Add hidden input with parameter name for form submission
+    const hiddenNameInput = document.createElement('input');
+    hiddenNameInput.type = 'hidden';
+    hiddenNameInput.className = 'param-name-select';
+    hiddenNameInput.value = paramName;
+
     // Add elements to row
-    paramRow.appendChild(paramNameSelect);
+    paramRow.appendChild(paramNameLabel);
     paramRow.appendChild(valueInput);
     paramRow.appendChild(removeBtn);
+    paramRow.appendChild(hiddenNameInput);
 
     // Add row to container
     container.appendChild(paramRow);
 
+    // Save the parameter value immediately (even if empty) to track that user has explicitly added it
+    saveParameterValue(blockId, paramName, value);
+
     return paramRow;
+}
+
+// Helper function to save parameter value
+function saveParameterValue(blockId, paramName, value) {
+    if (blockId) {
+        try {
+            const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+            savedParams[paramName] = value;
+            localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+        } catch (e) {
+            console.warn('Error saving parameter value:', e);
+        }
+    }
 }
 
 // Helper function to add an empty parameter row with text input
@@ -2029,42 +2256,29 @@ function addCustomParameter(block) {
     const paramsContainer = block.querySelector('.block-parameters');
     if (!paramsContainer) return;
 
-    // Get selected method to determine available parameters
-    const methodSelect = block.querySelector('.method-select');
-    const methodName = methodSelect ? methodSelect.value : '';
+    // Get the parameter select dropdown
+    const paramSelect = paramsContainer.querySelector('.param-select-dropdown');
+    if (paramSelect) {
+        // Show a visual indicator that user should use the dropdown
+        paramSelect.classList.add('highlight');
+        setTimeout(() => {
+            paramSelect.classList.remove('highlight');
+        }, 1000);
 
-    // Get all existing parameter rows
-    const existingRows = paramsContainer.querySelectorAll('.parameter-row');
+        // Force focus on the dropdown
+        paramSelect.focus();
 
-    // If we have parameter dropdowns, use the same list of available parameters
-    if (existingRows.length > 0) {
-        const firstSelect = existingRows[0].querySelector('.param-name-select');
-
-        if (firstSelect) {
-            // Clone available parameters from existing dropdown
-            const availableParams = [];
-
-            Array.from(firstSelect.options).forEach(option => {
-                if (option.value && option.value !== 'Select parameter') {
-                    const paramName = option.value;
-                    const required = option.textContent.includes('*');
-                    const typeMatch = option.textContent.match(/\((.*?)\)/);
-                    const type = typeMatch ? typeMatch[1] : 'Any';
-
-                    availableParams.push({
-                        name: paramName,
-                        required: required,
-                        type: type
-                    });
-                }
-            });
-
-            // Add new parameter row with dropdown
-            addParameterRow(paramsContainer, '', '', availableParams);
-            return;
+        // Simulate a click to open the dropdown
+        try {
+            paramSelect.click();
+        } catch (e) {
+            console.warn('Could not automatically open dropdown:', e);
         }
+
+        return;
     }
 
-    // If no existing parameters with dropdowns, add an empty one
-    addEmptyParameterRow(paramsContainer);
+    // Fallback if dropdown isn't found - add a text input parameter row
+    const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
+    addEmptyParameterRow(activeParamsContainer);
 }

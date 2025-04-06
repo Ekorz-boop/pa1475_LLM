@@ -214,36 +214,6 @@ def export_blocks():
                     for method in self.methods:
                         self.parameters[method] = []
 
-                    # Always add a default method if no methods are specified
-                    if not self.selected_methods or (
-                        len(self.selected_methods) == 1
-                        and self.selected_methods[0] == "__init__"
-                    ):
-                        if self.component_type == "embeddings":
-                            self.methods.append("embed_documents")
-                            self.selected_methods.append("embed_documents")
-                        elif self.component_type == "document_loaders":
-                            self.methods.append("load")
-                            self.selected_methods.append("load")
-                        elif self.component_type == "text_splitters":
-                            self.methods.append("split_documents")
-                            self.selected_methods.append("split_documents")
-                        elif (
-                            self.component_type == "llms"
-                            or self.component_type == "chat_models"
-                        ):
-                            self.methods.append("invoke")
-                            self.selected_methods.append("invoke")
-                        elif self.component_type == "vectorstores":
-                            self.methods.append("similarity_search")
-                            self.selected_methods.append("similarity_search")
-                        elif self.component_type == "retrievers":
-                            self.methods.append("get_relevant_documents")
-                            self.selected_methods.append("get_relevant_documents")
-                    else:
-                        self.methods.append("run")
-                        self.selected_methods.append("run")
-
                 def validate_connections(self) -> bool:
                     return True
 
@@ -409,9 +379,9 @@ def generate_python_code(blocks, connections):
         class_name = (
             block.class_name if hasattr(block, "class_name") else type(block).__name__
         )
-        component_type = (
-            block.component_type if hasattr(block, "component_type") else ""
-        )
+        #component_type = (
+        #    block.component_type if hasattr(block, "component_type") else ""
+        #)
 
         # Get the selected method from config if available
         selected_method = None
@@ -431,42 +401,10 @@ def generate_python_code(blocks, connections):
             if selected_method in methods_to_execute:
                 methods_to_execute.remove(selected_method)
             methods_to_execute.insert(0, selected_method)
-        # If no methods are specified, determine appropriate method based on component type
-        elif not methods_to_execute:
-            if component_type:
-                if component_type == "embeddings":
-                    methods_to_execute = ["embed_documents"]
-                elif component_type == "document_loaders":
-                    methods_to_execute = ["load"]
-                elif component_type == "text_splitters":
-                    methods_to_execute = ["split_documents"]
-                elif component_type == "vectorstores":
-                    methods_to_execute = ["similarity_search"]
-                elif component_type == "retrievers":
-                    methods_to_execute = ["get_relevant_documents"]
-                elif component_type == "llms" or component_type == "chat_models":
-                    methods_to_execute = ["invoke"]
-                else:
-                    methods_to_execute = ["run"]  # Generic default
-            # For blocks without component_type, infer from module path or class name
-            elif hasattr(block, "module_path") or hasattr(block, "class_name"):
-                module_path = getattr(block, "module_path", "")
-                class_name_lower = class_name.lower()
 
-                if "embeddings" in module_path or "embed" in class_name_lower:
-                    methods_to_execute = ["embed_documents"]
-                elif "document_loaders" in module_path or "loader" in class_name_lower:
-                    methods_to_execute = ["load"]
-                elif "text_splitters" in module_path:
-                    methods_to_execute = ["split_documents"]
-                elif "vectorstore" in module_path:
-                    methods_to_execute = ["similarity_search"]
-                elif "retriever" in module_path:
-                    methods_to_execute = ["get_relevant_documents"]
-                elif "llm" in module_path or "chat" in class_name_lower:
-                    methods_to_execute = ["invoke"]
-                else:
-                    methods_to_execute = ["run"]  # Generic default
+        # If no methods are available, don't execute any methods
+        if not methods_to_execute:
+            continue
 
         # Execute methods for this block
         for method_name in methods_to_execute:
@@ -494,40 +432,22 @@ def generate_python_code(blocks, connections):
                         method_code_lines.append(
                             f"{var_name}_output = {var_name}.{method_name}()"
                         )
-                    # For methods that take specific parameter names
-                    elif method_name == "embed_documents":
-                        method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}(texts={source_params[0]})"
-                        )
-                    elif method_name == "embed_query":
-                        method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}(text={source_params[0]})"
-                        )
-                    elif method_name == "from_documents":
-                        if len(source_params) > 1:
-                            method_code_lines.append(
-                                f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]}, embedding={source_params[1]})"
-                            )
-                        else:
-                            method_code_lines.append(
-                                f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})"
-                            )
-                    elif method_name == "split_documents":
-                        method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}(documents={source_params[0]})"
-                        )
-                    elif method_name in ["invoke", "run"]:
-                        method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}(input={source_params[0]})"
-                        )
+                    # Instead of hardcoded parameter names, use generic parameter passing
                     else:
                         # Filter out any empty parameters
                         filtered_params = [
                             p for p in source_params if p and p.strip() != ""
                         ]
-                        method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
-                        )
+
+                        # For methods with only one parameter, try to pass it as the first argument
+                        if len(filtered_params) == 1:
+                            method_code_lines.append(
+                                f"{var_name}_output = {var_name}.{method_name}({filtered_params[0]})"
+                            )
+                        else:
+                            method_code_lines.append(
+                                f"{var_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
+                            )
                 else:
                     method_code_lines.append(
                         f"{var_name}_output = {var_name}.{method_name}()"
@@ -1089,164 +1009,35 @@ def get_langchain_class_details():
                 class_details_cache.set(cache_key, result)
                 return jsonify(result)
 
-        # If we get here, proceed with automatic parameter detection
-        try:
-            init_sig = inspect.signature(class_obj.__init__)
+        # If no fields found from Pydantic-style inspection, use regular signature inspection
+        if not init_params:
+            # Check if we have special parameter handling for this class
+            if is_document_loader:
+                # No special parameters by default
+                print(f"No special parameters defined for {class_name}")
+            else:
+                # Get the __init__ method signature
+                init_sig = inspect.signature(class_obj.__init__)
+                for param_name, param in init_sig.parameters.items():
+                    # Skip self parameter
+                    if param_name == "self":
+                        continue
 
-            # Check if this might be a Pydantic model
-            has_pydantic_structure = "**data" in str(init_sig) or "kwargs" in str(
-                init_sig
-            )
-
-            if has_pydantic_structure:
-                # Try different ways to get fields for potential Pydantic models
-                field_parameters = []
-
-                # Try to create an instance to inspect its fields
-                try:
-                    # Attempt to instantiate without required args (may fail)
-                    instance = class_obj()
-                    # Get fields from the instance
-                    for field_name in dir(instance):
-                        if not field_name.startswith("_") and not callable(
-                            getattr(instance, field_name)
-                        ):
-                            field_parameters.append(
-                                {
-                                    "name": field_name,
-                                    "required": False,  # can't easily determine this
-                                    "default": "None",
-                                    "type": "Any",
-                                }
-                            )
-                except (TypeError, ValueError, AttributeError) as e:
-                    print(f"Failed to instantiate {class_name}: {str(e)}")
-                    pass
-
-                # Try Pydantic v1
-                if not field_parameters and hasattr(class_obj, "__fields__"):
-                    for field_name, field in class_obj.__fields__.items():
-                        field_parameters.append(
-                            {
-                                "name": field_name,
-                                "required": (
-                                    field.required
-                                    if hasattr(field, "required")
-                                    else False
-                                ),
-                                "default": (
-                                    str(field.default)
-                                    if hasattr(field, "default")
-                                    else "None"
-                                ),
-                                "type": (
-                                    str(field.type_)
-                                    if hasattr(field, "type_")
-                                    else "Any"
-                                ),
-                            }
-                        )
-                    print(
-                        f"Found Pydantic v1 fields: {[p['name'] for p in field_parameters]}"
-                    )
-
-                # Try Pydantic v2
-                if not field_parameters and hasattr(class_obj, "model_fields"):
-                    for field_name, field in class_obj.model_fields.items():
-                        field_parameters.append(
-                            {
-                                "name": field_name,
-                                "required": not hasattr(field, "default")
-                                or field.default is None,
-                                "default": (
-                                    str(field.default)
-                                    if hasattr(field, "default")
-                                    else "None"
-                                ),
-                                "type": (
-                                    str(field.annotation)
-                                    if hasattr(field, "annotation")
-                                    else "Any"
-                                ),
-                            }
-                        )
-                    print(
-                        f"Found Pydantic v2 fields: {[p['name'] for p in field_parameters]}"
-                    )
-
-                # Try __annotations__ as a fallback
-                if not field_parameters and hasattr(class_obj, "__annotations__"):
-                    for field_name, type_hint in class_obj.__annotations__.items():
-                        field_parameters.append(
-                            {
-                                "name": field_name,
-                                "required": True,  # assume required since we can't tell
-                                "default": "None",
-                                "type": str(type_hint),
-                            }
-                        )
-                    print(f"Found annotations: {[p['name'] for p in field_parameters]}")
-
-                # Look at constructor parameters through source code inspection as last resort
-                if not field_parameters:
-                    try:
-                        source = inspect.getsource(class_obj.__init__)
-                        # Look for self.XXX = XXX patterns in constructor
-                        import re
-
-                        matches = re.findall(r"self\.([a-zA-Z0-9_]+)\s*=", source)
-                        if matches:
-                            for field_name in matches:
-                                field_parameters.append(
-                                    {
-                                        "name": field_name,
-                                        "required": False,  # assume not required
-                                        "default": "None",
-                                        "type": "Any",
-                                    }
-                                )
-                            print(
-                                f"Found fields via source inspection: {[p['name'] for p in field_parameters]}"
-                            )
-                    except (OSError, TypeError, AttributeError) as e:
-                        print(f"Failed to inspect source code: {str(e)}")
-                        pass
-
-                if field_parameters:
-                    init_params = field_parameters
-                    print(
-                        f"Using dynamic field inspection for {class_name}: {len(field_parameters)} fields found"
-                    )
-
-            # If no fields found from Pydantic-style inspection, use regular signature inspection
-            if not init_params:
-                # Check if we have special parameter handling for this class
-                if is_document_loader:
-                    # No special parameters by default
-                    print(f"No special parameters defined for {class_name}")
-                else:
-                    for param_name, param in init_sig.parameters.items():
-                        # Skip self parameter
-                        if param_name == "self":
-                            continue
-
-                        param_info = {
-                            "name": param_name,
-                            "required": param.default == inspect.Parameter.empty,
-                            "default": (
-                                str(param.default)
-                                if param.default != inspect.Parameter.empty
-                                else None
-                            ),
-                            "type": (
-                                str(param.annotation)
-                                if param.annotation != inspect.Parameter.empty
-                                else "Any"
-                            ),
-                        }
-                        init_params.append(param_info)
-        except (TypeError, ValueError, AttributeError) as e:
-            print(f"Error getting init parameters for {class_name}: {str(e)}")
+                    param_info = {
+                        "name": param_name,
+                        "required": param.default == inspect.Parameter.empty,
+                        "default": (
+                            str(param.default)
+                            if param.default != inspect.Parameter.empty
+                            else None
+                        ),
+                        "type": (
+                            str(param.annotation)
+                            if param.annotation != inspect.Parameter.empty
+                            else "Any"
+                        ),
+                    }
+                    init_params.append(param_info)
 
         # Get class inheritance to determine type
         class_type = []
@@ -1257,7 +1048,7 @@ def get_langchain_class_details():
         except Exception as e:
             print(f"Error getting class inheritance: {str(e)}")
 
-        # Add common methods for component types if they aren't already in methods
+        # Add component type based on module path
         component_type = ""
         if "document_loaders" in module_path:
             component_type = "document_loaders"
@@ -1275,64 +1066,6 @@ def get_langchain_class_details():
             component_type = "chat_models"
         elif "chain" in module_path:
             component_type = "chains"
-
-        # Map of component types to their most commonly used methods
-        common_methods = {
-            "document_loaders": ["load"],
-            "text_splitters": ["split_documents"],
-            "embeddings": ["embed_documents", "embed_query"],
-            "vectorstores": ["similarity_search", "from_documents"],
-            "retrievers": ["get_relevant_documents"],
-            "llms": ["invoke", "generate"],
-            "chat_models": ["invoke", "generate"],
-            "chains": ["invoke", "run"],
-        }
-
-        # Check if we should add common methods that may have been missed
-        if component_type in common_methods:
-            for method_name in common_methods[component_type]:
-                if method_name not in method_names:
-                    # Try to see if method exists but wasn't captured
-                    if hasattr(class_obj, method_name):
-                        try:
-                            method = getattr(class_obj, method_name)
-                            sig = inspect.signature(method)
-                            parameters = []
-
-                            for param_name, param in sig.parameters.items():
-                                if param_name == "self":
-                                    continue
-
-                                param_info = {
-                                    "name": param_name,
-                                    "required": param.default
-                                    == inspect.Parameter.empty,
-                                    "default": (
-                                        str(param.default)
-                                        if param.default != inspect.Parameter.empty
-                                        else None
-                                    ),
-                                    "type": (
-                                        str(param.annotation)
-                                        if param.annotation != inspect.Parameter.empty
-                                        else "Any"
-                                    ),
-                                }
-                                parameters.append(param_info)
-
-                            method_info = {
-                                "name": method_name,
-                                "doc": inspect.getdoc(method)
-                                or "No documentation available",
-                                "parameters": parameters,
-                            }
-                            methods.append(method_info)
-                            method_names.append(method_name)
-                            print(
-                                f"Added common method {method_name} for {component_type}"
-                            )
-                        except Exception as e:
-                            print(f"Error adding common method {method_name}: {str(e)}")
 
         result = {
             "doc": docstring,
