@@ -2,6 +2,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuItems = document.querySelectorAll('.menu-item');
     const subMenus = document.querySelectorAll('.sub-menu');
 
+    // Initialize dark mode
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    
+    // Set initial dark mode state
+    if (savedDarkMode || (!localStorage.getItem('darkMode') && prefersDarkMode)) {
+        document.body.classList.add('dark-mode');
+    }
+
+    // Toggle dark mode
+    darkModeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    });
+
     // Initialize custom block handler
     const customBlockHandler = new CustomBlockHandler();
 
