@@ -1,9 +1,11 @@
 :root {
-    --primary-bg: #000000;
-    --secondary-bg: #494747;
-    --text-color: #ffffff;
-    --border-color: #a79e9e;
-    --accent-color: #c9c9a0;
+    --primary-bg: var(--langchain-dark);
+    --secondary-bg: #333333;
+    --text-color: var(--langchain-white);
+    --border-color: var(--langchain-primary);
+    --accent-color: var(--langchain-primary);
+    --active-tab-bg: var(--langchain-primary);
+    --inactive-tab-bg: var(--langchain-dark);
 }
 
 body.dark-mode {
@@ -24,11 +26,11 @@ body.dark-mode {
 .dark-mode .block {
     background-color: var(--secondary-bg);
     border: 1px solid var(--border-color);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dark-mode .block:hover {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary-light);
 }
 
 .dark-mode .modal {
@@ -54,14 +56,18 @@ body.dark-mode {
 }
 
 .dark-mode button:hover {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
 }
 
 /* Canvas specific dark mode styles */
 .dark-mode #canvas {
     background-color: var(--primary-bg);
-    background-image: radial-gradient(rgba(255, 255, 255, 0.266) 1px, transparent 1px);
-    background-size: 30px 30px;
+    background-image: 
+        radial-gradient(rgba(0, 166, 126, 0.2) 1px, transparent 1px),
+        radial-gradient(rgba(0, 166, 126, 0.1) 1px, transparent 1px);
+    background-size: 30px 30px, 15px 15px;
+    background-position: 0 0, 15px 15px;
 }
 
 /* Sidebar specific dark mode styles */
@@ -72,7 +78,7 @@ body.dark-mode {
 }
 
 .dark-mode .connection-line {
-    stroke: var(--accent-color);
+    stroke: var(--langchain-primary);
 }
 
 .dark-mode .zoom-controls {
@@ -87,7 +93,8 @@ body.dark-mode {
 }
 
 .dark-mode .zoom-button:hover {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
 }
 
 .dark-mode .zoom-level {
@@ -99,12 +106,12 @@ body.dark-mode {
 }
 
 .dark-mode .menu-item:hover {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary-light);
 }
 
 .dark-mode .menu-item.active {
-    background-color: var(--border-color);
-    color: var(--accent-color);
+    background-color: var(--langchain-primary-light);
+    color: var(--langchain-primary);
 }
 
 .dark-mode .menu-item img {
@@ -132,6 +139,191 @@ body.dark-mode {
 }
 
 .dark-mode .section-header {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary-light);
     color: var(--text-color);
+}
+
+/* Custom blocks dark mode styles */
+.dark-mode .custom-blocks-message {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-blocks-message h3 {
+    color: var(--secondary-bg);
+}
+
+.dark-mode .custom-blocks-message p {
+    color: var(--secondary-bg);
+}
+
+.dark-mode .custom-blocks-container {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .block-template {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.dark-mode .block-template:hover {
+    background-color: var(--border-color);
+}
+
+.dark-mode .block-drag-handle {
+    color: var(--text-color);
+}
+
+.dark-mode #create-custom-block-btn {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #create-custom-block-btn:hover {
+    background-color: var(--border-color);
+}
+
+/* Custom block modal dark mode styles */
+.dark-mode #custom-block-modal .tab-btn {
+    background-color: var(--inactive-tab-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    flex: 1;
+    text-align: center;
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.dark-mode #custom-block-modal .tab-btn:not(.active):hover {
+    background-color: var(--langchain-primary-light);
+}
+
+.dark-mode #custom-block-modal .tab-btn.active {
+    background-color: var(--active-tab-bg);
+    color: var(--langchain-white);
+    box-shadow: none;
+    font-weight: bold;
+}
+
+.dark-mode #custom-block-modal .tab-header {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block-modal {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block-modal-header {
+    background-color: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block-modal-content {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .custom-block-modal-footer {
+    background-color: var(--secondary-bg);
+    border-top: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block-modal-title {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-block-modal-close {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-block-modal-close:hover {
+    color: var(--accent-color);
+}
+
+.dark-mode .custom-block-form label {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-block-form input,
+.dark-mode .custom-block-form textarea,
+.dark-mode .custom-block-form select {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block-form input:focus,
+.dark-mode .custom-block-form textarea:focus,
+.dark-mode .custom-block-form select:focus {
+    border-color: var(--text-color);
+    box-shadow: 0 0 0 2px rgba(236, 234, 84, 0.2);
+}
+
+.dark-mode .custom-block-form .form-group {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block-form .form-group:last-child {
+    border-bottom: none;
+}
+
+.dark-mode .custom-block-form .form-group h4 {
+    color: var(--text-color) !important;
+}
+
+.dark-mode .custom-block-form .form-group p {
+    color: var(--text-color) !important;
+}
+
+.dark-mode .custom-block-form .form-group label {
+    color: var(--text-color) !important;
+}
+
+.dark-mode .modal-tab {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .modal-tab:hover {
+    background-color: var(--border-color);
+}
+
+.dark-mode .modal-tab.active {
+    background-color: var(--border-color);
+    color: var(--accent-color);
+}
+
+.dark-mode #custom-block-modal .tab-content {
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+    padding: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .tab-content.active {
+    background-color: var(--secondary-bg);
+    border-color: var(--langchain-primary);
+}
+
+.dark-mode label {
+    color: var(--text-color);
+}
+
+.dark-mode .form-group h4 {
+    color: var(--text-color);
+}
+
+.dark-mode .form-group p {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal.modal label {
+    color: var(--text-color) !important;
 } 
