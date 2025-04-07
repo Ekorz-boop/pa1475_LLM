@@ -8,16 +8,16 @@
 .chunk-size {
     width: 80px;
     padding: 4px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
     font-size: 14px;
-    color: #333;
+    color: var(--langchain-text);
 }
 
 .chunk-size:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 2px rgba(0,166,126,0.25);
 }
 
 /* ===== File Input Styling ===== */
@@ -26,29 +26,29 @@
     align-items: center;
     gap: 10px;
     padding: 8px 16px;
-    background-color: #fff;
-    border-bottom: 1px solid #ddd;
+    background-color: var(--langchain-white);
+    border-bottom: 1px solid var(--langchain-border);
 }
 
 .file-input-bar input[type="file"] {
     flex: 1;
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
     font-size: 14px;
-    color: #333;
+    color: var(--langchain-text);
 }
 
 .file-input-bar input[type="file"]:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 2px rgba(0,166,126,0.1);
 }
 
 .file-input-bar button {
     padding: 8px 16px;
-    background-color: #007bff;
-    color: white;
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -58,5 +58,5 @@
 }
 
 .file-input-bar button:hover {
-    background-color: #0056b3;
+    background-color: var(--langchain-primary-hover);
 }
