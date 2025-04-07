@@ -362,4 +362,513 @@ body.dark-mode {
 .dark-mode #custom-block-modal.modal .method-container:hover {
     background-color: var(--langchain-primary);
     color: var(--langchain-white);
+}
+
+/* Custom Block Modal Dark Mode */
+.dark-mode #custom-block-modal.modal {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.dark-mode #custom-block-modal .modal-content {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .close-modal {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .close-modal:hover {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal .tabs {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .tab-header {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .tab-btn {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .tab-btn.active {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode #custom-block-modal .tab-content {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .form-group {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .form-group label {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .form-group select {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal #methods-container {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .method-item {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .method-details {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal #parameters-container {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .param-group {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .param-input {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .input-nodes-section,
+.dark-mode #custom-block-modal .output-nodes-section {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .add-node-btn {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode #custom-block-modal .add-node-btn:hover {
+    background-color: var(--langchain-primary-hover);
+}
+
+.dark-mode #custom-block-modal .node-item {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .node-item input {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .remove-node-btn {
+    background-color: var(--langchain-error);
+    color: var(--langchain-white);
+}
+
+.dark-mode #custom-block-modal .remove-node-btn:hover {
+    background-color: #c82333;
+}
+
+.dark-mode #custom-block-modal .modal-footer {
+    border-top: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .tab-nav-btn {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .tab-nav-btn:hover {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode #custom-block-modal .primary-btn {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode #custom-block-modal .primary-btn:hover {
+    background-color: var(--langchain-primary-hover);
+}
+
+/* Custom Blocks Dark Mode */
+.dark-mode .custom-blocks-message {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-blocks-message h3 {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-blocks-message p {
+    color: var(--text-color);
+}
+
+.dark-mode #create-custom-block-btn {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode #create-custom-block-btn:hover {
+    background-color: var(--langchain-primary-hover);
+}
+
+.dark-mode #custom-blocks-container {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .custom-block {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block .block-header {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode .custom-block .block-drag-handle {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-block .custom-block-status {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-block .status-indicator {
+    background-color: var(--langchain-primary);
+}
+
+.dark-mode .custom-block .method-selectors {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block .method-select {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block .add-param-btn {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode .custom-block .parameter-row {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block .param-name,
+.dark-mode .custom-block .param-value {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .custom-block .remove-param-btn {
+    background-color: var(--langchain-error);
+    color: var(--langchain-white);
+}
+
+.dark-mode .custom-block .input-node,
+.dark-mode .custom-block .output-node {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode .custom-block .node-label {
+    color: var(--text-color);
+}
+
+.dark-mode .block-template[data-block-type="custom"] {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .block-template[data-block-type="custom"] .block-header {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode .block-template[data-block-type="custom"] .block-drag-handle {
+    color: var(--text-color);
+}
+
+.dark-mode .block-template[data-block-type="custom"] .block-content {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+}
+
+.dark-mode .block-template[data-block-type="custom"] .edit-parameters-btn {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+}
+
+.dark-mode .block-template[data-block-type="custom"] .block-actions {
+    background-color: var(--secondary-bg);
+}
+
+.dark-mode .custom-blocks-section {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .section-header {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+/* Sidebar Dark Mode */
+.dark-mode #sidebar {
+    background-color: var(--primary-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+.dark-mode #sidebar h3 {
+    color: var(--text-color);
+}
+
+.dark-mode .search-container {
+    background-color: var(--secondary-bg);
+}
+
+.dark-mode #block-search {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .block-template {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .block-template .block-drag-handle {
+    color: var(--text-color);
+}
+
+.dark-mode .main-menu {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .menu-item {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+}
+
+.dark-mode .menu-item img {
+    filter: brightness(0) invert(1);
+}
+
+.dark-mode .menu-item span {
+    color: var(--text-color);
+}
+
+.dark-mode .sub-menu {
+    background-color: var(--primary-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+.dark-mode .sub-menu.active {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .sub-menu-header {
+    background-color: var(--secondary-bg);
+}
+
+.dark-mode .sub-menu-header h3 {
+    color: var(--text-color);
+}
+
+.dark-mode .bottom-menu {
+    background-color: var(--primary-bg);
+    border-top: 1px solid var(--border-color);
+}
+
+.dark-mode .bottom-menu .menu-item {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+}
+
+.dark-mode .custom-blocks-section {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .sidebar-title {
+    color: var(--text-color);
+}
+
+/* Management Window Dark Mode */
+.dark-mode .management-panel {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .management-header {
+    background-color: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode .management-header h2 {
+    color: var(--text-color);
+}
+
+.dark-mode .close-button {
+    color: var(--text-color);
+}
+
+.dark-mode .close-button:hover {
+    color: var(--langchain-primary);
+}
+
+.dark-mode .management-content {
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+}
+
+/* Status and Memory Sections Dark Mode */
+.dark-mode .status-section,
+.dark-mode .memory-section {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .status-items,
+.dark-mode .memory-info {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .status-item,
+.dark-mode .memory-item {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.dark-mode .status-label {
+    color: var(--text-color);
+}
+
+.dark-mode .status-value {
+    color: var(--text-color);
+}
+
+.dark-mode .status-value.running {
+    color: var(--langchain-primary);
+}
+
+.dark-mode .status-value.not-running {
+    color: var(--langchain-error);
+}
+
+.dark-mode .status-value.downloading {
+    color: var(--langchain-warning);
+}
+
+/* Model Manager Dark Mode */
+.dark-mode #model-manager {
+    background-color: var(--primary-bg);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .model-search-section {
+    background-color: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #model-search-input {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .model-grid {
+    background-color: var(--primary-bg);
+}
+
+.dark-mode .model-card {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .model-card.installed {
+    border-color: var(--langchain-primary);
+}
+
+.dark-mode .model-card h4 {
+    color: var(--text-color);
+}
+
+.dark-mode .model-card .model-size {
+    color: var(--text-color);
+}
+
+.dark-mode .model-card button {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode .model-card button.uninstall {
+    background-color: var(--langchain-error);
+}
+
+.dark-mode .model-card button:hover {
+    opacity: 0.9;
+}
+
+/* Model List Dark Mode */
+.dark-mode .models-list {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .models-list h3 {
+    color: var(--text-color);
+}
+
+.dark-mode .model-item {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.dark-mode .model-name {
+    color: var(--text-color);
+}
+
+.dark-mode .model-size {
+    color: var(--text-color);
 } 
