@@ -145,6 +145,7 @@
     font-size: 13px;
     z-index: 2;  /* Above nodes */
     position: relative;  /* Create stacking context */
+    font-family: 'Open Sans', sans-serif;
 }
 
 /* ===== Blocks ===== */
@@ -163,6 +164,7 @@
     transform-origin: top left;
     will-change: transform;
     z-index: 10;
+    font-family: 'Open Sans', sans-serif;
 }
 
 .block:hover {
@@ -194,6 +196,7 @@
     z-index: 2;  /* Above nodes */
     position: relative;  /* Create stacking context */
     border-radius: 8px;
+    font-family: 'Open Sans', sans-serif;
 }
 
 .input-group {
