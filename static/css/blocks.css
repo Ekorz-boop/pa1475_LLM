@@ -31,11 +31,11 @@
     background: #666;
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);  /* Consistent shadow */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     margin: 5px 0;
     flex-shrink: 0;
     pointer-events: all;
-    z-index: -2;
+    z-index: 3;
 }
 
 .block .input-node {
@@ -314,17 +314,6 @@
     z-index: 998;
 }
 
-.node-container {
-    position: absolute;
-    border-radius: 8px;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: -2;  /* Above connections, below content */
-}
-
 .input-node::after, .output-node::after {
     content: none;
 }
@@ -511,15 +500,6 @@ svg {
     line-height: 1.4;
 }
 
-/* Input Node Groups */
-.input-node-group {
-    position: absolute;
-    left: -8px;
-    display: flex;
-    flex-direction: column;
-    gap: 50px;  /* Increased gap between nodes within a group */
-}
-
 /* Vector Store Input Groups - adjust vertical positioning */
 .storage-inputs {
     position: absolute;
@@ -621,12 +601,6 @@ svg {
     margin: 10px 0;
 }
 
-.input-node-group {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
 .input-node.input-node-hover {
     background: #4CAF50;
     box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
@@ -671,24 +645,4 @@ svg {
     width: 100%;
     height: 100%;
     border-radius: 8px;
-}
-
-/*
-/* Node container and nodes should be the bottom layer */
-.node-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: -2;  /* Above connections, below content */
-}
-*/
-
-/* Block content and drag handle should be in front */
-.block-content, .block-drag-handle {
-    position: relative;
-    z-index: 2;
-    background: #fff;
 }
