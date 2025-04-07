@@ -1,0 +1,137 @@
+:root {
+    --primary-bg: #000000;
+    --secondary-bg: #494747;
+    --text-color: #ffffff;
+    --border-color: #a79e9e;
+    --accent-color: #c9c9a0;
+}
+
+body.dark-mode {
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+}
+
+.dark-mode .topbar {
+    background-color: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode .sidebar {
+    background-color: var(--primary-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+.dark-mode .block {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.dark-mode .block:hover {
+    background-color: var(--border-color);
+}
+
+.dark-mode .modal {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .modal-header {
+    background-color: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode input, .dark-mode textarea, .dark-mode select {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode button {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode button:hover {
+    background-color: var(--border-color);
+}
+
+/* Canvas specific dark mode styles */
+.dark-mode #canvas {
+    background-color: var(--primary-bg);
+    background-image: radial-gradient(rgba(255, 255, 255, 0.266) 1px, transparent 1px);
+    background-size: 30px 30px;
+}
+
+/* Sidebar specific dark mode styles */
+.dark-mode #sidebar {
+    background-color: var(--primary-bg);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.dark-mode .connection-line {
+    stroke: var(--accent-color);
+}
+
+.dark-mode .zoom-controls {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .zoom-button {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .zoom-button:hover {
+    background-color: var(--border-color);
+}
+
+.dark-mode .zoom-level {
+    color: var(--text-color);
+}
+
+.dark-mode .menu-item {
+    color: var(--text-color);
+}
+
+.dark-mode .menu-item:hover {
+    background-color: var(--border-color);
+}
+
+.dark-mode .menu-item.active {
+    background-color: var(--border-color);
+    color: var(--accent-color);
+}
+
+.dark-mode .menu-item img {
+    opacity: 0.8;
+    filter: brightness(0) invert(1);
+}
+
+.dark-mode .menu-item:hover img,
+.dark-mode .menu-item.active img {
+    opacity: 1;
+    filter: brightness(0) invert(1);
+}
+
+.dark-mode .bottom-menu {
+    border-top: 1px solid var(--border-color);
+}
+
+.dark-mode .sub-menu {
+    background-color: var(--primary-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+.dark-mode .sub-menu-header h3 {
+    color: var(--text-color);
+}
+
+.dark-mode .section-header {
+    background-color: var(--border-color);
+    color: var(--text-color);
+} 
