@@ -326,4 +326,40 @@ body.dark-mode {
 
 .dark-mode #custom-block-modal.modal label {
     color: var(--text-color) !important;
+}
+
+.dark-mode #custom-block-modal.modal .class-description {
+    color: var(--text-color) !important;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.dark-mode #custom-block-modal.modal div.node-item {
+    color: var(--text-color) !important;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    margin: 5px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.dark-mode #custom-block-modal.modal div.node-item:hover {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+}
+
+.dark-mode #custom-block-modal.modal .method-container {
+    color: var(--text-color) !important;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    margin: 5px 0;
+}
+
+.dark-mode #custom-block-modal.modal .method-container:hover {
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
 } 
