@@ -232,7 +232,7 @@
 
 /* Custom Block Template in Sidebar */
 .block-template[data-block-type="custom"] {
-    border: 2px solid var(--langchain-primary) !important;
+    border: 1px solid var(--primary-border) !important;
     background-color: var(--langchain-light) !important;
     margin-bottom: 10px;
     overflow: visible;
