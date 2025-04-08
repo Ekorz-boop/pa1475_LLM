@@ -55,10 +55,10 @@ class CustomBlockHandler {
 
                     <div class="tabs">
                         <div class="tab-header">
-                            <div class="tab-btn active" data-tab="select-class">1. Select Class</div>
-                            <div class="tab-btn" data-tab="methods">2. Add Methods</div>
-                            <div class="tab-btn" data-tab="edit-parameters">3. Edit Parameters</div>
-                            <div class="tab-btn" data-tab="io-nodes">4. Input/Output</div>
+                            <div class="tab-btn active" data-tab="select-class">1. Choose Your Block Type</div>
+                            <div class="tab-btn" data-tab="methods">2. Add Functions</div>
+                            <div class="tab-btn" data-tab="edit-parameters">3. Set Up Your Block</div>
+                            <div class="tab-btn" data-tab="io-nodes">4. Connect Your Block</div>
                         </div>
 
                         <div class="tab-content active" data-tab="select-class">
@@ -77,7 +77,7 @@ class CustomBlockHandler {
                             </div>
 
                             <div class="form-group">
-                                <label for="class-select">Select Class:</label>
+                                <label for="class-select">Choose Block Type:</label>
                                 <select id="class-select" disabled>
                                     <option value="">Select a module first</option>
                                 </select>
@@ -94,7 +94,7 @@ class CustomBlockHandler {
                         </div>
 
                         <div class="tab-content" data-tab="edit-parameters">
-                            <h3>Edit Parameters</h3>
+                            <h3>Set Up Your Block</h3>
                             <div id="parameters-container">
                                 <p>Select methods first</p>
                             </div>

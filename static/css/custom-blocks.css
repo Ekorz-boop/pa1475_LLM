@@ -3,27 +3,27 @@
     text-align: center;
     padding: 30px;
     margin: 20px 0;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 8px;
-    background-color: #f9f9f9;
+    background-color: var(--langchain-light);
 }
 
 .custom-blocks-message h3 {
-    color: #2c3e50;
+    color: var(--langchain-text);
     margin-bottom: 15px;
     font-size: 24px;
 }
 
 .custom-blocks-message p {
-    color: #555;
+    color: var(--langchain-text-light);
     margin-bottom: 10px;
     font-size: 16px;
     line-height: 1.5;
 }
 
 #create-custom-block-btn {
-    background-color: #3498db;
-    color: white;
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
     border: none;
     padding: 12px 20px;
     border-radius: 4px;
@@ -35,7 +35,7 @@
 }
 
 #create-custom-block-btn:hover {
-    background-color: #2980b9;
+    background-color: var(--langchain-primary-hover);
 }
 
 #custom-blocks-container {
@@ -47,8 +47,8 @@
 
 /* Custom Block Styling */
 .custom-block .block-header {
-    background-color: #3498db !important;
-    color: white !important;
+    background-color: var(--langchain-primary) !important;
+    color: var(--langchain-white) !important;
     padding: 8px 12px !important;
     border-radius: 6px 6px 0 0 !important;
     position: relative;
@@ -100,13 +100,13 @@
 .custom-block .method-select {
     flex: 1;
     padding: 6px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
 }
 
 .custom-block .add-param-btn {
-    background-color: #27ae60;
-    color: white;
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -128,13 +128,13 @@
 .custom-block .param-value {
     flex: 1;
     padding: 6px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
 }
 
 .custom-block .remove-param-btn {
-    background-color: #e74c3c;
-    color: white;
+    background-color: #dc3545;
+    color: var(--langchain-white);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -232,8 +232,8 @@
 
 /* Custom Block Template in Sidebar */
 .block-template[data-block-type="custom"] {
-    border: 1px solid #ddd !important;
-    background-color: #fff !important;
+    border: 2px solid var(--langchain-primary) !important;
+    background-color: var(--langchain-light) !important;
     margin-bottom: 10px;
     overflow: visible;
     max-height: 36px;
@@ -248,7 +248,7 @@
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
     border-bottom: 1px solid #eee;
-    background-color: #3498db !important;
+    background-color: var(--langchain-primary) !important;
     padding: 0 !important;
     height: 100%;
     width: 100%;
@@ -304,10 +304,10 @@
 
 .section-header {
     font-size: 16px;
-    color: #2c3e50;
+    color: var(--langchain-text);
     margin: 15px 0 10px 0;
     padding-bottom: 5px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--langchain-border);
 }
 
 /* Add a nice hover effect for custom blocks in sidebar */

@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM RAG Pipeline Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/blocks.css">
     <link rel="stylesheet" href="/static/css/block_content.css">
@@ -13,6 +16,7 @@
     <link rel="stylesheet" href="/static/css/management_window.css">
     <link rel="stylesheet" href="/static/css/custom-block-modal.css">
     <link rel="stylesheet" href="/static/css/custom-blocks.css">
+    <link rel="stylesheet" href="/static/css/dark-mode.css">
 </head>
 <body>
     <div id="app">
@@ -47,6 +51,9 @@
             <div id="canvas">
                 <button id="run-all" class="run-button" title="Run Pipeline">
                     <img src="/static/images/icons/run.svg" alt="Run Pipeline">
+                </button>
+                <button id="dark-mode-toggle" class="dark-mode-toggle" title="Toggle Dark Mode">
+                    <img src="/static/images/icons/moon.svg" alt="Dark Mode">
                 </button>
                 <div class="debug-mode-container" title="Enable to run partial pipelines for debugging">
                     <input type="checkbox" id="debug-mode">

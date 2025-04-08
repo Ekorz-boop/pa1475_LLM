@@ -13,7 +13,7 @@
 
 #custom-block-modal .modal-content {
     position: relative;
-    background-color: #fff;
+    background-color: var(--langchain-white);
     margin: 30px auto;
     padding: 25px;
     border-radius: 8px;
@@ -31,11 +31,11 @@
     font-size: 24px;
     font-weight: bold;
     cursor: pointer;
-    color: #555;
+    color: var(--langchain-text-light);
 }
 
 #custom-block-modal .close-modal:hover {
-    color: #000;
+    color: var(--langchain-text);
 }
 
 /* Tabs styling */
@@ -46,13 +46,13 @@
 #custom-block-modal .tab-header {
     display: flex;
     margin-bottom: 20px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--langchain-border);
     overflow-x: auto;
 }
 
 #custom-block-modal .tab-btn {
     padding: 10px 15px;
-    background-color: #f5f5f5;
+    background-color: var(--langchain-light);
     cursor: pointer;
     margin-right: 5px;
     border-radius: 5px 5px 0 0;
@@ -62,15 +62,15 @@
 }
 
 #custom-block-modal .tab-btn.active {
-    background-color: #3498db;
-    color: white;
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
     font-weight: bold;
 }
 
 #custom-block-modal .tab-content {
     display: none;
     padding: 15px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 0 0 5px 5px;
     margin-bottom: 20px;
 }
@@ -88,13 +88,13 @@
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
-    color: #333;
+    color: var(--langchain-text);
 }
 
 #custom-block-modal .form-group select {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
     font-size: 16px;
 }
@@ -102,16 +102,16 @@
 #custom-block-modal .class-description {
     margin-top: 15px;
     padding: 15px;
-    background-color: #f8f9fa;
+    background-color: var(--langchain-light);
     border-radius: 4px;
-    border-left: 3px solid #3498db;
+    border-left: 3px solid var(--langchain-primary);
 }
 
 /* Methods selection */
 #custom-block-modal #methods-container {
     max-height: 50vh;
     overflow-y: auto;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
     padding: 10px;
 }
@@ -119,15 +119,15 @@
 #custom-block-modal .method-item {
     padding: 10px;
     margin-bottom: 10px;
-    border: 1px solid #eee;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
-    background-color: #f9f9f9;
+    background-color: var(--langchain-light);
 }
 
 #custom-block-modal .method-details {
     margin-top: 5px;
     padding-left: 25px;
-    color: #666;
+    color: var(--langchain-text-light);
     font-size: 0.9em;
 }
 
@@ -140,7 +140,7 @@
 #custom-block-modal .param-group {
     margin-bottom: 15px;
     padding: 10px;
-    border: 1px solid #eee;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
 }
 
@@ -148,7 +148,7 @@
     width: 100%;
     padding: 8px;
     margin-top: 5px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
 }
 
@@ -159,8 +159,8 @@
 }
 
 #custom-block-modal .add-node-btn {
-    background-color: #27ae60;
-    color: white;
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
     border: none;
     padding: 8px 15px;
     border-radius: 4px;
@@ -170,7 +170,7 @@
 }
 
 #custom-block-modal .add-node-btn:hover {
-    background-color: #219955;
+    background-color: var(--langchain-primary-hover);
 }
 
 #custom-block-modal .node-item {
@@ -178,21 +178,21 @@
     align-items: center;
     margin-bottom: 10px;
     padding: 8px;
-    background-color: #f5f5f5;
+    background-color: var(--langchain-light);
     border-radius: 4px;
 }
 
 #custom-block-modal .node-item input {
     flex: 1;
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
     margin-right: 10px;
 }
 
 #custom-block-modal .remove-node-btn {
-    background-color: #e74c3c;
-    color: white;
+    background-color: #dc3545;
+    color: var(--langchain-white);
     border: none;
     width: 24px;
     height: 24px;
@@ -205,7 +205,7 @@
 }
 
 #custom-block-modal .remove-node-btn:hover {
-    background-color: #c0392b;
+    background-color: #c82333;
 }
 
 /* Footer */
@@ -213,7 +213,7 @@
     display: flex;
     justify-content: space-between;
     padding-top: 15px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--langchain-border);
 }
 
 #custom-block-modal .tab-nav-btn,
@@ -226,12 +226,12 @@
 }
 
 #custom-block-modal .tab-nav-btn {
-    background-color: #ecf0f1;
-    color: #333;
+    background-color: var(--langchain-light);
+    color: var(--langchain-text);
 }
 
 #custom-block-modal .tab-nav-btn:hover {
-    background-color: #dfe6e9;
+    background-color: var(--langchain-border);
 }
 
 #custom-block-modal .tab-nav-btn:disabled {
@@ -240,13 +240,13 @@
 }
 
 #custom-block-modal .primary-btn {
-    background-color: #3498db;
-    color: white;
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
     font-weight: bold;
 }
 
 #custom-block-modal .primary-btn:hover {
-    background-color: #2980b9;
+    background-color: var(--langchain-primary-hover);
 }
 
 /* Make sure modal is responsive */
