@@ -1254,22 +1254,6 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
         e.dataTransfer.setData('outputNodes', JSON.stringify(outputNodes));
     });
 
-    // Add edit button click handler
-    // const editButton = blockTemplate.querySelector('.edit-parameters-btn');
-    // if (editButton) {
-    //     editButton.addEventListener('click', () => {
-    //         // Make sure custom block handler exists
-    //         if (!customBlockHandler) {
-    //             customBlockHandler = new CustomBlockHandler();
-    //             // Make it globally accessible
-    //             window.customBlockHandler = customBlockHandler;
-    //         }
-
-    //         // Call edit method
-    //         customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
-    //     });
-    // }
-
     // Add event listener for the block-drag-handle to make it editable
     const dragHandle = blockTemplate.querySelector('.block-drag-handle');
     if (dragHandle) {
@@ -1394,26 +1378,6 @@ let customBlockHandler = null;
 
 // Initialize custom blocks when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Create "Add Custom Block" button in blocks menu
-    const blocksMenuHeader = document.querySelector('#blocks-menu .sub-menu-header');
-    if (blocksMenuHeader) {
-        const addCustomBlockBtn = document.createElement('button');
-        addCustomBlockBtn.id = 'add-custom-block-btn';
-        addCustomBlockBtn.className = 'add-block-btn';
-        addCustomBlockBtn.innerHTML = '+ Add Custom Block';
-        blocksMenuHeader.appendChild(addCustomBlockBtn);
-
-        // Add event listener
-        addCustomBlockBtn.addEventListener('click', () => {
-            if (!customBlockHandler) {
-                customBlockHandler = new CustomBlockHandler();
-                // Make it globally accessible
-                window.customBlockHandler = customBlockHandler;
-            }
-            customBlockHandler.showModal();
-        });
-    }
-
     // Load saved custom blocks
     loadCustomBlocks();
 
