@@ -11,6 +11,7 @@
     --langchain-border: #E0E0E0;
     --langchain-error: #dc3545;
     --langchain-warning: #ffc107;
+    --primary-border: #ccc; /* This is the border color for all the blocks */
 }
 
 /* ===== Root Layout ===== */

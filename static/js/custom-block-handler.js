@@ -1242,9 +1242,6 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     blockTemplate.innerHTML = `
         <div class="block-header">
             <div class="block-drag-handle" contenteditable="false">${blockName}</div>
-            <div class="block-actions">
-                <div class="edit-parameters-btn" title="Edit Parameters">E</div>
-            </div>
         </div>
     `;
 
@@ -1258,20 +1255,20 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     });
 
     // Add edit button click handler
-    const editButton = blockTemplate.querySelector('.edit-parameters-btn');
-    if (editButton) {
-        editButton.addEventListener('click', () => {
-            // Make sure custom block handler exists
-            if (!customBlockHandler) {
-                customBlockHandler = new CustomBlockHandler();
-                // Make it globally accessible
-                window.customBlockHandler = customBlockHandler;
-            }
+    // const editButton = blockTemplate.querySelector('.edit-parameters-btn');
+    // if (editButton) {
+    //     editButton.addEventListener('click', () => {
+    //         // Make sure custom block handler exists
+    //         if (!customBlockHandler) {
+    //             customBlockHandler = new CustomBlockHandler();
+    //             // Make it globally accessible
+    //             window.customBlockHandler = customBlockHandler;
+    //         }
 
-            // Call edit method
-            customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
-        });
-    }
+    //         // Call edit method
+    //         customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
+    //     });
+    // }
 
     // Add event listener for the block-drag-handle to make it editable
     const dragHandle = blockTemplate.querySelector('.block-drag-handle');
@@ -1542,9 +1539,6 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         <div class="block-content-wrapper">
             <div class="block-header">
                 <div class="block-drag-handle" contenteditable="true">${className}</div>
-                <div class="block-actions">
-                    <div class="edit-parameters-btn" title="Edit Parameters">E</div>
-                </div>
             </div>
             <div class="node-container">
                 ${inputNodes && inputNodes.length > 0 ?
@@ -1602,18 +1596,18 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     block.appendChild(deleteButton);
 
     // Add event listener for the edit parameters button
-    const editParamsButton = block.querySelector('.edit-parameters-btn');
-    if (editParamsButton) {
-        editParamsButton.addEventListener('click', () => {
-            // Create custom block handler if not already created
-            if (!customBlockHandler) {
-                customBlockHandler = new CustomBlockHandler();
-            }
+    // const editParamsButton = block.querySelector('.edit-parameters-btn');
+    // if (editParamsButton) {
+    //     editParamsButton.addEventListener('click', () => {
+    //         // Create custom block handler if not already created
+    //         if (!customBlockHandler) {
+    //             customBlockHandler = new CustomBlockHandler();
+    //         }
 
-            // Load the block data for editing
-            customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
-        });
-    }
+    //         // Load the block data for editing
+    //         customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
+    //     });
+    // }
 
     // Add event listener for the block-drag-handle to make it editable
     const dragHandle = block.querySelector('.block-drag-handle');
