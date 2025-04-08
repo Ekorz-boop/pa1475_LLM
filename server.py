@@ -9,7 +9,7 @@ from blocks import (
     Block,
 )
 import os
-import sys
+# import sys
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
@@ -416,18 +416,18 @@ def generate_python_code(blocks, connections):
                                         init_code_lines.append(f"{result_var} = []")
                                         # Use raw strings for file paths to avoid issues with Windows backslashes
                                         init_code_lines.append(
-                                            f"# Normalize paths for cross-platform compatibility"
+                                            "# Normalize paths for cross-platform compatibility"
                                         )
                                         init_code_lines.append(
-                                            f"file_paths = [os.path.normpath(p) for p in {param_value}]"
+                                            "file_paths = [os.path.normpath(p) for p in {param_value}]"
                                         )
                                         init_code_lines.append(
-                                            f"for file_path in file_paths:"
+                                            "for file_path in file_paths:"
                                         )
                                         init_code_lines.append(
-                                            f'    print(f"Loading {{file_path}}...")'
+                                            '    print(f"Loading {{file_path}}...")'
                                         )
-                                        init_code_lines.append(f"    try:")
+                                        init_code_lines.append("    try:")
                                         init_code_lines.append(
                                             f"        loader = {class_name}(file_path)"
                                         )
@@ -435,29 +435,29 @@ def generate_python_code(blocks, connections):
                                             f"        {result_var}.extend(loader.load())"
                                         )
                                         init_code_lines.append(
-                                            f'        print(f"Successfully loaded {{file_path}}")'
+                                            '        print(f"Successfully loaded {{file_path}}")'
                                         )
                                         init_code_lines.append(
-                                            f"    except Exception as e:"
+                                            "    except Exception as e:"
                                         )
                                         init_code_lines.append(
-                                            f'        print(f"Error loading {{file_path}}: {{e}}")'
+                                            '        print(f"Error loading {{file_path}}: {{e}}")'
                                         )
 
                                         # Store reference to the first file (if available) for compatibility
                                         init_code_lines.append(
-                                            f"# Create a reference loader with the first file path"
+                                            "# Create a reference loader with the first file path"
                                         )
-                                        init_code_lines.append(f"if file_paths:")
+                                        init_code_lines.append("if file_paths:")
                                         init_code_lines.append(
                                             f"    {var_name} = {class_name}(file_paths[0])"
                                         )
                                         init_code_lines.append(
                                             f"    {var_name}_output = {result_var}"
                                         )
-                                        init_code_lines.append(f"else:")
+                                        init_code_lines.append("else:")
                                         init_code_lines.append(
-                                            f'    print("Warning: No valid file paths provided")'
+                                            '    print("Warning: No valid file paths provided")'
                                         )
 
                                         # Skip adding this parameter since we're handling it specially
