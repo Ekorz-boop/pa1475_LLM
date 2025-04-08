@@ -72,3 +72,28 @@ body {
     filter: brightness(0) invert(1);
 }
 
+.custom-blocks-message {
+    text-align: center;
+    padding: 20px;
+    margin: 10px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.primary-btn {
+    background-color: var(--langchain-primary);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+}
+
+.primary-btn:hover {
+    background-color: var(--langchain-primary-hover);
+}
+

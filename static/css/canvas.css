@@ -87,6 +87,41 @@ html, body {
     user-select: none;
 }
 
+/* Mini Map Styles */
+.mini-map {
+    position: fixed;
+    bottom: 20px;
+    right: 70px;
+    width: 100px;
+    height: 100px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--langchain-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background-size: 10px 10px;
+    background-image: 
+        radial-gradient(circle at 1px 1px, var(--langchain-border) 1px, transparent 0);
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.mini-map-viewport {
+    position: absolute;
+    border: 2px solid var(--langchain-primary);
+    background-color: rgba(0, 166, 126, 0.1);
+    pointer-events: none;
+}
+
+.dark-mode .mini-map {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-color: var(--border-color);
+}
+
+.dark-mode .mini-map-viewport {
+    border-color: var(--langchain-primary);
+    background-color: rgba(0, 166, 126, 0.2);
+}
+
 /* ===== Management Button ===== */
 .management-button {
     padding: 8px 16px;
