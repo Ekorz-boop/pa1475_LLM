@@ -58,18 +58,6 @@
     font-family: 'Open Sans', sans-serif;
 }
 
-/* Adjust block templates for collapsed state */
-.block-template {
-    display: flex;
-    align-items: center;
-    font-family: 'Open Sans', sans-serif;
-}
-
-.block-template .block-drag-handle {
-    white-space: nowrap;
-    overflow: hidden;
-}
-
 .main-menu {
     display: flex;
     flex-direction: column;

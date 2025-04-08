@@ -1236,13 +1236,15 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     blockTemplate.setAttribute('data-block-id', blockId);
     blockTemplate.setAttribute('data-class-name', className);
 
+    let blockName = className;
+
     // Create simplified block structure for the menu
     blockTemplate.innerHTML = `
         <div class="block-header">
-            <div class="block-drag-handle">${className}</div>
-            <button class="edit-parameters-btn" title="Edit Parameters">
-                <i class="fas fa-cog"></i>
-            </button>
+            <div class="block-drag-handle" contenteditable="false">${blockName}</div>
+            <div class="block-actions">
+                <div class="edit-parameters-btn" title="Edit Parameters">E</div>
+            </div>
         </div>
     `;
 
@@ -1268,6 +1270,52 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
 
             // Call edit method
             customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
+        });
+    }
+
+    // Add event listener for the block-drag-handle to make it editable
+    const dragHandle = blockTemplate.querySelector('.block-drag-handle');
+    if (dragHandle) {
+        // Store the original class name as a data attribute
+        dragHandle.setAttribute('data-original-name', className);
+        
+        // Add click event to make it editable
+        dragHandle.addEventListener('click', (e) => {
+            // Only make editable on direct click (not during drag)
+            if (e.target === dragHandle) {
+                dragHandle.focus();
+                // Select all text
+                const range = document.createRange();
+                range.selectNodeContents(dragHandle);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        });
+        
+        // Save the new name when focus is lost
+        dragHandle.addEventListener('blur', () => {
+            const newName = dragHandle.textContent.trim();
+            if (newName && newName !== className) {
+                // Update the block's class name attribute
+                blockTemplate.setAttribute('data-class-name', newName);
+                
+                // Update the className variable for future reference
+                className = newName;
+                
+                // Update the block in sessionStorage
+                updateBlockNameInStorage(blockId, newName);
+                
+                console.log(`Block name changed from "${className}" to "${newName}"`);
+            }
+        });
+        
+        // Prevent drag when editing
+        dragHandle.addEventListener('mousedown', (e) => {
+            // If the user is editing (has focus), don't start dragging
+            if (document.activeElement === dragHandle) {
+                e.stopPropagation();
+            }
         });
     }
 
@@ -1385,7 +1433,13 @@ function updateBlockNodes(blockElement, className, inputNodes, outputNodes) {
     // Update block header with class name
     const dragHandle = blockElement.querySelector('.block-drag-handle');
     if (dragHandle) {
-        dragHandle.textContent = className;
+        // Only update the text content if it's not being edited
+        if (document.activeElement !== dragHandle) {
+            dragHandle.textContent = className;
+        }
+        
+        // Update the data-original-name attribute
+        dragHandle.setAttribute('data-original-name', className);
     }
 
     // Update input nodes
@@ -1487,11 +1541,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     block.innerHTML = `
         <div class="block-content-wrapper">
             <div class="block-header">
-                <div class="block-drag-handle">${className}</div>
+                <div class="block-drag-handle" contenteditable="true">${className}</div>
                 <div class="block-actions">
-                    <button class="edit-parameters-btn" title="Edit Parameters">
-                        <i class="fas fa-cog"></i>
-                    </button>
+                    <div class="edit-parameters-btn" title="Edit Parameters">E</div>
                 </div>
             </div>
             <div class="node-container">
@@ -1499,7 +1551,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                     `<div class="input-node-group">
                         ${inputNodes.map(node =>
                             `<div class="input-node" data-input="${typeof node === 'string' ? node : node.name}">
-                                <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
+                                <div class="tooltip-container">    
+                                    <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
+                                </div>
                             </div>`
                         ).join('')}
                     </div>`
@@ -1509,7 +1563,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                     `<div class="output-node-group">
                         ${outputNodes.map(node =>
                             `<div class="output-node" data-output="${typeof node === 'string' ? node : node.name}">
-                                <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
+                                <div class="tooltip-container">    
+                                    <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
+                                </div>
                             </div>`
                         ).join('')}
                     </div>`
@@ -1517,10 +1573,6 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                 }
             </div>
             <div class="block-content">
-                <div class="custom-block-status">
-                    <div class="status-indicator"></div>
-                    <span class="status">Ready</span>
-                </div>
                 <div class="method-selectors">
                     <select class="method-select" title="Select method to execute">
                         <option value="">Select method...</option>
@@ -1560,6 +1612,45 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
 
             // Load the block data for editing
             customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
+        });
+    }
+
+    // Add event listener for the block-drag-handle to make it editable
+    const dragHandle = block.querySelector('.block-drag-handle');
+    if (dragHandle) {
+        // Store the original class name as a data attribute
+        dragHandle.setAttribute('data-original-name', className);
+        
+        // Add click event to make it editable
+        dragHandle.addEventListener('click', (e) => {
+            // Only make editable on direct click (not during drag)
+            if (e.target === dragHandle) {
+                dragHandle.focus();
+                // Select all text
+                const range = document.createRange();
+                range.selectNodeContents(dragHandle);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        });
+        
+        // Save the new name when focus is lost
+        dragHandle.addEventListener('blur', () => {
+            const newName = dragHandle.textContent.trim();
+            if (newName && newName !== className) {
+                // Update the block's class name attribute
+                block.setAttribute('data-class-name', newName);
+                console.log(`Block name changed from "${className}" to "${newName}"`);
+            }
+        });
+        
+        // Prevent drag when editing
+        dragHandle.addEventListener('mousedown', (e) => {
+            // If the user is editing (has focus), don't start dragging
+            if (document.activeElement === dragHandle) {
+                e.stopPropagation();
+            }
         });
     }
 
@@ -1833,4 +1924,28 @@ function addCustomParameter(block) {
     });
 
     paramsContainer.appendChild(paramRow);
+}
+
+// Function to update a block's name in sessionStorage
+function updateBlockNameInStorage(blockId, newName) {
+    try {
+        // Get existing blocks from sessionStorage
+        const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        
+        // Find the block with matching ID
+        const blockIndex = existingBlocks.findIndex(block => block.id === blockId);
+        
+        if (blockIndex >= 0) {
+            // Update the block's class name
+            existingBlocks[blockIndex].className = newName;
+            
+            // Save back to sessionStorage
+            sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+            console.log(`Updated block name in storage for ${blockId} to "${newName}"`);
+        } else {
+            console.warn(`Block with ID ${blockId} not found in storage`);
+        }
+    } catch (error) {
+        console.error('Error updating block name in storage:', error);
+    }
 }
