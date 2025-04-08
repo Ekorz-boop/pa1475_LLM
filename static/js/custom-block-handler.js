@@ -862,21 +862,36 @@ class CustomBlockHandler {
             // Determine if parameter is required
             const isRequired = param.required;
             const requiredMark = isRequired ? '<span class="required">*</span>' : '';
-
+            
+            // Determine if the parameter is likely a file path
+            const isFilePath = param.name.toLowerCase().includes('file') || 
+                               param.name.toLowerCase().includes('path') || 
+                               (param.type && param.type.toLowerCase().includes('str'));
+            
             // Create input field with parameter details
             html += `
-                <div class="param-row">
+                <div class="param-row ${isFilePath ? 'file-param-row' : ''}">
                     <label for="${methodName}-${param.name}">
                         ${param.name}${requiredMark}:
                         <span class="param-type">${param.type || 'Any'}</span>
                     </label>
-                    <input type="text"
-                        id="${methodName}-${param.name}"
-                        class="param-input"
-                        data-method="${methodName}"
-                        data-param="${param.name}"
-                        value="${storedValue}"
-                        placeholder="${param.default || ''}">
+                    <div class="input-container">
+                        <input type="text"
+                            id="${methodName}-${param.name}"
+                            class="param-input"
+                            data-method="${methodName}"
+                            data-param="${param.name}"
+                            value="${storedValue}"
+                            placeholder="${param.default || ''}">
+                        ${isFilePath ? `
+                        <button type="button" 
+                            class="file-upload-btn" 
+                            data-method="${methodName}" 
+                            data-param="${param.name}"
+                            title="Upload files">
+                            <span>📁</span>
+                        </button>` : ''}
+                    </div>
                     ${param.description ? `<div class="param-description">${param.description}</div>` : ''}
                 </div>
             `;
@@ -2162,6 +2177,16 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     }
     paramNameLabel.textContent = displayName;
 
+    // Check if this parameter might be a file path
+    const isFilePath = paramName.toLowerCase().includes('file') || 
+                       paramName.toLowerCase().includes('path') ||
+                       (paramInfo && paramInfo.type && 
+                        paramInfo.type.toLowerCase().includes('str'));
+
+    // Create input container for file path parameters
+    const inputContainer = document.createElement('div');
+    inputContainer.className = isFilePath ? 'input-container' : '';
+    
     // Create value input
     const valueInput = document.createElement('input');
     valueInput.type = 'text';
@@ -2178,6 +2203,22 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     valueInput.addEventListener('change', () => {
         saveParameterValue(blockId, paramName, valueInput.value);
     });
+
+    // Add the input to the container
+    inputContainer.appendChild(valueInput);
+
+    // Add file upload button for file path parameters
+    if (isFilePath) {
+        const fileUploadBtn = document.createElement('button');
+        fileUploadBtn.type = 'button';
+        fileUploadBtn.className = 'file-upload-btn';
+        fileUploadBtn.title = 'Upload files';
+        fileUploadBtn.setAttribute('data-param', paramName);
+        fileUploadBtn.innerHTML = '<span>📁</span>';
+        
+        inputContainer.appendChild(fileUploadBtn);
+        paramRow.classList.add('file-param-row');
+    }
 
     // Create remove button
     const removeBtn = document.createElement('button');
@@ -2205,7 +2246,7 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
 
     // Add elements to row
     paramRow.appendChild(paramNameLabel);
-    paramRow.appendChild(valueInput);
+    paramRow.appendChild(isFilePath ? inputContainer : valueInput);
     paramRow.appendChild(removeBtn);
     paramRow.appendChild(hiddenNameInput);
 
@@ -2282,3 +2323,357 @@ function addCustomParameter(block) {
     const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
     addEmptyParameterRow(activeParamsContainer);
 }
+
+// Add this code at the end of the file, right before the closing brace of the last function
+
+// Create a namespace for file handling functionality
+const FilePathHandler = {
+    // Store selected files by parameter
+    selectedFiles: {},
+
+    // Initialize event listeners for file upload buttons
+    init() {
+        // Add global event delegation for file upload buttons
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('.file-upload-btn');
+            if (button) {
+                e.preventDefault();
+                
+                // Get the method name and parameter name
+                const methodName = button.getAttribute('data-method') || '__init__';
+                const paramName = button.getAttribute('data-param');
+                
+                // Find the input element - try multiple selectors to ensure we find it
+                let inputElement = null;
+                
+                // First try to find by data attributes
+                if (methodName && paramName) {
+                    inputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+                }
+                
+                // If not found, try to find it within the parameter row
+                if (!inputElement) {
+                    const paramRow = button.closest('.parameter-row');
+                    if (paramRow) {
+                        inputElement = paramRow.querySelector('.param-value') || paramRow.querySelector('input[type="text"]');
+                    }
+                }
+                
+                // Get current value (comma-separated paths)
+                const currentValue = inputElement ? inputElement.value : '';
+                
+                console.log('File upload clicked:', { methodName, paramName, currentValue });
+                
+                // Show file selection modal
+                this.showFileSelectionModal(methodName, paramName, currentValue);
+            }
+        });
+    },
+    
+    // Extract file paths from a string which might contain filenames in various formats
+    // such as "files/file1.pdf", "[files/file1.pdf, files/file2.pdf]", etc.
+    extractFilePaths(inputString) {
+        if (!inputString || typeof inputString !== 'string') {
+            return [];
+        }
+    
+        const paths = [];
+        
+        // Clean up the input string
+        let cleaned = inputString.trim();
+        
+        // Check if it's an array format
+        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+            // Remove brackets and split by commas
+            cleaned = cleaned.substring(1, cleaned.length - 1);
+            const items = cleaned.split(',').map(item => item.trim());
+            
+            for (const item of items) {
+                // Extract file name from various formats
+                let filename = item;
+                
+                // If it looks like "files/filename.ext"
+                if (item.includes('files/')) {
+                    filename = item.substring(item.indexOf('files/') + 6);
+                    // Remove quotes if present
+                    filename = filename.replace(/['"]/g, '');
+                    paths.push(filename);
+                }
+                // If it looks like 'os.path.join("files", "filename.ext")'
+                else if (item.includes('os.path.join') && item.includes('"files"')) {
+                    const match = item.match(/"([^"]+)"(?:\s*\))?$/);
+                    if (match && match[1]) {
+                        paths.push(match[1]);
+                    }
+                }
+                // If it's just a quoted filename
+                else if (item.startsWith('"') || item.startsWith("'")) {
+                    filename = item.substring(1, item.length - 1);
+                    if (!filename.includes('/') && !filename.includes('\\')) {
+                        paths.push(filename);
+                    }
+                }
+            }
+        } 
+        // If it's comma-separated paths like "files/file1.pdf, files/file2.pdf"
+        else if (cleaned.includes(',')) {
+            const items = cleaned.split(',').map(item => item.trim());
+            
+            for (const item of items) {
+                let filename = item;
+                
+                // If it looks like "files/filename.ext"
+                if (item.includes('files/')) {
+                    filename = item.substring(item.indexOf('files/') + 6);
+                    // Remove quotes if present
+                    filename = filename.replace(/['"]/g, '');
+                    paths.push(filename);
+                }
+                // Direct filename (no files/ prefix)
+                else {
+                    // Remove quotes if present
+                    filename = item.replace(/['"]/g, '');
+                    if (filename) {
+                        paths.push(filename);
+                    }
+                }
+            }
+        }
+        // If it's just a single path like "files/filename.ext"
+        else if (cleaned.includes('files/')) {
+            let filename = cleaned.substring(cleaned.indexOf('files/') + 6);
+            // Remove quotes if present
+            filename = filename.replace(/['"]/g, '');
+            paths.push(filename);
+        }
+        // Single filename without files/ prefix
+        else if (cleaned) {
+            // Remove quotes if present
+            const filename = cleaned.replace(/['"]/g, '');
+            if (filename) {
+                paths.push(filename);
+            }
+        }
+        
+        return paths;
+    },
+
+    // Show file selection modal
+    showFileSelectionModal(methodName, paramName, currentValue) {
+        // First check if there's already an open file selection modal and remove it
+        const existingModal = document.querySelector('.file-selection-modal');
+        if (existingModal) {
+            document.body.removeChild(existingModal);
+        }
+    
+        // Generate a unique key for this parameter
+        const paramKey = `${methodName}_${paramName}`;
+        
+        // Store the current input element reference for when we save
+        let targetInputElement = null;
+        
+        // Try to find by data attributes
+        if (methodName && paramName) {
+            targetInputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+        }
+        
+        // Try to find by parameter row
+        if (!targetInputElement) {
+            const paramRows = document.querySelectorAll(`.parameter-row[data-param-name="${paramName}"]`);
+            if (paramRows.length > 0) {
+                targetInputElement = paramRows[0].querySelector('.param-value');
+            }
+        }
+        
+        // Initialize selected files for this parameter if not already done
+        if (!this.selectedFiles[paramKey]) {
+            // Parse any existing files from the current input value
+            const filenames = this.extractFilePaths(currentValue);
+            this.selectedFiles[paramKey] = filenames.map(name => ({ name }));
+        }
+
+        // Create modal markup
+        const modal = document.createElement('div');
+        modal.className = 'file-selection-modal';
+        // Store reference to the target input element
+        modal.dataset.targetInput = paramKey;
+        modal.innerHTML = `
+            <div class="file-selection-content">
+                <div class="file-selection-header">
+                    <h3>Select Files for ${paramName}</h3>
+                    <button class="close-modal">×</button>
+                </div>
+                <div class="file-selection-body">
+                    <div class="file-upload-area">
+                        <p>Drag & drop files here or click to select</p>
+                        <input type="file" id="file-upload-input" multiple style="display: none;">
+                    </div>
+                    <div class="files-container">
+                        <h4>Selected Files</h4>
+                        <ul class="file-list"></ul>
+                    </div>
+                </div>
+                <div class="file-selection-footer">
+                    <button type="button" class="cancel-btn secondary">Cancel</button>
+                    <button type="button" class="save-btn primary">Save</button>
+                </div>
+            </div>
+        `;
+
+        // Add modal to the DOM
+        document.body.appendChild(modal);
+
+        // Get modal elements
+        const closeBtn = modal.querySelector('.close-modal');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        const saveBtn = modal.querySelector('.save-btn');
+        const fileUploadArea = modal.querySelector('.file-upload-area');
+        const fileInput = modal.querySelector('#file-upload-input');
+        const fileList = modal.querySelector('.file-list');
+
+        // Update file list UI
+        this.updateFileList(fileList, paramKey);
+
+        // Add event listeners
+        closeBtn.addEventListener('click', () => this.closeModal(modal));
+        cancelBtn.addEventListener('click', () => this.closeModal(modal));
+        
+        saveBtn.addEventListener('click', () => {
+            // Find the corresponding input element using the stored reference
+            let inputElement = targetInputElement;
+            
+            // If we still can't find it, use more aggressive DOM search
+            if (!inputElement) {
+                // Look for any input that matches this parameter name
+                const allInputs = document.querySelectorAll('input.param-value, input.param-input');
+                for (const input of allInputs) {
+                    const paramAttr = input.getAttribute('data-param');
+                    const paramRow = input.closest('.parameter-row');
+                    const rowParamName = paramRow?.getAttribute('data-param-name');
+                    
+                    if ((paramAttr === paramName) || (rowParamName === paramName)) {
+                        inputElement = input;
+                        break;
+                    }
+                }
+            }
+            
+            if (inputElement) {
+                // Get file paths and make them relative to the 'files' directory
+                const filePaths = this.selectedFiles[paramKey].map(file => 
+                    `files/${file.name}`
+                );
+                
+                // Update input value with comma-space separated file paths
+                // This ensures proper formatting for both visual display and parsing
+                inputElement.value = filePaths.join(', ');
+                
+                // Trigger change event to save the value
+                const event = new Event('change', { bubbles: true });
+                inputElement.dispatchEvent(event);
+                
+                console.log('Updated input with file paths:', inputElement.value);
+            } else {
+                console.warn('Could not find input element to update with file paths');
+            }
+            
+            this.closeModal(modal);
+        });
+
+        // File selection handling
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', () => {
+            const files = fileInput.files;
+            if (files.length > 0) {
+                // Add selected files to the list
+                for (let i = 0; i < files.length; i++) {
+                    // Only store the filename, not the actual file contents
+                    this.selectedFiles[paramKey].push({
+                        name: files[i].name
+                    });
+                }
+                
+                // Update the file list UI
+                this.updateFileList(fileList, paramKey);
+                
+                // Reset the file input
+                fileInput.value = '';
+            }
+        });
+
+        // Drag and drop handling
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('drag-over');
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.classList.remove('drag-over');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                // Add dropped files to the list
+                for (let i = 0; i < files.length; i++) {
+                    this.selectedFiles[paramKey].push({
+                        name: files[i].name
+                    });
+                }
+                
+                // Update the file list UI
+                this.updateFileList(fileList, paramKey);
+            }
+        });
+    },
+
+    // Update the file list UI
+    updateFileList(fileListElement, paramKey) {
+        if (!fileListElement || !this.selectedFiles[paramKey]) return;
+        
+        // Clear the current list
+        fileListElement.innerHTML = '';
+        
+        // Add each file to the list
+        this.selectedFiles[paramKey].forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            li.innerHTML = `
+                <span class="file-name">${file.name}</span>
+                <button type="button" class="remove-file" data-index="${index}">×</button>
+            `;
+            fileListElement.appendChild(li);
+            
+            // Add event listener for remove button
+            li.querySelector('.remove-file').addEventListener('click', () => {
+                this.selectedFiles[paramKey].splice(index, 1);
+                this.updateFileList(fileListElement, paramKey);
+            });
+        });
+        
+        // Show message if no files selected
+        if (this.selectedFiles[paramKey].length === 0) {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            li.innerHTML = '<span class="file-name">No files selected</span>';
+            fileListElement.appendChild(li);
+        }
+    },
+
+    // Close the modal
+    closeModal(modal) {
+        if (modal && modal.parentNode) {
+            document.body.removeChild(modal);
+        }
+    }
+};
+
+// Initialize file handling after DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing file path handler');
+    FilePathHandler.init();
+});

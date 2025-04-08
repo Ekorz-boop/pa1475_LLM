@@ -8,6 +8,8 @@ from blocks import (
     Canvas,
     Block,
 )
+import os
+import sys
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
@@ -277,6 +279,16 @@ def generate_python_code(blocks, connections):
     imports = set()
     init_code_lines = []
     method_code_lines = []
+    
+    # Add common imports
+    imports.add("import os")
+    imports.add("import sys")
+
+    # Check if we need to create files directory
+    has_file_paths = False
+    
+    # Track blocks that have already been initialized with special handling
+    special_init_blocks = set()
 
     # Create variable names for each block
     block_vars = {}
@@ -291,6 +303,15 @@ def generate_python_code(blocks, connections):
         # Add import for this block
         if hasattr(block, "module_path") and block.module_path:
             imports.add(f"from {block.module_path} import {class_name}")
+            
+        # Check if this block uses file paths
+        if hasattr(block, "config") and block.config:
+            # First check for parameters dictionary
+            if "parameters" in block.config and isinstance(block.config["parameters"], dict):
+                for param_name, param_value in block.config["parameters"].items():
+                    if isinstance(param_value, str) and "files/" in param_value:
+                        has_file_paths = True
+                        break
 
     # Build connection maps for easier processing
     connection_map = {}  # source -> [targets]
@@ -327,10 +348,85 @@ def generate_python_code(blocks, connections):
 
                     # Format the value properly
                     if isinstance(param_value, str):
-                        if not (
-                            param_value.startswith(
-                                ("'", '"', "[", "{", "True", "False", "None")
-                            )
+                        # Special handling for file paths
+                        if "files/" in param_value:
+                            # If there are multiple comma-separated paths, handle each one
+                            file_paths = [path.strip() for path in param_value.split(",")]
+                            formatted_paths = []
+                            
+                            for path in file_paths:
+                                if path.startswith("files/"):
+                                    # Make path relative to the files directory
+                                    formatted_paths.append(f'os.path.normpath(os.path.join("files", "{os.path.basename(path)}"))')
+                                elif not (
+                                    path.startswith(("'", '"', "[", "{", "True", "False", "None"))
+                                    or path.isdigit()
+                                ):
+                                    formatted_paths.append(f'"{path}"')
+                                else:
+                                    formatted_paths.append(path)
+                                    
+                            # Join multiple paths if needed
+                            if len(formatted_paths) > 1:
+                                # For common document loaders, use a list of file paths
+                                if ("document_loaders" in class_name.lower() or 
+                                    "loader" in class_name.lower() or 
+                                    hasattr(block, "component_type") and 
+                                    block.component_type == "document_loaders"):
+                                    param_value = f"[{', '.join(formatted_paths)}]"
+                                    
+                                    # Special handling for specific loaders
+                                    if param_name == "file_path" and (
+                                        class_name == "PyPDFLoader" or 
+                                        class_name == "TextLoader" or 
+                                        class_name == "CSVLoader"
+                                    ) and block_id not in special_init_blocks:
+                                        # Mark this block as specially initialized
+                                        special_init_blocks.add(block_id)
+                                        
+                                        # Add extra code for multi-file loading
+                                        init_params = []
+                                        multi_load_comment = f"# Handle multiple files for {class_name}"
+                                        init_code_lines.append(multi_load_comment)
+                                        
+                                        # Find next available variable name
+                                        i = 1
+                                        while f"docs_{i}" in block_vars.values():
+                                            i += 1
+                                        
+                                        result_var = f"docs_{i}"
+                                        
+                                        # Generate code to load multiple documents - ensure path normalization
+                                        init_code_lines.append(f"{result_var} = []")
+                                        # Use raw strings for file paths to avoid issues with Windows backslashes
+                                        init_code_lines.append(f"# Normalize paths for cross-platform compatibility")
+                                        init_code_lines.append(f"file_paths = [os.path.normpath(p) for p in {param_value}]")
+                                        init_code_lines.append(f"for file_path in file_paths:")
+                                        init_code_lines.append(f"    print(f\"Loading {{file_path}}...\")")
+                                        init_code_lines.append(f"    try:")
+                                        init_code_lines.append(f"        loader = {class_name}(file_path)")
+                                        init_code_lines.append(f"        {result_var}.extend(loader.load())")
+                                        init_code_lines.append(f"        print(f\"Successfully loaded {{file_path}}\")")
+                                        init_code_lines.append(f"    except Exception as e:")
+                                        init_code_lines.append(f"        print(f\"Error loading {{file_path}}: {{e}}\")")
+                                        
+                                        # Store reference to the first file (if available) for compatibility
+                                        init_code_lines.append(f"# Create a reference loader with the first file path")
+                                        init_code_lines.append(f"if file_paths:")
+                                        init_code_lines.append(f"    {var_name} = {class_name}(file_paths[0])")
+                                        init_code_lines.append(f"    {var_name}_output = {result_var}")
+                                        init_code_lines.append(f"else:")
+                                        init_code_lines.append(f"    print(\"Warning: No valid file paths provided\")")
+                                        
+                                        # Skip adding this parameter since we're handling it specially
+                                        continue
+                                else:
+                                    # Default behavior for other parameters with multiple values
+                                    param_value = f"[{', '.join(formatted_paths)}]"
+                            else:
+                                param_value = formatted_paths[0]
+                        elif not (
+                            param_value.startswith(("'", '"', "[", "{", "True", "False", "None"))
                             or param_value.isdigit()
                         ):
                             param_value = f'"{param_value}"'
@@ -365,10 +461,11 @@ def generate_python_code(blocks, connections):
 
                 init_params.append(f"{param_name}={param_value}")
 
-        # Add initialization code
-        init_code_lines.append(f"# Initialize {class_name}")
-        init_code_lines.append(f"{var_name} = {class_name}({', '.join(init_params)})")
-
+        # Add initialization code - only if not specially initialized
+        if block_id not in special_init_blocks:
+            init_code_lines.append(f"# Initialize {class_name}")
+            init_code_lines.append(f"{var_name} = {class_name}({', '.join(init_params)})")
+    
     # Track processed methods to avoid duplicates
     processed_methods = {block_id: set() for block_id in blocks}
 
@@ -410,6 +507,10 @@ def generate_python_code(blocks, connections):
         for method_name in methods_to_execute:
             # Skip if this method has already been processed for this block
             if method_name in processed_methods[block_id]:
+                continue
+                
+            # Skip load() method for specially initialized document loaders
+            if method_name == "load" and block_id in special_init_blocks:
                 continue
 
             method_code_lines.append(f"# Execute {method_name} on {class_name}")
@@ -473,6 +574,12 @@ def generate_python_code(blocks, connections):
     for imp in sorted(list(imports)):
         clean_code_lines.append(imp)
     clean_code_lines.append("")
+    
+    # Add files directory creation if needed
+    if has_file_paths:
+        clean_code_lines.append("# Create files directory if it doesn't exist")
+        clean_code_lines.append("os.makedirs('files', exist_ok=True)")
+        clean_code_lines.append("")
 
     # Add initialization code
     clean_code_lines.append("# Initialize components")
