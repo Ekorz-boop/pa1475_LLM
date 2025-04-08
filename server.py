@@ -420,13 +420,13 @@ def generate_python_code(blocks, connections):
                                             "# Normalize paths for cross-platform compatibility"
                                         )
                                         init_code_lines.append(
-                                            "file_paths = [os.path.normpath(p) for p in {param_value}]"
+                                            f"file_paths = [os.path.normpath(p) for p in {param_value}]"
                                         )
                                         init_code_lines.append(
                                             "for file_path in file_paths:"
                                         )
                                         init_code_lines.append(
-                                            '    print(f"Loading {{file_path}}...")'
+                                            '    print(f"Loading {file_path}...")'
                                         )
                                         init_code_lines.append("    try:")
                                         init_code_lines.append(
@@ -436,13 +436,13 @@ def generate_python_code(blocks, connections):
                                             f"        {result_var}.extend(loader.load())"
                                         )
                                         init_code_lines.append(
-                                            '        print(f"Successfully loaded {{file_path}}")'
+                                            '        print(f"Successfully loaded {file_path}")'
                                         )
                                         init_code_lines.append(
                                             "    except Exception as e:"
                                         )
                                         init_code_lines.append(
-                                            '        print(f"Error loading {{file_path}}: {{e}}")'
+                                            '        print(f"Error loading {file_path}: {e}")'
                                         )
 
                                         # Store reference to the first file (if available) for compatibility
