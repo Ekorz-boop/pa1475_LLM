@@ -519,7 +519,6 @@ def generate_python_code(blocks, connections):
                 else f"{var_name}_output"
             )
 
-
             method_code_lines.append(f"# Execute {method_name} on {class_name}")
 
             # Get any parameters specifically for this method from config
