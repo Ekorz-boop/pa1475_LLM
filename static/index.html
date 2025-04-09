@@ -25,21 +25,45 @@
             <button id="open-management">Open System Management</button>
             <button class="close-notification">×</button>
         </div>
+        
+        <!-- Add sidebar toggle button -->
+        <div id="sidebar-toggle">
+            <img src="/static/images/icons/hamburger.svg" alt="Menu">
+        </div>
+        
         <div class="main-content">
             <div id="sidebar">
                 <div class="main-menu">
-                    <div class="menu-item" data-menu="dashboard">
-                        <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
-                        <span>Dashboard</span>
+                    <div class="menu-section">
+                        <div class="menu-item" data-menu="dashboard">
+                            <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
+                            <span>Dashboard</span>
+                        </div>
+                        <div class="menu-item" data-menu="blocks">
+                            <img src="/static/images/icons/Blocks.svg" alt="Blocks">
+                            <span>Blocks</span>
+                        </div>
+                        <div class="menu-item" data-menu="templates">
+                            <img src="/static/images/icons/Templates.svg" alt="Templates">
+                            <span>Templates</span>
+                        </div>
                     </div>
-                    <div class="menu-item" data-menu="blocks">
-                        <img src="/static/images/icons/Blocks.svg" alt="Blocks">
-                        <span>Blocks</span>
+                    
+                    <div class="menu-section">
+                        <div class="section-title">Theme</div>
+                        <div class="theme-options">
+                            <div class="theme-option" data-theme="light" title="Light mode">
+                                <span>☀️</span>
+                            </div>
+                            <div class="theme-option" data-theme="dark" title="Dark mode">
+                                <span>🌙</span>
+                            </div>
+                            <div class="theme-option" data-theme="system" title="System default">
+                                <span>💻</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="menu-item" data-menu="templates">
-                        <img src="/static/images/icons/Templates.svg" alt="Templates">
-                        <span>Templates</span>
-                    </div>
+                    
                     <div class="bottom-menu">
                         <div class="menu-item" id="management-button" data-menu="system">
                             <img src="/static/images/icons/status.svg" alt="System Status">
@@ -66,14 +90,14 @@
                     <div class="canvas-grid"></div>
                     <svg id="connections"></svg>
                 </div>
-                <div class="zoom-controls">
-                    <button class="zoom-button" id="zoom-in">+</button>
-                    <div class="zoom-level">100%</div>
-                    <button class="zoom-button" id="zoom-out">−</button>
-                    <button class="zoom-button" id="zoom-fit">⟲</button>
-                </div>
                 <div class="mini-map">
                     <div class="mini-map-viewport"></div>
+                </div>
+                <div class="zoom-controls">
+                    <button class="zoom-button" id="zoom-out">−</button>
+                    <div class="zoom-level">100%</div>
+                    <button class="zoom-button" id="zoom-in">+</button>
+                    <button class="zoom-button" id="zoom-fit" title="Reset zoom">⟲</button>
                 </div>
             </div>
         </div>
