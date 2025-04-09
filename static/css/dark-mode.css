@@ -180,13 +180,14 @@ body.dark-mode {
 }
 
 .dark-mode #create-custom-block-btn {
-    background-color: var(--secondary-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dark-mode #create-custom-block-btn:hover {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary-hover);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Custom block modal dark mode styles */
@@ -663,13 +664,27 @@ body.dark-mode {
 }
 
 .dark-mode .search-container {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
+}
+
+.dark-mode .search-icon {
+    color: #777;
 }
 
 .dark-mode #block-search {
     background-color: var(--secondary-bg);
     color: var(--text-color);
     border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.dark-mode #block-search:focus {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 2px rgba(0, 166, 126, 0.15);
+}
+
+.dark-mode #block-search::placeholder {
+    color: #777;
 }
 
 .dark-mode .block-template {
