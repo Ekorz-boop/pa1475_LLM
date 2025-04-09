@@ -4,6 +4,7 @@ import importlib
 import inspect
 import pkgutil
 import traceback
+import os
 from blocks import (
     Canvas,
     Block,
@@ -110,150 +111,109 @@ def connect_block_nodes():
 
 @app.route("/api/blocks/export", methods=["POST"])
 def export_blocks():
-    data = request.json
-    output_file = data.get("output_file", "generated_pipeline.py")
-    blocks_data = data.get("blocks", {})
-    connections_data = data.get("connections", [])  # Array of connection objects
-
     try:
-        # Create a temporary Canvas with the blocks from the request
-        temp_canvas = Canvas()
+        data = request.get_json()
+        blocks_data = data.get("blocks", [])
+        connections_data = data.get("connections", [])
+        output_file = data.get("output_file", "generated_pipeline.py")
 
-        # Add blocks from the request
-        for block_id, block_info in blocks_data.items():
-            block_type = block_info.get("type")
-            config = block_info.get("config", {})
+        # Create a temporary canvas to manage the blocks
+        canvas = {"blocks": {}, "connections": []}
 
-            # Create a custom block instance
-            class CustomPipelineBlock(Block):
-                def __init__(self):
-                    super().__init__()
-                    self.block_type = block_type
-                    self.class_name = None  # Will be set properly based on block_type
-                    self.module_path = ""  # Default empty module path
-                    self.config = config
-                    self.component_type = ""  # Default empty component type
-                    self.selected_methods = []
-                    self.parameters = {}  # Store parameter info for methods
+        # CustomPipelineBlock to store block properties
+        class CustomPipelineBlock:
+            def __init__(self, block_id, block_type, config, class_name=None):
+                self.id = block_id
+                self.type = block_type
+                self.config = config.copy() if config else {}
+                self.class_name = class_name
 
-                    # Extract module path and class name from block_type
-                    if block_type.startswith("custom_"):
-                        # Remove 'custom_' prefix to get the full class path
-                        full_class_path = block_type[
-                            7:
-                        ]  # e.g. "langchain_community.llms.OpenAI"
+                # Extract methods from config
+                self.methods = config.get("methods", [])
+                if not self.methods:
+                    # Default fallback if no methods specified
+                    self.methods = ["__init__", "call"]
 
-                        # Split the path to get module and class name
-                        parts = full_class_path.split(".")
-                        if len(parts) > 1:
-                            self.class_name = parts[-1]  # Last part is class name
-                            self.module_path = ".".join(
-                                parts[:-1]
-                            )  # Rest is module path
-                        else:
-                            self.class_name = full_class_path  # If no dots, use as is
-                    else:
-                        # For non-custom blocks, use the block_type as class name
-                        self.class_name = block_type
+                # Make sure __init__ is always included
+                if "__init__" not in self.methods:
+                    self.methods.insert(0, "__init__")
 
-                    # Determine component type based on module path and class name
+                # Determine component type based on class_name or module path
+                self.component_type = ""
+                if class_name:
+                    parts = class_name.split(".")
+                    class_path = ".".join(parts[:-1]) if len(parts) > 1 else ""
+
                     if (
-                        "document_loaders" in self.module_path
-                        or "loader" in self.class_name.lower()
+                        "document_loaders" in class_path
+                        or "loader" in parts[-1].lower()
                     ):
                         self.component_type = "document_loaders"
-                    elif "text_splitters" in self.module_path:
+                    elif "text_splitters" in class_path:
                         self.component_type = "text_splitters"
-                    elif (
-                        "embedding" in self.module_path
-                        or "embed" in self.class_name.lower()
-                    ):
+                    elif "embedding" in class_path or "embed" in parts[-1].lower():
                         self.component_type = "embeddings"
-                    elif "vectorstore" in self.module_path:
+                    elif "vectorstore" in class_path:
                         self.component_type = "vectorstores"
-                    elif "retriever" in self.module_path:
+                    elif "retriever" in class_path:
                         self.component_type = "retrievers"
-                    elif "llm" in self.module_path:
+                    elif "llm" in class_path:
                         self.component_type = "llms"
-                    elif "chat" in self.module_path:
+                    elif "chat" in class_path:
                         self.component_type = "chat_models"
-                    elif "chain" in self.module_path:
+                    elif "chain" in class_path:
                         self.component_type = "chains"
-                    else:
-                        # Default to a generic type
-                        self.component_type = "utility"
 
-                    # Set import string and function string
-                    if self.module_path:
-                        self.import_string = (
-                            f"from {self.module_path} import {self.class_name}"
-                        )
-                    else:
-                        self.import_string = f"# Import for {self.class_name}"
+                # Set the module path for imports
+                if class_name and len(class_name.split(".")) > 1:
+                    parts = class_name.split(".")
+                    self.class_name = parts[-1]  # Last part is the actual class name
+                    self.module_path = ".".join(
+                        parts[:-1]
+                    )  # The rest is the module path
+                else:
+                    self.module_path = ""
 
-                    self.function_string = (
-                        f"# Placeholder for {self.class_name} function"
-                    )
+                # Remove methods from config to avoid duplicating them
+                if "methods" in self.config:
+                    del self.config["methods"]
 
-                    # Extract methods from block info or config
-                    if "methods" in config:
-                        self.selected_methods = config["methods"]
-                    elif "selected_methods" in config:
-                        self.selected_methods = config["selected_methods"]
+        # Initialize blocks
+        for block_data in blocks_data:
+            block_id = block_data.get("id")
+            block_type = block_data.get("type")
+            config = block_data.get("config", {})
+            class_name = block_data.get("className")
 
-                    # Create placeholder for methods list (all available methods)
-                    self.methods = (
-                        list(self.selected_methods) if self.selected_methods else []
-                    )
+            canvas["blocks"][block_id] = CustomPipelineBlock(
+                block_id, block_type, config, class_name
+            )
 
-                    # Always add __init__ to methods if not present
-                    if "__init__" not in self.methods:
-                        self.methods.append("__init__")
+        # Process connections
+        for connection in connections_data:
+            source_id = connection.get("source")
+            target_id = connection.get("target")
 
-                    # Create default parameters for methods
-                    for method in self.methods:
-                        self.parameters[method] = []
-
-                def validate_connections(self) -> bool:
-                    return True
-
-            temp_canvas.add_block(block_id, CustomPipelineBlock())
-
-        # Convert connections array to dictionary format
-        # canvas.connections format: {source_id: [target_id1, target_id2, ...]}
-        canvas_connections = {}
-
-        for conn in connections_data:
-            source_id = conn.get("source")
-            target_id = conn.get("target")
-
+            # Skip invalid connections
             if (
-                source_id
-                and target_id
-                and source_id in temp_canvas.blocks
-                and target_id in temp_canvas.blocks
+                not source_id
+                or not target_id
+                or source_id not in canvas["blocks"]
+                or target_id not in canvas["blocks"]
             ):
-                if source_id not in canvas_connections:
-                    canvas_connections[source_id] = []
-                if target_id not in canvas_connections[source_id]:
-                    canvas_connections[source_id].append(target_id)
+                continue
 
-        # Set the connections on the temp canvas
-        temp_canvas.connections = canvas_connections
+            # Add connection to the list
+            canvas["connections"].append({"source": source_id, "target": target_id})
 
-        # Define the output file path
-        temp_file = output_file
+        # Generate Python code based on blocks and connections
+        generated_code = generate_python_code(canvas["blocks"], canvas["connections"])
 
-        # Export the code - using custom export logic similar to block_sim.py
-        generated_code = generate_python_code(
-            temp_canvas.blocks, temp_canvas.connections
-        )
-
-        # Write the generated code to the file
-        with open(temp_file, "w", encoding="utf-8") as f:
+        # Write to file
+        filepath = os.path.join(os.getcwd(), output_file)
+        with open(filepath, "w") as f:
             f.write(generated_code)
 
-        # Return the code as part of the response
         return jsonify(
             {
                 "status": "success",
@@ -262,6 +222,7 @@ def export_blocks():
                 "file": output_file,
             }
         )
+
     except Exception as e:
         print(f"Export error: {str(e)}")
         traceback.print_exc()
@@ -379,91 +340,126 @@ def generate_python_code(blocks, connections):
         class_name = (
             block.class_name if hasattr(block, "class_name") else type(block).__name__
         )
-        # component_type = (
-        #    block.component_type if hasattr(block, "component_type") else ""
-        # )
 
-        # Get the selected method from config if available
-        selected_method = None
-        if hasattr(block, "config") and block.config:
-            selected_method = block.config.get("selected_method")
-
-        # Get methods for this block (excluding __init__)
+        # Get the methods to execute for this block
         methods_to_execute = []
-        if hasattr(block, "methods"):
-            methods_to_execute = [m for m in block.methods if m != "__init__"]
-        elif hasattr(block, "selected_methods"):
-            methods_to_execute = [m for m in block.selected_methods if m != "__init__"]
+        if hasattr(block, "config") and block.config:
+            if "methods" in block.config and isinstance(block.config["methods"], list):
+                methods_to_execute = block.config["methods"]
+            elif hasattr(block, "methods"):
+                methods_to_execute = list(block.methods)
+            elif hasattr(block, "selected_methods"):
+                methods_to_execute = list(block.selected_methods)
 
-        # If a specific method is selected and valid, prioritize that
-        if selected_method and selected_method != "__init__":
-            # Make sure selected_method is at the start of the list
-            if selected_method in methods_to_execute:
-                methods_to_execute.remove(selected_method)
-            methods_to_execute.insert(0, selected_method)
+        # Filter out __init__ as it's already handled in initialization
+        methods_to_execute = [m for m in methods_to_execute if m != "__init__"]
 
-        # If no methods are available, don't execute any methods
+        # If no methods are specified, skip this block
         if not methods_to_execute:
             continue
 
-        # Execute methods for this block
-        for method_name in methods_to_execute:
+        # Generate code for each method in order
+        for i, method_name in enumerate(methods_to_execute):
             # Skip if this method has already been processed for this block
             if method_name in processed_methods[block_id]:
                 continue
 
+            # Variable to store the output of this method
+            result_var = (
+                f"{var_name}_result_{i+1}"
+                if i < len(methods_to_execute) - 1
+                else f"{var_name}_output"
+            )
+
             method_code_lines.append(f"# Execute {method_name} on {class_name}")
 
-            # If this block has incoming connections, use them as parameters
-            if block_id in reverse_connection_map:
-                source_ids = reverse_connection_map[block_id]
+            # Get any parameters specifically for this method from config
+            method_params = []
+            if hasattr(block, "config") and block.config:
+                # Check for method-specific parameters
+                if "parameters" in block.config and isinstance(
+                    block.config["parameters"], dict
+                ):
+                    for param_name, param_value in block.config["parameters"].items():
+                        # Skip empty values
+                        if param_value == "":
+                            continue
+
+                        # Format the parameter value properly
+                        if isinstance(param_value, str):
+                            if not (
+                                param_value.startswith(
+                                    ("'", '"', "[", "{", "True", "False", "None")
+                                )
+                                or param_value.isdigit()
+                            ):
+                                param_value = f'"{param_value}"'
+
+                        # Add as a keyword argument
+                        method_params.append(f"{param_name}={param_value}")
+
+            # If this is the first method and there are incoming connections
+            if i == 0 and block_id in reverse_connection_map:
                 source_params = []
-                for source_id in source_ids:
+                for source_id in reverse_connection_map[block_id]:
                     source_var = block_vars[source_id]
                     source_params.append(f"{source_var}_output")
 
-                if source_params:
-                    # For methods like load() that typically don't take other blocks' outputs
-                    # We'll handle those specially
-                    if method_name == "load" and (
-                        hasattr(block, "component_type")
-                        and block.component_type == "document_loaders"
-                    ):
+                # Handle special cases for document loaders
+                if method_name == "load" and (
+                    hasattr(block, "component_type")
+                    and block.component_type == "document_loaders"
+                ):
+                    if method_params:
                         method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}()"
+                            f"{result_var} = {var_name}.{method_name}({', '.join(method_params)})"
                         )
-                    # Instead of hardcoded parameter names, use generic parameter passing
                     else:
-                        # Filter out any empty parameters
-                        filtered_params = [
-                            p for p in source_params if p and p.strip() != ""
-                        ]
+                        method_code_lines.append(
+                            f"{result_var} = {var_name}.{method_name}()"
+                        )
+                else:
+                    # Filter out any empty parameters
+                    filtered_params = [
+                        p for p in source_params if p and p.strip() != ""
+                    ]
 
-                        # For methods with only one parameter, try to pass it as the first argument
-                        if len(filtered_params) == 1:
-                            method_code_lines.append(
-                                f"{var_name}_output = {var_name}.{method_name}({filtered_params[0]})"
-                            )
-                        else:
-                            method_code_lines.append(
-                                f"{var_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
-                            )
+                    # Combine positional and keyword parameters
+                    all_params = filtered_params + method_params
+
+                    if all_params:
+                        method_code_lines.append(
+                            f"{result_var} = {var_name}.{method_name}({', '.join(all_params)})"
+                        )
+                    else:
+                        method_code_lines.append(
+                            f"{result_var} = {var_name}.{method_name}()"
+                        )
+            # For subsequent methods, pass the output of the previous method
+            elif i > 0:
+                prev_result_var = f"{var_name}_result_{i}"
+
+                if method_params:
+                    method_code_lines.append(
+                        f"{result_var} = {var_name}.{method_name}({prev_result_var}, {', '.join(method_params)})"
+                    )
                 else:
                     method_code_lines.append(
-                        f"{var_name}_output = {var_name}.{method_name}()"
+                        f"{result_var} = {var_name}.{method_name}({prev_result_var})"
                     )
+            # For first method with no incoming connections
             else:
-                # No incoming connections, call with no parameters
-                method_code_lines.append(
-                    f"{var_name}_output = {var_name}.{method_name}()"
-                )
+                if method_params:
+                    method_code_lines.append(
+                        f"{result_var} = {var_name}.{method_name}({', '.join(method_params)})"
+                    )
+                else:
+                    method_code_lines.append(
+                        f"{result_var} = {var_name}.{method_name}()"
+                    )
 
             # Mark this method as processed
             processed_methods[block_id].add(method_name)
-
-            # If it's the selected method, we can stop after processing it
-            if method_name == selected_method:
-                break
 
     # Collect clean lines for the final code
     clean_code_lines = []
@@ -776,7 +772,6 @@ def list_langchain_classes():
 @app.route("/api/langchain/class_details", methods=["GET"])
 def get_langchain_class_details():
     """Get details about a specific class in LangChain."""
-    # library = request.args.get("library", "langchain")
     module_path = request.args.get("module", "")
     class_name = request.args.get("class_name", "")
 
@@ -784,10 +779,10 @@ def get_langchain_class_details():
     cache_key = f"{module_path}:{class_name}"
 
     # Check cache first
-    cached_result = class_details_cache.get(cache_key)
-    if cached_result:
-        print(f"Using cached details for {cache_key}")
-        return jsonify(cached_result)
+    # cached_result = class_details_cache.get(cache_key)
+    # if cached_result:
+    #    print(f"Using cached details for {cache_key}")
+    #    return jsonify(cached_result)
 
     if not module_path or not class_name:
         return jsonify({"error": "Module and class name are required"}), 400
@@ -828,15 +823,7 @@ def get_langchain_class_details():
         # Get docstring
         docstring = inspect.getdoc(class_obj) or "No documentation available"
 
-        # Define embedding parameter mappings for fixing parameter names
-        embedding_param_mapping = {"embed_documents": "texts", "embed_query": "text"}
-
-        # Special patching for embedding classes to fix parameter names
-        is_embedding_class = (
-            "embedding" in module_path.lower() or "embed" in class_name.lower()
-        )
-
-        # Get methods and patch them if needed
+        # Get methods and their parameters
         methods = []
         method_names = []
 
@@ -852,38 +839,10 @@ def get_langchain_class_details():
                 sig = inspect.signature(method)
                 parameters = []
 
-                # Handle special case for embeddings
-                if (
-                    is_embedding_class
-                    and name in embedding_param_mapping
-                    and "data" in sig.parameters
-                ):
-                    # Create new parameters dictionary with renamed parameter
-                    new_params = {}
-                    for param_name, param in sig.parameters.items():
-                        if param_name == "data":
-                            new_param_name = embedding_param_mapping[name]
-                            new_params[new_param_name] = param.replace(
-                                name=new_param_name
-                            )
-                        else:
-                            new_params[param_name] = param
-
-                    # Use corrected signature with mapped parameter names
-                    sig = sig.replace(parameters=new_params)
-
                 for param_name, param in sig.parameters.items():
                     # Skip self parameter
                     if param_name == "self":
                         continue
-
-                    # Use the correct parameter name for embeddings
-                    if (
-                        is_embedding_class
-                        and param_name == "data"
-                        and name in embedding_param_mapping
-                    ):
-                        param_name = embedding_param_mapping[name]
 
                     param_info = {
                         "name": param_name,
@@ -912,174 +871,11 @@ def get_langchain_class_details():
                 print(f"Error getting signature for {name}: {str(e)}")
                 continue
 
-        # Get init parameters with special handling for document loaders and Pydantic models
+        # Get init parameters without any special handling
         init_params = []
-
-        # Special handling for document loaders - applied before any automatic detection
-        is_document_loader = (
-            "document_loader" in module_path.lower() or "loader" in class_name.lower()
-        )
-
-        # Document loader special cases
-        if is_document_loader:
-            # PyPDFLoader - Override with correct parameters
-            if class_name == "PyPDFLoader":
-                print(f"Applying override parameters for {class_name}")
-                init_params = [
-                    {
-                        "name": "file_path",
-                        "required": True,
-                        "default": None,
-                        "type": "str",
-                    }
-                ]
-                # Return early to skip automatic parameter detection completely
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                # Create result with only the file_path parameter
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                # Cache the result
-                class_details_cache.set(cache_key, result)
-
-                return jsonify(result)
-            # TextLoader
-            elif class_name == "TextLoader":
-                init_params = [
-                    {
-                        "name": "file_path",
-                        "required": True,
-                        "default": None,
-                        "type": "str",
-                    },
-                    {
-                        "name": "encoding",
-                        "required": False,
-                        "default": "utf-8",
-                        "type": "str",
-                    },
-                ]
-                # Return early to skip automatic parameter detection
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                class_details_cache.set(cache_key, result)
-                return jsonify(result)
-            # CSVLoader
-            elif class_name == "CSVLoader":
-                init_params = [
-                    {
-                        "name": "file_path",
-                        "required": True,
-                        "default": None,
-                        "type": "str",
-                    },
-                    {
-                        "name": "csv_args",
-                        "required": False,
-                        "default": "{}",
-                        "type": "dict",
-                    },
-                ]
-                # Return early
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                class_details_cache.set(cache_key, result)
-                return jsonify(result)
-            # WebBaseLoader
-            elif class_name == "WebBaseLoader":
-                init_params = [
-                    {
-                        "name": "web_paths",
-                        "required": True,
-                        "default": None,
-                        "type": "List[str]",
-                    }
-                ]
-                # Return early
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                class_details_cache.set(cache_key, result)
-                return jsonify(result)
-
-        # If no fields found from Pydantic-style inspection, use regular signature inspection
-        if not init_params:
-            # Check if we have special parameter handling for this class
-            if is_document_loader:
-                # No special parameters by default
-                print(f"No special parameters defined for {class_name}")
-            else:
-                # Get the __init__ method signature
-                init_sig = inspect.signature(class_obj.__init__)
-                for param_name, param in init_sig.parameters.items():
-                    # Skip self parameter
-                    if param_name == "self":
-                        continue
-
-                    param_info = {
-                        "name": param_name,
-                        "required": param.default == inspect.Parameter.empty,
-                        "default": (
-                            str(param.default)
-                            if param.default != inspect.Parameter.empty
-                            else None
-                        ),
-                        "type": (
-                            str(param.annotation)
-                            if param.annotation != inspect.Parameter.empty
-                            else "Any"
-                        ),
-                    }
-                    init_params.append(param_info)
-
-        # Get class inheritance to determine type
-        class_type = []
-        try:
-            for base in class_obj.__mro__[1:]:  # Skip the class itself
-                if base.__module__.startswith("langchain"):
-                    class_type.append(base.__name__)
-        except Exception as e:
-            print(f"Error getting class inheritance: {str(e)}")
-
-        # Add component type based on module path
         component_type = ""
+
+        # Identify component type based on module path
         if "document_loaders" in module_path:
             component_type = "document_loaders"
         elif "text_splitters" in module_path:
@@ -1096,6 +892,81 @@ def get_langchain_class_details():
             component_type = "chat_models"
         elif "chain" in module_path:
             component_type = "chains"
+
+        # Always use inspect to get constructor parameters - no hardcoding
+        try:
+            init_sig = inspect.signature(class_obj)
+
+            for param_name, param in init_sig.parameters.items():
+                # Skip self parameter
+                if param_name == "self":
+                    continue
+
+                param_info = {
+                    "name": param_name,
+                    "required": param.default == inspect.Parameter.empty,
+                    "default": (
+                        str(param.default)
+                        if param.default != inspect.Parameter.empty
+                        else None
+                    ),
+                    "type": (
+                        str(param.annotation)
+                        if param.annotation != inspect.Parameter.empty
+                        else "Any"
+                    ),
+                }
+                print(f"Parameter: {param_name}")
+                print(f"  Required: {param_info['required']}")
+                print(f"  Default: {param_info['default']}")
+                print(f"  Type: {param_info['type']}")
+                init_params.append(param_info)
+        except (TypeError, ValueError) as e:
+            print(f"Error getting __init__ signature for {class_name}: {str(e)}")
+
+        # Get class inheritance to determine type
+        class_type = []
+        try:
+            for base in class_obj.__mro__[1:]:  # Skip the class itself
+                if base.__module__.startswith("langchain"):
+                    class_type.append(base.__name__)
+        except Exception as e:
+            print(f"Error getting class inheritance: {str(e)}")
+
+        # If we couldn't determine class type from inheritance, infer from component_type
+        if not class_type and component_type:
+            if component_type == "document_loaders":
+                class_type = ["DocumentLoader"]
+            elif component_type == "text_splitters":
+                class_type = ["TextSplitter"]
+            elif component_type == "embeddings":
+                class_type = ["Embeddings"]
+            # Add more mappings as needed
+
+        # For embedding methods, make sure we have parameters for embed_documents and embed_query
+        if component_type == "embeddings":
+            # Look for the Embeddings methods in the method_details
+            embed_documents_method = next(
+                (m for m in methods if m["name"] == "embed_documents"), None
+            )
+            embed_query_method = next(
+                (m for m in methods if m["name"] == "embed_query"), None
+            )
+
+            # If we found methods but they don't have the right parameter names, fix them
+            if embed_documents_method and not any(
+                p["name"] == "texts" for p in embed_documents_method["parameters"]
+            ):
+                for param in embed_documents_method["parameters"]:
+                    if param["name"] == "data":
+                        param["name"] = "texts"
+
+            if embed_query_method and not any(
+                p["name"] == "text" for p in embed_query_method["parameters"]
+            ):
+                for param in embed_query_method["parameters"]:
+                    if param["name"] == "data":
+                        param["name"] = "text"
 
         result = {
             "doc": docstring,
