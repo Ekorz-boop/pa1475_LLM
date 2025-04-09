@@ -9,7 +9,6 @@ from blocks import (
     Canvas,
     Block,
 )
-import os
 
 # import sys
 
