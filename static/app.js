@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const themeOptions = document.querySelectorAll('.theme-option');
     const mainMenu = document.querySelector('.main-menu');
+    const bgColorOptions = document.querySelectorAll('.bg-color-option');
+    const canvas = document.getElementById('canvas');
 
     // Initialize dark mode
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -152,7 +154,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const canvas = document.getElementById('canvas');
+    // Initialize canvas background color from localStorage
+    const savedBgColor = localStorage.getItem('canvasBgColor') || 'default';
+    canvas.setAttribute('data-bg-color', savedBgColor);
+    
+    // Set active class on the saved background color option
+    if (bgColorOptions) {
+        bgColorOptions.forEach(option => {
+            option.classList.remove('active');
+            if (option.dataset.color === savedBgColor) {
+                option.classList.add('active');
+            }
+        });
+    }
+    
+    // Handle background color option clicks
+    if (bgColorOptions) {
+        bgColorOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const color = option.dataset.color;
+                
+                // Remove active class from all options
+                bgColorOptions.forEach(opt => opt.classList.remove('active'));
+                
+                // Add active class to clicked option
+                option.classList.add('active');
+                
+                // Apply color to canvas
+                canvas.setAttribute('data-bg-color', color);
+                
+                // Save color preference
+                localStorage.setItem('canvasBgColor', color);
+            });
+        });
+    }
+
     const connectionsContainer = document.getElementById('connections');
     const blockTemplates = document.querySelectorAll('.block-template');
     const runAllButton = document.getElementById('run-all');
