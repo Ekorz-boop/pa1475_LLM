@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainMenu = document.querySelector('.main-menu');
 
     // Initialize dark mode
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     const savedTheme = localStorage.getItem('theme') || 'system';
@@ -33,23 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
-
-    // Toggle dark mode
-    darkModeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('dark-mode');
-        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-        
-        // Update theme option active state
-        if (themeOptions) {
-            themeOptions.forEach(option => {
-                option.classList.remove('active');
-                if ((document.body.classList.contains('dark-mode') && option.dataset.theme === 'dark') || 
-                    (!document.body.classList.contains('dark-mode') && option.dataset.theme === 'light')) {
-                    option.classList.add('active');
-                }
-            });
-        }
-    });
     
     // Handle theme option clicks
     if (themeOptions) {
