@@ -909,4 +909,30 @@ body.dark-mode {
 
 .dark-mode #sidebar-toggle img {
     filter: brightness(0) invert(1);
+}
+
+/* Canvas Background Color Preview in Dark Mode */
+.dark-mode .color-preview.default-bg {
+    background-color: var(--bg-dark-default);
+}
+
+.dark-mode .color-preview.white-bg {
+    background-color: var(--bg-dark-gray);
+    border: 1px solid #555;
+}
+
+.dark-mode .color-preview.light-blue-bg {
+    background-color: var(--bg-dark-blue);
+}
+
+.dark-mode .color-preview.light-yellow-bg {
+    background-color: var(--bg-dark-brown);
+}
+
+.dark-mode .color-preview.light-green-bg {
+    background-color: var(--bg-dark-green);
+}
+
+.dark-mode .color-preview.light-purple-bg {
+    background-color: var(--bg-dark-purple);
 } 

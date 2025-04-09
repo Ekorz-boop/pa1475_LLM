@@ -180,12 +180,21 @@ html, body {
 
 /* Canvas Background Colors */
 :root {
+    /* Light mode colors */
     --bg-default: #e8e8e8;
     --bg-white: #ffffff;
     --bg-light-blue: #e6f7ff;
     --bg-light-yellow: #fffbe6;
     --bg-light-green: #e6ffe6;
     --bg-light-purple: #f3e6ff;
+    
+    /* Dark mode colors */
+    --bg-dark-default: #2d2d2d;
+    --bg-dark-gray: #3a3a3a;
+    --bg-dark-blue: #1a2633;
+    --bg-dark-purple: #2d1a33;
+    --bg-dark-green: #1a2e1a;
+    --bg-dark-brown: #332b1a;
 }
 
 #canvas[data-bg-color="default"] {
@@ -210,6 +219,31 @@ html, body {
 
 #canvas[data-bg-color="light-purple"] {
     background-color: var(--bg-light-purple);
+}
+
+/* Dark mode overrides for background colors */
+.dark-mode #canvas[data-bg-color="default"] {
+    background-color: var(--bg-dark-default);
+}
+
+.dark-mode #canvas[data-bg-color="white"] {
+    background-color: var(--bg-dark-gray);
+}
+
+.dark-mode #canvas[data-bg-color="light-blue"] {
+    background-color: var(--bg-dark-blue);
+}
+
+.dark-mode #canvas[data-bg-color="light-yellow"] {
+    background-color: var(--bg-dark-brown);
+}
+
+.dark-mode #canvas[data-bg-color="light-green"] {
+    background-color: var(--bg-dark-green);
+}
+
+.dark-mode #canvas[data-bg-color="light-purple"] {
+    background-color: var(--bg-dark-purple);
 }
 
 /* Background Color Selector Styles */
