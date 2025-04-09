@@ -871,4 +871,10 @@ body.dark-mode {
 
 .dark-mode .model-size {
     color: var(--text-color);
+}
+
+/* Error Toast Dark Mode */
+.dark-mode div.toast.error {
+    background-color: var(--secondary-bg);
+    color: var(--langchain-white);
 } 
