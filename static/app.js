@@ -1,21 +1,105 @@
 document.addEventListener('DOMContentLoaded', () => {
     const menuItems = document.querySelectorAll('.menu-item');
     const subMenus = document.querySelectorAll('.sub-menu');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const themeOptions = document.querySelectorAll('.theme-option');
+    const mainMenu = document.querySelector('.main-menu');
+    const bgColorOptions = document.querySelectorAll('.bg-color-option');
+    const canvas = document.getElementById('canvas');
 
     // Initialize dark mode
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    const savedTheme = localStorage.getItem('theme') || 'system';
     
     // Set initial dark mode state
     if (savedDarkMode || (!localStorage.getItem('darkMode') && prefersDarkMode)) {
         document.body.classList.add('dark-mode');
+        if (themeOptions) {
+            themeOptions.forEach(option => {
+                option.classList.remove('active');
+                if (option.dataset.theme === 'dark') {
+                    option.classList.add('active');
+                }
+            });
+        }
+    } else {
+        if (themeOptions) {
+            themeOptions.forEach(option => {
+                option.classList.remove('active');
+                if (option.dataset.theme === savedTheme) {
+                    option.classList.add('active');
+                }
+            });
+        }
     }
+    
+    // Handle theme option clicks
+    if (themeOptions) {
+        themeOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const theme = option.dataset.theme;
+                
+                // Remove active class from all options
+                themeOptions.forEach(opt => opt.classList.remove('active'));
+                
+                // Add active class to clicked option
+                option.classList.add('active');
+                
+                // Apply theme
+                if (theme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', 'true');
+                } else if (theme === 'light') {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', 'false');
+                } else if (theme === 'system') {
+                    if (prefersDarkMode) {
+                        document.body.classList.add('dark-mode');
+                    } else {
+                        document.body.classList.remove('dark-mode');
+                    }
+                    localStorage.removeItem('darkMode');
+                }
+                
+                localStorage.setItem('theme', theme);
+            });
+        });
+    }
+    
+    // Initialize sidebar state from localStorage
+    const sidebarExpanded = localStorage.getItem('sidebarExpanded') === 'true';
+    if (sidebarExpanded) {
+        sidebar.classList.add('expanded');
+    }
+    
+    // Handle sidebar toggle
+    sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('expanded');
+        // Close all sub-menus when collapsing sidebar
+        if (!sidebar.classList.contains('expanded')) {
+            subMenus.forEach(menu => menu.classList.remove('active'));
+            menuItems.forEach(item => item.classList.remove('active'));
+        }
+        // Save sidebar state
+        localStorage.setItem('sidebarExpanded', sidebar.classList.contains('expanded'));
+    });
 
-    // Toggle dark mode
-    darkModeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('dark-mode');
-        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    // Close sidebar and sub-menus when clicking outside
+    document.addEventListener('click', (e) => {
+        // Check if the click was outside the sidebar and sidebar toggle
+        if (!e.target.closest('.main-menu') && 
+            !e.target.closest('.sub-menu') && 
+            !e.target.closest('#sidebar-toggle')) {
+            // Close sidebar
+            sidebar.classList.remove('expanded');
+            localStorage.setItem('sidebarExpanded', 'false');
+            
+            // Close all sub-menus
+            subMenus.forEach(menu => menu.classList.remove('active'));
+            menuItems.forEach(item => item.classList.remove('active'));
+        }
     });
 
     // Initialize custom block handler
@@ -29,6 +113,12 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // Ensure sidebar is expanded when clicking a menu item
+            if (!sidebar.classList.contains('expanded')) {
+                sidebar.classList.add('expanded');
+                localStorage.setItem('sidebarExpanded', 'true');
+            }
 
             // Remove active class from all menu items
             menuItems.forEach(mi => mi.classList.remove('active'));
@@ -38,34 +128,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const menuType = item.dataset.menu;
             const targetMenu = document.getElementById(`${menuType}-menu`);
-            const sidebar = document.getElementById('sidebar');
 
             // Close all open sub-menus
             subMenus.forEach(menu => {
                 if (menu.classList.contains('active')) {
                     menu.classList.remove('active');
-                    sidebar.classList.remove('menu-active');
                 }
             });
 
             // Open selected sub-menu
             if (targetMenu) {
                 targetMenu.classList.add('active');
-                sidebar.classList.add('menu-active');
+                
+                // Position the sub-menu properly
+                const menuRect = mainMenu.getBoundingClientRect();
+                targetMenu.style.top = `${menuRect.top}px`;
+                
+                // Adjust left position based on sidebar state
+                if (sidebar.classList.contains('expanded')) {
+                    targetMenu.style.left = `${menuRect.right + 10}px`;
+                } else {
+                    targetMenu.style.left = `${menuRect.left}px`;
+                }
             }
         });
     });
 
-    // Close sub-menu when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.sub-menu') && !e.target.closest('.menu-item')) {
-            subMenus.forEach(menu => menu.classList.remove('active'));
-            menuItems.forEach(item => item.classList.remove('active'));
-            document.getElementById('sidebar').classList.remove('menu-active');
-        }
-    });
+    // Initialize canvas background color from localStorage
+    const savedBgColor = localStorage.getItem('canvasBgColor') || 'default';
+    canvas.setAttribute('data-bg-color', savedBgColor);
+    
+    // Set active class on the saved background color option
+    if (bgColorOptions) {
+        bgColorOptions.forEach(option => {
+            option.classList.remove('active');
+            if (option.dataset.color === savedBgColor) {
+                option.classList.add('active');
+            }
+        });
+    }
+    
+    // Handle background color option clicks
+    if (bgColorOptions) {
+        bgColorOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const color = option.dataset.color;
+                
+                // Remove active class from all options
+                bgColorOptions.forEach(opt => opt.classList.remove('active'));
+                
+                // Add active class to clicked option
+                option.classList.add('active');
+                
+                // Apply color to canvas
+                canvas.setAttribute('data-bg-color', color);
+                
+                // Save color preference
+                localStorage.setItem('canvasBgColor', color);
+            });
+        });
+    }
 
-    const canvas = document.getElementById('canvas');
     const connectionsContainer = document.getElementById('connections');
     const blockTemplates = document.querySelectorAll('.block-template');
     const runAllButton = document.getElementById('run-all');

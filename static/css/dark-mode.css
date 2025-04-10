@@ -63,18 +63,16 @@ body.dark-mode {
 /* Canvas specific dark mode styles */
 .dark-mode #canvas {
     background-color: var(--primary-bg);
+}
+
+.dark-mode .canvas-grid {
     background-image: 
-        radial-gradient(rgba(0, 166, 126, 0.2) 1px, transparent 1px),
-        radial-gradient(rgba(0, 166, 126, 0.1) 1px, transparent 1px);
-    background-size: 30px 30px, 15px 15px;
-    background-position: 0 0, 15px 15px;
+        radial-gradient(circle at 1px 1px, rgba(0, 166, 126, 0.5) 2px, transparent 0);
 }
 
 /* Sidebar specific dark mode styles */
 .dark-mode #sidebar {
-    background-color: var(--primary-bg);
-    border-right: 1px solid var(--border-color);
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    background-color: transparent;
 }
 
 .dark-mode .connection-line {
@@ -102,6 +100,7 @@ body.dark-mode {
 }
 
 .dark-mode .menu-item {
+    background-color: transparent;
     color: var(--text-color);
 }
 
@@ -126,12 +125,18 @@ body.dark-mode {
 }
 
 .dark-mode .bottom-menu {
-    border-top: 1px solid var(--border-color);
+    background-color: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark-mode .sub-menu {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 0.85);
+    backdrop-filter: blur(2px);
     border-right: 1px solid var(--border-color);
+}
+
+.dark-mode .sub-menu-header {
+    background-color: transparent;
 }
 
 .dark-mode .sub-menu-header h3 {
@@ -175,13 +180,14 @@ body.dark-mode {
 }
 
 .dark-mode #create-custom-block-btn {
-    background-color: var(--secondary-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dark-mode #create-custom-block-btn:hover {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary-hover);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Custom block modal dark mode styles */
@@ -650,8 +656,7 @@ body.dark-mode {
 
 /* Sidebar Dark Mode */
 .dark-mode #sidebar {
-    background-color: var(--primary-bg);
-    border-right: 1px solid var(--border-color);
+    background-color: transparent;
 }
 
 .dark-mode #sidebar h3 {
@@ -659,13 +664,27 @@ body.dark-mode {
 }
 
 .dark-mode .search-container {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
+}
+
+.dark-mode .search-icon {
+    color: #777;
 }
 
 .dark-mode #block-search {
     background-color: var(--secondary-bg);
     color: var(--text-color);
     border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.dark-mode #block-search:focus {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 2px rgba(0, 166, 126, 0.15);
+}
+
+.dark-mode #block-search::placeholder {
+    color: #777;
 }
 
 .dark-mode .block-template {
@@ -678,11 +697,12 @@ body.dark-mode {
 }
 
 .dark-mode .main-menu {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 0.85);
+    backdrop-filter: blur(2px);
 }
 
 .dark-mode .menu-item {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
     color: var(--text-color);
 }
 
@@ -695,16 +715,18 @@ body.dark-mode {
 }
 
 .dark-mode .sub-menu {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 0.85);
+    backdrop-filter: blur(2px);
     border-right: 1px solid var(--border-color);
 }
 
 .dark-mode .sub-menu.active {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 0.85);
+    display: block;
 }
 
 .dark-mode .sub-menu-header {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
 }
 
 .dark-mode .sub-menu-header h3 {
@@ -712,12 +734,12 @@ body.dark-mode {
 }
 
 .dark-mode .bottom-menu {
-    background-color: var(--primary-bg);
-    border-top: 1px solid var(--border-color);
+    background-color: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark-mode .bottom-menu .menu-item {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
     color: var(--text-color);
 }
 
@@ -877,4 +899,40 @@ body.dark-mode {
 .dark-mode div.toast.error {
     background-color: var(--secondary-bg);
     color: var(--langchain-white);
+}
+
+/* Sidebar toggle dark mode */
+.dark-mode #sidebar-toggle {
+    background-color: var(--primary-bg);
+    border-color: var(--border-color);
+}
+
+.dark-mode #sidebar-toggle img {
+    filter: brightness(0) invert(1);
+}
+
+/* Canvas Background Color Preview in Dark Mode */
+.dark-mode .color-preview.default-bg {
+    background-color: var(--bg-dark-default);
+}
+
+.dark-mode .color-preview.white-bg {
+    background-color: var(--bg-dark-gray);
+    border: 1px solid #555;
+}
+
+.dark-mode .color-preview.light-blue-bg {
+    background-color: var(--bg-dark-blue);
+}
+
+.dark-mode .color-preview.light-yellow-bg {
+    background-color: var(--bg-dark-brown);
+}
+
+.dark-mode .color-preview.light-green-bg {
+    background-color: var(--bg-dark-green);
+}
+
+.dark-mode .color-preview.light-purple-bg {
+    background-color: var(--bg-dark-purple);
 } 

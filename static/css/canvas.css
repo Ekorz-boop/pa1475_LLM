@@ -11,6 +11,7 @@ html, body {
     position: relative;
     flex: 1;
     height: 100vh;
+    width: 100vw;
     background-color: var(--langchain-light);
     overflow: hidden;
     cursor: grab;
@@ -49,60 +50,65 @@ html, body {
     bottom: 20px;
     right: 20px;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
     z-index: 1000;
-    background-color: var(--langchain-white);
-    padding: 5px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    background-color: #f5f5f7;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 6px 8px;
+    font-family: 'Open Sans', sans-serif;
 }
 
 .zoom-button {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     border: none;
-    background-color: var(--langchain-white);
-    border: 1px solid var(--langchain-border);
-    border-radius: 4px;
+    background-color: transparent;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    color: var(--langchain-text);
+    font-size: 16px;
+    color: #666;
     transition: all 0.2s ease;
+    border-radius: 4px;
+    padding: 0;
+    font-weight: bold;
 }
 
 .zoom-button:hover {
-    background-color: var(--langchain-primary-light);
-    color: var(--langchain-primary);
-    border-color: var(--langchain-primary);
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #333;
 }
 
 .zoom-level {
     text-align: center;
-    font-size: 12px;
-    color: var(--langchain-text-light);
+    font-size: 14px;
+    color: #666;
     user-select: none;
+    padding: 0 8px;
+    min-width: 50px;
+    font-weight: 500;
 }
 
 /* Mini Map Styles */
 .mini-map {
     position: fixed;
-    bottom: 20px;
-    right: 70px;
+    bottom: 70px;
+    right: 20px;
     width: 100px;
     height: 100px;
     background-color: rgba(255, 255, 255, 0.8);
     border: 1px solid var(--langchain-border);
-    border-radius: 4px;
+    border-radius: 8px;
     overflow: hidden;
     background-size: 10px 10px;
     background-image: 
         radial-gradient(circle at 1px 1px, var(--langchain-border) 1px, transparent 0);
     z-index: 1000;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .mini-map-viewport {
@@ -120,6 +126,25 @@ html, body {
 .dark-mode .mini-map-viewport {
     border-color: var(--langchain-primary);
     background-color: rgba(0, 166, 126, 0.2);
+}
+
+/* Dark mode styles for zoom controls */
+.dark-mode .zoom-controls {
+    background-color: #2d2d2d;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.dark-mode .zoom-button {
+    color: #ccc;
+}
+
+.dark-mode .zoom-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.dark-mode .zoom-level {
+    color: #ccc;
 }
 
 /* ===== Management Button ===== */
@@ -151,4 +176,127 @@ html, body {
     height: 100vh;
     position: relative;
     /* ... rest of canvas styles remain the same ... */
+}
+
+/* Canvas Background Colors */
+:root {
+    /* Light mode colors */
+    --bg-default: #e8e8e8;
+    --bg-white: #ffffff;
+    --bg-light-blue: #e6f7ff;
+    --bg-light-yellow: #fffbe6;
+    --bg-light-green: #e6ffe6;
+    --bg-light-purple: #f3e6ff;
+    
+    /* Dark mode colors */
+    --bg-dark-default: #2d2d2d;
+    --bg-dark-gray: #3a3a3a;
+    --bg-dark-blue: #1a2633;
+    --bg-dark-purple: #2d1a33;
+    --bg-dark-green: #1a2e1a;
+    --bg-dark-brown: #332b1a;
+}
+
+#canvas[data-bg-color="default"] {
+    background-color: var(--bg-default);
+}
+
+#canvas[data-bg-color="white"] {
+    background-color: var(--bg-white);
+}
+
+#canvas[data-bg-color="light-blue"] {
+    background-color: var(--bg-light-blue);
+}
+
+#canvas[data-bg-color="light-yellow"] {
+    background-color: var(--bg-light-yellow);
+}
+
+#canvas[data-bg-color="light-green"] {
+    background-color: var(--bg-light-green);
+}
+
+#canvas[data-bg-color="light-purple"] {
+    background-color: var(--bg-light-purple);
+}
+
+/* Dark mode overrides for background colors */
+.dark-mode #canvas[data-bg-color="default"] {
+    background-color: var(--bg-dark-default);
+}
+
+.dark-mode #canvas[data-bg-color="white"] {
+    background-color: var(--bg-dark-gray);
+}
+
+.dark-mode #canvas[data-bg-color="light-blue"] {
+    background-color: var(--bg-dark-blue);
+}
+
+.dark-mode #canvas[data-bg-color="light-yellow"] {
+    background-color: var(--bg-dark-brown);
+}
+
+.dark-mode #canvas[data-bg-color="light-green"] {
+    background-color: var(--bg-dark-green);
+}
+
+.dark-mode #canvas[data-bg-color="light-purple"] {
+    background-color: var(--bg-dark-purple);
+}
+
+/* Background Color Selector Styles */
+.bg-color-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.bg-color-option {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s ease;
+}
+
+.bg-color-option.active {
+    border-color: var(--langchain-primary);
+}
+
+.color-preview {
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+}
+
+.color-preview.default-bg {
+    background-color: var(--bg-default);
+}
+
+.color-preview.white-bg {
+    background-color: var(--bg-white);
+    border: 1px solid #e0e0e0;
+}
+
+.color-preview.light-blue-bg {
+    background-color: var(--bg-light-blue);
+}
+
+.color-preview.light-yellow-bg {
+    background-color: var(--bg-light-yellow);
+}
+
+.color-preview.light-green-bg {
+    background-color: var(--bg-light-green);
+}
+
+.color-preview.light-purple-bg {
+    background-color: var(--bg-light-purple);
 }

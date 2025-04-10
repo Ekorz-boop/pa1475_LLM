@@ -25,21 +25,69 @@
             <button id="open-management">Open System Management</button>
             <button class="close-notification">×</button>
         </div>
+        
+        <!-- Add sidebar toggle button -->
+        <div id="sidebar-toggle">
+            <img src="/static/images/icons/hamburger.svg" alt="Menu">
+        </div>
+        
         <div class="main-content">
             <div id="sidebar">
                 <div class="main-menu">
-                    <div class="menu-item" data-menu="dashboard">
-                        <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
-                        <span>Dashboard</span>
+                    <div class="menu-section">
+                        <div class="menu-item" data-menu="dashboard">
+                            <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
+                            <span>Dashboard</span>
+                        </div>
+                        <div class="menu-item" data-menu="blocks">
+                            <img src="/static/images/icons/Blocks.svg" alt="Blocks">
+                            <span>Blocks</span>
+                        </div>
+                        <div class="menu-item" data-menu="templates">
+                            <img src="/static/images/icons/Templates.svg" alt="Templates">
+                            <span>Templates</span>
+                        </div>
                     </div>
-                    <div class="menu-item" data-menu="blocks">
-                        <img src="/static/images/icons/Blocks.svg" alt="Blocks">
-                        <span>Blocks</span>
+                    
+                    <div class="menu-section">
+                        <div class="section-title">Theme</div>
+                        <div class="theme-options">
+                            <div class="theme-option" data-theme="light" title="Light mode">
+                                <span>☀️</span>
+                            </div>
+                            <div class="theme-option" data-theme="dark" title="Dark mode">
+                                <span>🌙</span>
+                            </div>
+                            <div class="theme-option" data-theme="system" title="System default">
+                                <span>💻</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="menu-item" data-menu="templates">
-                        <img src="/static/images/icons/Templates.svg" alt="Templates">
-                        <span>Templates</span>
+                    
+                    <div class="menu-section">
+                        <div class="section-title">Canvas Background</div>
+                        <div class="bg-color-options">
+                            <div class="bg-color-option" data-color="default" title="Default">
+                                <div class="color-preview default-bg"></div>
+                            </div>
+                            <div class="bg-color-option" data-color="white" title="White">
+                                <div class="color-preview white-bg"></div>
+                            </div>
+                            <div class="bg-color-option" data-color="light-blue" title="Light Blue">
+                                <div class="color-preview light-blue-bg"></div>
+                            </div>
+                            <div class="bg-color-option" data-color="light-yellow" title="Light Yellow">
+                                <div class="color-preview light-yellow-bg"></div>
+                            </div>
+                            <div class="bg-color-option" data-color="light-green" title="Light Green">
+                                <div class="color-preview light-green-bg"></div>
+                            </div>
+                            <div class="bg-color-option" data-color="light-purple" title="Light Purple">
+                                <div class="color-preview light-purple-bg"></div>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="bottom-menu">
                         <div class="menu-item" id="management-button" data-menu="system">
                             <img src="/static/images/icons/status.svg" alt="System Status">
@@ -52,9 +100,6 @@
                 <button id="run-all" class="run-button" title="Run Pipeline">
                     <img src="/static/images/icons/run.svg" alt="Run Pipeline">
                 </button>
-                <button id="dark-mode-toggle" class="dark-mode-toggle" title="Toggle Dark Mode">
-                    <img src="/static/images/icons/moon.svg" alt="Dark Mode">
-                </button>
                 <div class="debug-mode-container" title="Enable to run partial pipelines for debugging">
                     <input type="checkbox" id="debug-mode">
                     <label for="debug-mode">Debug Mode</label>
@@ -66,14 +111,14 @@
                     <div class="canvas-grid"></div>
                     <svg id="connections"></svg>
                 </div>
-                <div class="zoom-controls">
-                    <button class="zoom-button" id="zoom-in">+</button>
-                    <div class="zoom-level">100%</div>
-                    <button class="zoom-button" id="zoom-out">−</button>
-                    <button class="zoom-button" id="zoom-fit">⟲</button>
-                </div>
                 <div class="mini-map">
                     <div class="mini-map-viewport"></div>
+                </div>
+                <div class="zoom-controls">
+                    <button class="zoom-button" id="zoom-out">−</button>
+                    <div class="zoom-level">100%</div>
+                    <button class="zoom-button" id="zoom-in">+</button>
+                    <button class="zoom-button" id="zoom-fit" title="Reset zoom">⟲</button>
                 </div>
             </div>
         </div>
@@ -92,6 +137,12 @@
             </div>
             <div class="search-container">
                 <input type="text" id="block-search" placeholder="Search blocks...">
+                <div class="search-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
             </div>
             <div class="block-templates-container">
                 <div class="custom-blocks-message">
