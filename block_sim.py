@@ -1,8 +1,8 @@
-import pkgutil
 import importlib
 import inspect
 import os
-from typing import List, Any, Optional
+import pkgutil
+from typing import Any, List, Optional
 
 # Define RAG pipeline component types
 RAG_COMPONENT_TYPES = {
@@ -610,6 +610,7 @@ class RAGPipelineSimulator:
                 if block.connected_to is not None
                 else ""
             )
+
             print(f"{i+1}. {block}{connection}")
 
         # Select source block

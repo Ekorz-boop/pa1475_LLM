@@ -228,7 +228,7 @@ class CustomBlockHandler {
      */
     closeModal() {
         if (this.modal) {
-            this.modal.style.display = 'none';
+        this.modal.style.display = 'none';
             document.body.style.overflow = ''; // Restore body scrolling
         }
     }
@@ -422,15 +422,15 @@ class CustomBlockHandler {
             }
             const data = await response.json();
 
-            if (data.error) {
+                    if (data.error) {
                 throw new Error(data.error);
             }
 
             // Add classes to select
             data.classes.forEach(className => {
-                const option = document.createElement('option');
-                option.value = className;
-                option.textContent = className;
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = className;
                 classSelect.appendChild(option);
             });
 
@@ -862,21 +862,36 @@ class CustomBlockHandler {
             // Determine if parameter is required
             const isRequired = param.required;
             const requiredMark = isRequired ? '<span class="required">*</span>' : '';
-
+            
+            // Determine if the parameter is likely a file path
+            const isFilePath = param.name.toLowerCase().includes('file') || 
+                               param.name.toLowerCase().includes('path') || 
+                               (param.type && param.type.toLowerCase().includes('str'));
+            
             // Create input field with parameter details
             html += `
-                <div class="param-row">
+                <div class="param-row ${isFilePath ? 'file-param-row' : ''}">
                     <label for="${methodName}-${param.name}">
                         ${param.name}${requiredMark}:
                         <span class="param-type">${param.type || 'Any'}</span>
                     </label>
-                    <input type="text"
-                        id="${methodName}-${param.name}"
-                        class="param-input"
-                        data-method="${methodName}"
-                        data-param="${param.name}"
-                        value="${storedValue}"
-                        placeholder="${param.default || ''}">
+                    <div class="input-container">
+                        <input type="text"
+                            id="${methodName}-${param.name}"
+                            class="param-input"
+                            data-method="${methodName}"
+                            data-param="${param.name}"
+                            value="${storedValue}"
+                            placeholder="${param.default || ''}">
+                        ${isFilePath ? `
+                        <button type="button" 
+                            class="file-upload-btn" 
+                            data-method="${methodName}" 
+                            data-param="${param.name}"
+                            title="Upload files">
+                            <span>📁</span>
+                        </button>` : ''}
+                    </div>
                     ${param.description ? `<div class="param-description">${param.description}</div>` : ''}
                 </div>
             `;
@@ -1023,7 +1038,7 @@ class CustomBlockHandler {
             addCustomBlockToMenu(this.selectedClass, blockId, this.inputNodes, this.outputNodes);
 
             // Save module info for this class
-            saveModuleInfo(this.selectedClass, this.librarySelect.value, this.moduleSelect.value);
+            saveModuleInfo(this.selectedClass, this.librarySelect.value, this.moduleSelect.value, blockId);
 
             // Close the modal
             this.closeModal();
@@ -1242,6 +1257,7 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     blockTemplate.innerHTML = `
         <div class="block-header">
             <div class="block-drag-handle" contenteditable="false">${blockName}</div>
+
         </div>
     `;
 
@@ -1456,32 +1472,58 @@ function updateBlockNodes(blockElement, className, inputNodes, outputNodes) {
 }
 
 // Function to save module info for future edits
-function saveModuleInfo(className, library, module) {
+function saveModuleInfo(className, library, module, blockId = null) {
     // Get existing blocks from sessionStorage
     const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
     // Find the block with matching class name
     const blockIndex = existingBlocks.findIndex(block => block.className === className);
 
-    if (blockIndex >= 0) {
-        // Update existing block's module info
-        existingBlocks[blockIndex].moduleInfo = {
+    const moduleInfo = {
             library: library,
             module: module
         };
+
+    if (blockIndex >= 0) {
+        // Update existing block's module info
+        existingBlocks[blockIndex].moduleInfo = moduleInfo;
+
+        // If a block ID was provided, update it
+        if (blockId && existingBlocks[blockIndex].id !== blockId) {
+            existingBlocks[blockIndex].id = blockId;
+        }
     } else {
         // Create a new entry if block not found
         existingBlocks.push({
             className: className,
-            moduleInfo: {
-                library: library,
-                module: module
-            }
+            id: blockId || `class-${Date.now()}`, // Use provided ID or generate one
+            moduleInfo: moduleInfo
         });
     }
 
     // Save back to sessionStorage
     sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+
+    console.log(`Saved module info for ${className}: ${module}`);
+
+    // Also save to localStorage as a backup
+    try {
+        const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+        const localBlockIndex = localBlocks.findIndex(block => block.className === className);
+
+        if (localBlockIndex >= 0) {
+            localBlocks[localBlockIndex].moduleInfo = moduleInfo;
+        } else {
+            localBlocks.push({
+                className: className,
+                moduleInfo: moduleInfo
+            });
+        }
+
+        localStorage.setItem('customBlocks', JSON.stringify(localBlocks));
+    } catch (e) {
+        console.warn('Failed to save to localStorage:', e);
+    }
 }
 
 // Function to create a custom block on the canvas
@@ -1507,25 +1549,21 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
             <div class="node-container">
                 ${inputNodes && inputNodes.length > 0 ?
                     `<div class="input-node-group">
-                        ${inputNodes.map(node =>
-                            `<div class="input-node" data-input="${typeof node === 'string' ? node : node.name}">
-                                <div class="tooltip-container">    
-                                    <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
-                                </div>
-                            </div>`
-                        ).join('')}
+
+                        ${inputNodes.map(node => {
+                            const nodeName = typeof node === 'string' ? node : node.name;
+                            return `<div class="input-node" data-input="${nodeName}"></div>`;
+                        }).join('')}
+
                     </div>`
                     : ''
                 }
                 ${outputNodes && outputNodes.length > 0 ?
                     `<div class="output-node-group">
-                        ${outputNodes.map(node =>
-                            `<div class="output-node" data-output="${typeof node === 'string' ? node : node.name}">
-                                <div class="tooltip-container">    
-                                    <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
-                                </div>
-                            </div>`
-                        ).join('')}
+                        ${outputNodes.map(node => {
+                            const nodeName = typeof node === 'string' ? node : node.name;
+                            return `<div class="output-node" data-output="${nodeName}"></div>`;
+                        }).join('')}
                     </div>`
                     : ''
                 }
@@ -1615,7 +1653,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     // Populate methods dropdown - pass the original block ID if available for method lookup
     populateMethodsForBlock(block, className, originalBlockId || blockId);
 
-    // Handle method selection change
+        // Handle method selection change
     const methodSelect = block.querySelector('.method-select');
     if (methodSelect) {
         methodSelect.addEventListener('change', () => {
@@ -1629,9 +1667,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         // Handle add parameter button
         const addParamBtn = block.querySelector('.add-param-btn');
         if (addParamBtn) {
-            addParamBtn.addEventListener('click', () => {
-                addCustomParameter(block);
-            });
+        addParamBtn.addEventListener('click', () => {
+            addCustomParameter(block);
+        });
         }
     }
 
@@ -1810,8 +1848,17 @@ function saveMethods(className, methods, blockId = null) {
         if (blockId) {
             // If blockId is provided, update that specific block
             const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
-            if (existingBlockIndex >= 0) {
-                customBlocks[existingBlockIndex].methods = methods;
+        if (existingBlockIndex >= 0) {
+            customBlocks[existingBlockIndex].methods = methods;
+                // Make sure className is also set
+                customBlocks[existingBlockIndex].className = className;
+        } else {
+                // Create new entry with both blockId and className
+            customBlocks.push({
+                    id: blockId,
+                    className: className,
+                    methods: methods
+                });
             }
         } else {
             // If no blockId, update by className (legacy behavior)
@@ -1820,14 +1867,34 @@ function saveMethods(className, methods, blockId = null) {
                 customBlocks[existingBlockIndex].methods = methods;
             } else {
                 customBlocks.push({
-                    className,
-                    methods
+                    id: `class-${Date.now()}`,
+                    className: className,
+                    methods: methods
                 });
             }
         }
 
         sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
         console.log(`Saved methods for ${blockId || className}:`, methods);
+
+        // Also save to localStorage as a backup but only for className (not specific blocks)
+        try {
+            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+            const existingBlockIndex = localBlocks.findIndex(b => b.className === className);
+
+            if (existingBlockIndex >= 0) {
+                localBlocks[existingBlockIndex].methods = methods;
+            } else {
+                localBlocks.push({
+                    className: className,
+                    methods: methods
+                });
+            }
+
+            localStorage.setItem('customBlocks', JSON.stringify(localBlocks));
+        } catch (e) {
+            console.warn('Failed to save methods to localStorage:', e);
+        }
     } catch (error) {
         console.error(`Error saving methods for ${blockId || className}:`, error);
     }
@@ -1840,10 +1907,441 @@ function updateBlockParameters(block, methodName) {
     const paramsContainer = block.querySelector('.block-parameters');
     if (!paramsContainer) return;
 
+    // Store current parameter values before clearing container
+    const currentParams = {};
+    const paramRows = paramsContainer.querySelectorAll('.parameter-row');
+    paramRows.forEach(row => {
+        const nameSelect = row.querySelector('.param-name-select');
+        const nameInput = row.querySelector('.param-name');
+        const valueInput = row.querySelector('.param-value');
+
+        let paramName = '';
+        if (nameSelect && nameSelect.value) {
+            paramName = nameSelect.value;
+        } else if (nameInput && nameInput.value) {
+            paramName = nameInput.value;
+        }
+
+        if (paramName && valueInput) {
+            currentParams[paramName] = valueInput.value;
+        }
+    });
+
     // Clear existing parameters
     paramsContainer.innerHTML = '';
 
-    // Add a default parameter input
+    // Get the class name
+    const className = block.getAttribute('data-class-name');
+    if (!className) return;
+
+    // Get the block ID
+    const blockId = block.id;
+
+    // Find module info for this class
+    let moduleInfo = null;
+
+    // Try to find from sessionStorage first by blockId
+    try {
+        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        const blockData = customBlocks.find(b => b.id === blockId);
+
+        if (blockData && blockData.className === className) {
+            // If we have module info stored with the block
+            if (blockData.moduleInfo) {
+                moduleInfo = blockData.moduleInfo;
+            }
+        }
+    } catch (e) {
+        console.warn('Error fetching module info from sessionStorage:', e);
+    }
+
+    // If not found by blockId, try by className
+    if (!moduleInfo) {
+        try {
+            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+            const blockData = localBlocks.find(b => b.className === className);
+
+            if (blockData && blockData.moduleInfo) {
+                moduleInfo = blockData.moduleInfo;
+            }
+        } catch (e) {
+            console.warn('Error fetching module info from localStorage:', e);
+        }
+    }
+
+    // Get ALL saved parameters for this block from localStorage, not just for the current method
+    let savedMethodParams = {};
+    try {
+        const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+        savedMethodParams = savedParams;
+    } catch (e) {
+        console.warn('Error fetching saved parameters:', e);
+    }
+
+    // If we found module info, try to fetch class details
+    if (moduleInfo && moduleInfo.module) {
+        const library = moduleInfo.library || '';
+        const module = moduleInfo.module;
+
+        // Show loading message
+        const loadingMsg = document.createElement('div');
+        loadingMsg.className = 'loading-parameters';
+        loadingMsg.textContent = 'Loading parameters...';
+        paramsContainer.appendChild(loadingMsg);
+
+        // Fetch class details
+        fetch(`/api/langchain/class_details?library=${library}&module=${module}&class_name=${className}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch class details: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(`Fetched class details for ${className}:`, data);
+
+                // Remove loading message
+                paramsContainer.innerHTML = '';
+
+                // Collect parameters from all methods for complete parameter list
+                let allMethodParams = [];
+
+                // First add init params
+                if (data.init_params) {
+                    allMethodParams = [...data.init_params];
+                }
+
+                // Then add parameters from all methods
+                if (data.method_details) {
+                    data.method_details.forEach(methodDetail => {
+                        if (methodDetail.parameters) {
+                            methodDetail.parameters.forEach(param => {
+                                // Check if this parameter is already in our list
+                                const exists = allMethodParams.some(p => p.name === param.name);
+                                if (!exists && param.name !== 'self') {
+                                    allMethodParams.push(param);
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // Find method details for the current method
+                let methodParams = [];
+
+                if (methodName === '__init__') {
+                    // For constructor, use init_params from class details
+                    if (data.init_params) {
+                        methodParams = data.init_params;
+                    }
+                } else if (data.method_details) {
+                    // For other methods, find the specific method
+                    const methodDetail = data.method_details.find(m => m.name === methodName);
+                    if (methodDetail && methodDetail.parameters) {
+                        methodParams = methodDetail.parameters;
+                    }
+                }
+
+                // Create parameter selection dropdown
+                const paramSelectRow = document.createElement('div');
+                paramSelectRow.className = 'parameter-select-row';
+
+                const paramSelectLabel = document.createElement('label');
+                paramSelectLabel.textContent = 'Add parameter:';
+                paramSelectLabel.className = 'param-select-label';
+
+                const paramSelect = document.createElement('select');
+                paramSelect.className = 'param-select-dropdown';
+
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select parameter...';
+                paramSelect.appendChild(defaultOption);
+
+                // Add available parameters to dropdown
+                allMethodParams.forEach(param => {
+                    if (param.name === 'self') return; // Skip 'self' parameter
+
+                    const option = document.createElement('option');
+                    option.value = param.name;
+
+                    // Show parameter name with type and required status if available
+                    let optionText = param.name;
+                    if (param.type && param.type !== 'Any') {
+                        optionText += ` (${param.type})`;
+                    }
+                    if (param.required) {
+                        optionText += ' *';
+                    }
+                    option.textContent = optionText;
+                    paramSelect.appendChild(option);
+                });
+
+                // Add event listener for parameter selection
+                paramSelect.addEventListener('change', () => {
+                    if (!paramSelect.value) return;
+
+                    // Check if this parameter is already added
+                    const existingParam = paramsContainer.querySelector(`.parameter-row[data-param-name="${paramSelect.value}"]`);
+                    if (existingParam) {
+                        // Highlight the existing parameter briefly
+                        existingParam.classList.add('highlight');
+                        setTimeout(() => {
+                            existingParam.classList.remove('highlight');
+                        }, 1000);
+                        paramSelect.value = '';
+                        return;
+                    }
+
+                    // Find the parameter details
+                    const paramInfo = allMethodParams.find(p => p.name === paramSelect.value);
+                    if (paramInfo) {
+                        // Get value from saved parameters or current params
+                        let savedValue = '';
+                        if (savedMethodParams[paramInfo.name]) {
+                            savedValue = savedMethodParams[paramInfo.name];
+                        } else if (currentParams[paramInfo.name]) {
+                            savedValue = currentParams[paramInfo.name];
+                        }
+
+                        // Add the parameter row
+                        const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId);
+
+                        // Focus on the value input to encourage the user to enter a value
+                        const valueInput = paramRow.querySelector('.param-value');
+                        if (valueInput) {
+                            valueInput.focus();
+                            valueInput.select();
+                        }
+
+                        // Reset dropdown
+                        paramSelect.value = '';
+                    }
+                });
+
+                paramSelectRow.appendChild(paramSelectLabel);
+                paramSelectRow.appendChild(paramSelect);
+                paramsContainer.appendChild(paramSelectRow);
+
+                // Create divider
+                const divider = document.createElement('div');
+                divider.className = 'params-divider';
+                paramsContainer.appendChild(divider);
+
+                // Create parameters container
+                const activeParamsContainer = document.createElement('div');
+                activeParamsContainer.className = 'active-parameters';
+                paramsContainer.appendChild(activeParamsContainer);
+
+                // Create a set of parameters we will display
+                const displayedParams = new Set();
+
+                // First, show parameters for the current method that have values or are required
+                methodParams.forEach(param => {
+                    if (param.name === 'self') return; // Skip 'self' parameter
+
+                    // Check if we have a saved value for this parameter
+                    let hasValue = false;
+                    let savedValue = '';
+
+                    if (savedMethodParams[param.name]) {
+                        hasValue = true;
+                        savedValue = savedMethodParams[param.name];
+                    } else if (currentParams[param.name]) {
+                        hasValue = true;
+                        savedValue = currentParams[param.name];
+                    }
+
+                    // Always show parameters with values
+                    if (hasValue && savedValue.trim() !== '') {
+                        addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
+                        displayedParams.add(param.name);
+                    }
+                });
+
+                // Then show any saved parameters from other methods that have values
+                Object.keys(savedMethodParams).forEach(paramName => {
+                    // Skip if already displayed
+                    if (displayedParams.has(paramName)) return;
+
+                    const savedValue = savedMethodParams[paramName];
+
+                    // If parameter has a value, show it even if it's not part of the current method
+                    if (savedValue && savedValue.trim() !== '') {
+                        // Find parameter info if available
+                        const paramInfo = allMethodParams.find(p => p.name === paramName);
+                        if (paramInfo) {
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, allMethodParams, blockId);
+                            displayedParams.add(paramName);
+                        } else {
+                            // Handle case where param info is not available (fallback)
+                            const genericParams = [{name: paramName, type: 'Any', required: false}];
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, genericParams, blockId);
+                            displayedParams.add(paramName);
+                        }
+                    }
+                });
+
+                // Also show any current parameters with values not in saved params
+                Object.keys(currentParams).forEach(paramName => {
+                    // Skip if already displayed
+                    if (displayedParams.has(paramName)) return;
+
+                    const value = currentParams[paramName];
+
+                    // If parameter has a value, show it
+                    if (value && value.trim() !== '') {
+                        // Find parameter info if available
+                        const paramInfo = allMethodParams.find(p => p.name === paramName);
+                        if (paramInfo) {
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, allMethodParams, blockId);
+                            displayedParams.add(paramName);
+                        } else {
+                            // Handle case where param info is not available (fallback)
+                            const genericParams = [{name: paramName, type: 'Any', required: false}];
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockId);
+                            displayedParams.add(paramName);
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error(`Error fetching parameters for ${className}.${methodName}:`, error);
+
+                // Remove loading message
+                paramsContainer.innerHTML = '';
+
+                // Add a default parameter row as fallback
+                addEmptyParameterRow(paramsContainer);
+            });
+    } else {
+        // If no module info, just add a default parameter row
+        addEmptyParameterRow(paramsContainer);
+    }
+}
+
+// Helper function to add a parameter row with an already selected parameter
+function addParameterRowForMethod(container, paramName, value = '', availableParams = [], blockId = '') {
+    // Create a new parameter row
+    const paramRow = document.createElement('div');
+    paramRow.className = 'parameter-row';
+    paramRow.setAttribute('data-param-name', paramName);
+
+    // Create param name label
+    const paramNameLabel = document.createElement('div');
+    paramNameLabel.className = 'param-name-label';
+
+    // Get parameter info for display
+    let displayName = paramName;
+    const paramInfo = availableParams.find(p => p.name === paramName);
+    if (paramInfo) {
+        if (paramInfo.type && paramInfo.type !== 'Any') {
+            displayName += ` (${paramInfo.type})`;
+        }
+        if (paramInfo.required) {
+            displayName += ' *';
+        }
+    }
+    paramNameLabel.textContent = displayName;
+
+    // Check if this parameter might be a file path
+    const isFilePath = paramName.toLowerCase().includes('file') || 
+                       paramName.toLowerCase().includes('path') ||
+                       (paramInfo && paramInfo.type && 
+                        paramInfo.type.toLowerCase().includes('str'));
+
+    // Create input container for file path parameters
+    const inputContainer = document.createElement('div');
+    inputContainer.className = isFilePath ? 'input-container' : '';
+    
+    // Create value input
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.className = 'param-value';
+    valueInput.placeholder = 'Value';
+    valueInput.value = value;
+
+    // Save value on input instead of just change event to be more responsive
+    valueInput.addEventListener('input', () => {
+        saveParameterValue(blockId, paramName, valueInput.value);
+    });
+
+    // Also keep the change event for compatibility
+    valueInput.addEventListener('change', () => {
+        saveParameterValue(blockId, paramName, valueInput.value);
+    });
+
+    // Add the input to the container
+    inputContainer.appendChild(valueInput);
+
+    // Add file upload button for file path parameters
+    if (isFilePath) {
+        const fileUploadBtn = document.createElement('button');
+        fileUploadBtn.type = 'button';
+        fileUploadBtn.className = 'file-upload-btn';
+        fileUploadBtn.title = 'Upload files';
+        fileUploadBtn.setAttribute('data-param', paramName);
+        fileUploadBtn.innerHTML = '<span>📁</span>';
+        
+        inputContainer.appendChild(fileUploadBtn);
+        paramRow.classList.add('file-param-row');
+    }
+
+    // Create remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-param-btn';
+    removeBtn.innerHTML = '×';
+    removeBtn.addEventListener('click', () => {
+        // When removing, also remove from saved parameters
+        if (blockId) {
+            try {
+                const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+                delete savedParams[paramName];
+                localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+            } catch (e) {
+                console.warn('Error removing saved parameter:', e);
+            }
+        }
+        paramRow.remove();
+    });
+
+    // Add hidden input with parameter name for form submission
+    const hiddenNameInput = document.createElement('input');
+    hiddenNameInput.type = 'hidden';
+    hiddenNameInput.className = 'param-name-select';
+    hiddenNameInput.value = paramName;
+
+    // Add elements to row
+    paramRow.appendChild(paramNameLabel);
+    paramRow.appendChild(isFilePath ? inputContainer : valueInput);
+    paramRow.appendChild(removeBtn);
+    paramRow.appendChild(hiddenNameInput);
+
+    // Add row to container
+    container.appendChild(paramRow);
+
+    // Save the parameter value immediately (even if empty) to track that user has explicitly added it
+    saveParameterValue(blockId, paramName, value);
+
+    return paramRow;
+}
+
+// Helper function to save parameter value
+function saveParameterValue(blockId, paramName, value) {
+    if (blockId) {
+        try {
+            const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+            savedParams[paramName] = value;
+            localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+        } catch (e) {
+            console.warn('Error saving parameter value:', e);
+        }
+    }
+}
+
+// Helper function to add an empty parameter row with text input
+function addEmptyParameterRow(container) {
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
     paramRow.innerHTML = `
@@ -1858,7 +2356,9 @@ function updateBlockParameters(block, methodName) {
         paramRow.remove();
     });
 
-    paramsContainer.appendChild(paramRow);
+
+    container.appendChild(paramRow);
+    return paramRow;
 }
 
 // Function to add a custom parameter to a block
@@ -1866,23 +2366,386 @@ function addCustomParameter(block) {
     const paramsContainer = block.querySelector('.block-parameters');
     if (!paramsContainer) return;
 
-    // Create a new parameter row
-    const paramRow = document.createElement('div');
-    paramRow.className = 'parameter-row';
-    paramRow.innerHTML = `
-        <input type="text" class="param-name" placeholder="Parameter name">
-        <input type="text" class="param-value" placeholder="Value">
-        <button class="remove-param-btn">×</button>
-    `;
+    // Get the parameter select dropdown
+    const paramSelect = paramsContainer.querySelector('.param-select-dropdown');
+    if (paramSelect) {
+        // Show a visual indicator that user should use the dropdown
+        paramSelect.classList.add('highlight');
+        setTimeout(() => {
+            paramSelect.classList.remove('highlight');
+        }, 1000);
 
-    // Add event listener for remove button
-    const removeBtn = paramRow.querySelector('.remove-param-btn');
-    removeBtn.addEventListener('click', () => {
-        paramRow.remove();
-    });
+        // Force focus on the dropdown
+        paramSelect.focus();
 
-    paramsContainer.appendChild(paramRow);
+        // Simulate a click to open the dropdown
+        try {
+            paramSelect.click();
+        } catch (e) {
+            console.warn('Could not automatically open dropdown:', e);
+        }
+
+        return;
+    }
+
+    // Fallback if dropdown isn't found - add a text input parameter row
+    const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
+    addEmptyParameterRow(activeParamsContainer);
 }
+
+// Add this code at the end of the file, right before the closing brace of the last function
+
+// Create a namespace for file handling functionality
+const FilePathHandler = {
+    // Store selected files by parameter
+    selectedFiles: {},
+
+    // Initialize event listeners for file upload buttons
+    init() {
+        // Add global event delegation for file upload buttons
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('.file-upload-btn');
+            if (button) {
+                e.preventDefault();
+                
+                // Get the method name and parameter name
+                const methodName = button.getAttribute('data-method') || '__init__';
+                const paramName = button.getAttribute('data-param');
+                
+                // Find the input element - try multiple selectors to ensure we find it
+                let inputElement = null;
+                
+                // First try to find by data attributes
+                if (methodName && paramName) {
+                    inputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+                }
+                
+                // If not found, try to find it within the parameter row
+                if (!inputElement) {
+                    const paramRow = button.closest('.parameter-row');
+                    if (paramRow) {
+                        inputElement = paramRow.querySelector('.param-value') || paramRow.querySelector('input[type="text"]');
+                    }
+                }
+                
+                // Get current value (comma-separated paths)
+                const currentValue = inputElement ? inputElement.value : '';
+                
+                console.log('File upload clicked:', { methodName, paramName, currentValue });
+                
+                // Show file selection modal
+                this.showFileSelectionModal(methodName, paramName, currentValue);
+            }
+        });
+    },
+    
+    // Extract file paths from a string which might contain filenames in various formats
+    // such as "files/file1.pdf", "[files/file1.pdf, files/file2.pdf]", etc.
+    extractFilePaths(inputString) {
+        if (!inputString || typeof inputString !== 'string') {
+            return [];
+        }
+    
+        const paths = [];
+        
+        // Clean up the input string
+        let cleaned = inputString.trim();
+        
+        // Check if it's an array format
+        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+            // Remove brackets and split by commas
+            cleaned = cleaned.substring(1, cleaned.length - 1);
+            const items = cleaned.split(',').map(item => item.trim());
+            
+            for (const item of items) {
+                // Extract file name from various formats
+                let filename = item;
+                
+                // If it looks like "files/filename.ext"
+                if (item.includes('files/')) {
+                    filename = item.substring(item.indexOf('files/') + 6);
+                    // Remove quotes if present
+                    filename = filename.replace(/['"]/g, '');
+                    paths.push(filename);
+                }
+                // If it looks like 'os.path.join("files", "filename.ext")'
+                else if (item.includes('os.path.join') && item.includes('"files"')) {
+                    const match = item.match(/"([^"]+)"(?:\s*\))?$/);
+                    if (match && match[1]) {
+                        paths.push(match[1]);
+                    }
+                }
+                // If it's just a quoted filename
+                else if (item.startsWith('"') || item.startsWith("'")) {
+                    filename = item.substring(1, item.length - 1);
+                    if (!filename.includes('/') && !filename.includes('\\')) {
+                        paths.push(filename);
+                    }
+                }
+            }
+        } 
+        // If it's comma-separated paths like "files/file1.pdf, files/file2.pdf"
+        else if (cleaned.includes(',')) {
+            const items = cleaned.split(',').map(item => item.trim());
+            
+            for (const item of items) {
+                let filename = item;
+                
+                // If it looks like "files/filename.ext"
+                if (item.includes('files/')) {
+                    filename = item.substring(item.indexOf('files/') + 6);
+                    // Remove quotes if present
+                    filename = filename.replace(/['"]/g, '');
+                    paths.push(filename);
+                }
+                // Direct filename (no files/ prefix)
+                else {
+                    // Remove quotes if present
+                    filename = item.replace(/['"]/g, '');
+                    if (filename) {
+                        paths.push(filename);
+                    }
+                }
+            }
+        }
+        // If it's just a single path like "files/filename.ext"
+        else if (cleaned.includes('files/')) {
+            let filename = cleaned.substring(cleaned.indexOf('files/') + 6);
+            // Remove quotes if present
+            filename = filename.replace(/['"]/g, '');
+            paths.push(filename);
+        }
+        // Single filename without files/ prefix
+        else if (cleaned) {
+            // Remove quotes if present
+            const filename = cleaned.replace(/['"]/g, '');
+            if (filename) {
+                paths.push(filename);
+            }
+        }
+        
+        return paths;
+    },
+
+    // Show file selection modal
+    showFileSelectionModal(methodName, paramName, currentValue) {
+        // First check if there's already an open file selection modal and remove it
+        const existingModal = document.querySelector('.file-selection-modal');
+        if (existingModal) {
+            document.body.removeChild(existingModal);
+        }
+    
+        // Generate a unique key for this parameter
+        const paramKey = `${methodName}_${paramName}`;
+        
+        // Store the current input element reference for when we save
+        let targetInputElement = null;
+        
+        // Try to find by data attributes
+        if (methodName && paramName) {
+            targetInputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+        }
+        
+        // Try to find by parameter row
+        if (!targetInputElement) {
+            const paramRows = document.querySelectorAll(`.parameter-row[data-param-name="${paramName}"]`);
+            if (paramRows.length > 0) {
+                targetInputElement = paramRows[0].querySelector('.param-value');
+            }
+        }
+        
+        // Initialize selected files for this parameter if not already done
+        if (!this.selectedFiles[paramKey]) {
+            // Parse any existing files from the current input value
+            const filenames = this.extractFilePaths(currentValue);
+            this.selectedFiles[paramKey] = filenames.map(name => ({ name }));
+        }
+
+        // Create modal markup
+        const modal = document.createElement('div');
+        modal.className = 'file-selection-modal';
+        // Store reference to the target input element
+        modal.dataset.targetInput = paramKey;
+        modal.innerHTML = `
+            <div class="file-selection-content">
+                <div class="file-selection-header">
+                    <h3>Select Files for ${paramName}</h3>
+                    <button class="close-modal">×</button>
+                </div>
+                <div class="file-selection-body">
+                    <div class="file-upload-area">
+                        <p>Drag & drop files here or click to select</p>
+                        <input type="file" id="file-upload-input" multiple style="display: none;">
+                    </div>
+                    <div class="files-container">
+                        <h4>Selected Files</h4>
+                        <ul class="file-list"></ul>
+                    </div>
+                </div>
+                <div class="file-selection-footer">
+                    <button type="button" class="cancel-btn secondary">Cancel</button>
+                    <button type="button" class="save-btn primary">Save</button>
+                </div>
+            </div>
+        `;
+
+        // Add modal to the DOM
+        document.body.appendChild(modal);
+
+        // Get modal elements
+        const closeBtn = modal.querySelector('.close-modal');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        const saveBtn = modal.querySelector('.save-btn');
+        const fileUploadArea = modal.querySelector('.file-upload-area');
+        const fileInput = modal.querySelector('#file-upload-input');
+        const fileList = modal.querySelector('.file-list');
+
+        // Update file list UI
+        this.updateFileList(fileList, paramKey);
+
+        // Add event listeners
+        closeBtn.addEventListener('click', () => this.closeModal(modal));
+        cancelBtn.addEventListener('click', () => this.closeModal(modal));
+        
+        saveBtn.addEventListener('click', () => {
+            // Find the corresponding input element using the stored reference
+            let inputElement = targetInputElement;
+            
+            // If we still can't find it, use more aggressive DOM search
+            if (!inputElement) {
+                // Look for any input that matches this parameter name
+                const allInputs = document.querySelectorAll('input.param-value, input.param-input');
+                for (const input of allInputs) {
+                    const paramAttr = input.getAttribute('data-param');
+                    const paramRow = input.closest('.parameter-row');
+                    const rowParamName = paramRow?.getAttribute('data-param-name');
+                    
+                    if ((paramAttr === paramName) || (rowParamName === paramName)) {
+                        inputElement = input;
+                        break;
+                    }
+                }
+            }
+            
+            if (inputElement) {
+                // Get file paths and make them relative to the 'files' directory
+                const filePaths = this.selectedFiles[paramKey].map(file => 
+                    `files/${file.name}`
+                );
+                
+                // Update input value with comma-space separated file paths
+                // This ensures proper formatting for both visual display and parsing
+                inputElement.value = filePaths.join(', ');
+                
+                // Trigger change event to save the value
+                const event = new Event('change', { bubbles: true });
+                inputElement.dispatchEvent(event);
+                
+                console.log('Updated input with file paths:', inputElement.value);
+            } else {
+                console.warn('Could not find input element to update with file paths');
+            }
+            
+            this.closeModal(modal);
+        });
+
+        // File selection handling
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', () => {
+            const files = fileInput.files;
+            if (files.length > 0) {
+                // Add selected files to the list
+                for (let i = 0; i < files.length; i++) {
+                    // Only store the filename, not the actual file contents
+                    this.selectedFiles[paramKey].push({
+                        name: files[i].name
+                    });
+                }
+                
+                // Update the file list UI
+                this.updateFileList(fileList, paramKey);
+                
+                // Reset the file input
+                fileInput.value = '';
+            }
+        });
+
+        // Drag and drop handling
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('drag-over');
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.classList.remove('drag-over');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                // Add dropped files to the list
+                for (let i = 0; i < files.length; i++) {
+                    this.selectedFiles[paramKey].push({
+                        name: files[i].name
+                    });
+                }
+                
+                // Update the file list UI
+                this.updateFileList(fileList, paramKey);
+            }
+        });
+    },
+
+    // Update the file list UI
+    updateFileList(fileListElement, paramKey) {
+        if (!fileListElement || !this.selectedFiles[paramKey]) return;
+        
+        // Clear the current list
+        fileListElement.innerHTML = '';
+        
+        // Add each file to the list
+        this.selectedFiles[paramKey].forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            li.innerHTML = `
+                <span class="file-name">${file.name}</span>
+                <button type="button" class="remove-file" data-index="${index}">×</button>
+            `;
+            fileListElement.appendChild(li);
+            
+            // Add event listener for remove button
+            li.querySelector('.remove-file').addEventListener('click', () => {
+                this.selectedFiles[paramKey].splice(index, 1);
+                this.updateFileList(fileListElement, paramKey);
+            });
+        });
+        
+        // Show message if no files selected
+        if (this.selectedFiles[paramKey].length === 0) {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            li.innerHTML = '<span class="file-name">No files selected</span>';
+            fileListElement.appendChild(li);
+        }
+    },
+
+    // Close the modal
+    closeModal(modal) {
+        if (modal && modal.parentNode) {
+            document.body.removeChild(modal);
+        }
+    }
+};
+
+// Initialize file handling after DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing file path handler');
+    FilePathHandler.init();
+});
 
 // Function to update a block's name in sessionStorage
 function updateBlockNameInStorage(blockId, newName) {
@@ -1907,3 +2770,4 @@ function updateBlockNameInStorage(blockId, newName) {
         console.error('Error updating block name in storage:', error);
     }
 }
+

@@ -299,12 +299,14 @@ class Canvas:
         # Collect all imports
         imports = set()
         for block in self.blocks.values():
-            imports.add(block.import_string)
+            if hasattr(block, "import_string"):
+                imports.add(block.import_string)
 
         # Collect all functions
         functions = []
         for block in self.blocks.values():
-            functions.append(block.function_string)
+            if hasattr(block, "function_string"):
+                functions.append(block.function_string)
 
         # Create the main execution flow
         execution_order = self._determine_execution_order()
@@ -325,10 +327,7 @@ class Canvas:
             f.write("if __name__ == '__main__':\n")
             f.write("    print('Welcome to the RAG Pipeline Application!')\n")
             f.write(
-                "    print('This application will help you analyze a PDF document using AI.')\n"
-            )
-            f.write(
-                "    print('You will be prompted to provide the path to your PDF file.')\n"
+                "    print('This application will help you analyze documents using AI.')\n"
             )
             f.write("    print()\n")
             f.write(main_code)
@@ -378,25 +377,43 @@ class Canvas:
                 source_block = self.blocks[source_id]
                 target_block = self.blocks[target_id]
 
-                if isinstance(target_block, TextSplitterBlock) and isinstance(
-                    source_block, PDFLoaderBlock
+                # Handle custom blocks
+                if hasattr(target_block, "input_nodes") and hasattr(
+                    source_block, "output_nodes"
                 ):
-                    input_map[target_id]["documents"] = source_id
-                elif isinstance(target_block, VectorStoreBlock):
-                    if isinstance(source_block, TextSplitterBlock):
-                        input_map[target_id]["documents"] = source_id
-                    elif isinstance(source_block, EmbeddingBlock):
-                        input_map[target_id]["embeddings"] = source_id
-                elif isinstance(target_block, RAGPromptBlock):
-                    if isinstance(source_block, ChatModelBlock):
-                        input_map[target_id]["llm"] = source_id
-                    elif isinstance(source_block, VectorStoreBlock):
-                        input_map[target_id]["vectorstore"] = source_id
+                    # Map output nodes to input nodes based on connection
+                    for i, output_node in enumerate(source_block.output_nodes):
+                        if i < len(target_block.input_nodes):
+                            input_map[target_id][
+                                target_block.input_nodes[i]
+                            ] = source_id
 
         for block_id in execution_order:
             block = self.blocks[block_id]
 
-            if isinstance(block, PDFLoaderBlock):
+            # Handle custom blocks
+            if hasattr(block, "class_name") and hasattr(block, "methods"):
+                # Get the function name based on class name
+                func_name = f"create_{block.class_name.lower()}"
+
+                # Get input parameters from connected blocks
+                params = []
+                if block_id in input_map:
+                    for input_node in block.input_nodes:
+                        if input_node in input_map[block_id]:
+                            source_id = input_map[block_id][input_node]
+                            if source_id in results:
+                                params.append(results[source_id])
+
+                # Add the function call
+                code_lines.append(f"    # Create {block.class_name}")
+                code_lines.append(
+                    f"    {block_id}_result = {func_name}({', '.join(params)})"
+                )
+                results[block_id] = f"{block_id}_result"
+
+            # Handle standard blocks
+            elif isinstance(block, PDFLoaderBlock):
                 code_lines.append("    # Load PDF")
                 code_lines.append(
                     f"    {block_id}_result = load_pdf('your_pdf_file.pdf')"
@@ -424,7 +441,6 @@ class Canvas:
                 results[block_id] = f"{block_id}_result"
 
             elif isinstance(block, VectorStoreBlock):
-                # Make sure we have both document chunks and embeddings
                 if (
                     block_id in input_map
                     and "documents" in input_map[block_id]
@@ -441,7 +457,6 @@ class Canvas:
                     code_lines.append(
                         "    # WARNING: VectorStoreBlock missing required inputs"
                     )
-                    # Create empty placeholder
                     if "documents" not in input_map.get(block_id, {}):
                         code_lines.append("    # Missing document chunks input")
                     if "embeddings" not in input_map.get(block_id, {}):
@@ -476,9 +491,12 @@ class Canvas:
                         code_lines.append("    # Missing vectorstore input")
                     results[block_id] = "None # Placeholder for missing RAG chain"
 
-        # Add some debug info
-        code_lines.append("\n    # Print completion message with debug info")
-        code_lines.append('    print("\\n✅ Pipeline execution complete!")')
+        # Add final result printing
+        if results:
+            last_block_id = execution_order[-1]
+            code_lines.append("\n    # Print final result")
+            code_lines.append(f"    print('\\nFinal result from {last_block_id}:')")
+            code_lines.append(f"    print({results[last_block_id]})")
 
         return "\n".join(code_lines)
 
