@@ -11,7 +11,7 @@ html, body {
     position: relative;
     flex: 1;
     height: 100vh;
-    background-color: #fafafa;  /* Egg white */
+    background-color: var(--langchain-light);
     overflow: hidden;
     cursor: grab;
 }
@@ -38,7 +38,7 @@ html, body {
     pointer-events: none;
     background-size: 40px 40px;
     background-image: 
-        radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.2) 2px, transparent 0);
+        radial-gradient(circle at 1px 1px, var(--langchain-border) 2px, transparent 0);
     z-index: 1;
 }
 
@@ -52,7 +52,7 @@ html, body {
     flex-direction: column;
     gap: 5px;
     z-index: 1000;
-    background-color: white;
+    background-color: var(--langchain-white);
     padding: 5px;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
@@ -62,34 +62,71 @@ html, body {
     width: 30px;
     height: 30px;
     border: none;
-    background-color: #fff;
-    border: 1px solid #ccc;
+    background-color: var(--langchain-white);
+    border: 1px solid var(--langchain-border);
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 18px;
-    color: #333;
+    color: var(--langchain-text);
     transition: all 0.2s ease;
 }
 
 .zoom-button:hover {
-    background-color: #f0f0f0;
+    background-color: var(--langchain-primary-light);
+    color: var(--langchain-primary);
+    border-color: var(--langchain-primary);
 }
 
 .zoom-level {
     text-align: center;
     font-size: 12px;
-    color: #666;
+    color: var(--langchain-text-light);
     user-select: none;
+}
+
+/* Mini Map Styles */
+.mini-map {
+    position: fixed;
+    bottom: 20px;
+    right: 70px;
+    width: 100px;
+    height: 100px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--langchain-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background-size: 10px 10px;
+    background-image: 
+        radial-gradient(circle at 1px 1px, var(--langchain-border) 1px, transparent 0);
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.mini-map-viewport {
+    position: absolute;
+    border: 2px solid var(--langchain-primary);
+    background-color: rgba(0, 166, 126, 0.1);
+    pointer-events: none;
+}
+
+.dark-mode .mini-map {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-color: var(--border-color);
+}
+
+.dark-mode .mini-map-viewport {
+    border-color: var(--langchain-primary);
+    background-color: rgba(0, 166, 126, 0.2);
 }
 
 /* ===== Management Button ===== */
 .management-button {
     padding: 8px 16px;
-    background-color: #007bff;
-    color: white;
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -100,7 +137,7 @@ html, body {
 }
 
 .management-button:hover {
-    background-color: #0056b3;
+    background-color: var(--langchain-primary-hover);
 }
 
 /* Update canvas layout */

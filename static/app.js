@@ -2,6 +2,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuItems = document.querySelectorAll('.menu-item');
     const subMenus = document.querySelectorAll('.sub-menu');
 
+    // Initialize dark mode
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    
+    // Set initial dark mode state
+    if (savedDarkMode || (!localStorage.getItem('darkMode') && prefersDarkMode)) {
+        document.body.classList.add('dark-mode');
+    }
+
+    // Toggle dark mode
+    darkModeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    });
+
     // Initialize custom block handler
     const customBlockHandler = new CustomBlockHandler();
 
@@ -1162,6 +1178,32 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasContainer.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${zoom})`;
         zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
         updateConnections();
+        
+        // Update miniature map viewport
+        const miniMap = document.querySelector('.mini-map');
+        const miniMapViewport = document.querySelector('.mini-map-viewport');
+        if (miniMap && miniMapViewport) {
+            const canvasWidth = 10000; // Total canvas width
+            const canvasHeight = 10000; // Total canvas height
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Calculate the scale factor for the miniature map
+            const scaleX = miniMap.offsetWidth / canvasWidth;
+            const scaleY = miniMap.offsetHeight / canvasHeight;
+            
+            // Calculate the viewport position and size in the miniature map
+            const viewportX = (-currentTranslate.x / zoom) * scaleX;
+            const viewportY = (-currentTranslate.y / zoom) * scaleY;
+            const viewportWidthScaled = (viewportWidth / zoom) * scaleX;
+            const viewportHeightScaled = (viewportHeight / zoom) * scaleY;
+            
+            // Update the viewport rectangle
+            miniMapViewport.style.left = `${viewportX}px`;
+            miniMapViewport.style.top = `${viewportY}px`;
+            miniMapViewport.style.width = `${viewportWidthScaled}px`;
+            miniMapViewport.style.height = `${viewportHeightScaled}px`;
+        }
     }
 
     // System Management Panel
