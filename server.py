@@ -1201,7 +1201,7 @@ def get_langchain_class_details():
                 print(f"No special parameters defined for {class_name}")
             else:
                 # Get the __init__ method signature
-                init_sig = inspect.signature(class_obj.__init__)
+                init_sig = inspect.signature(class_obj)
                 for param_name, param in init_sig.parameters.items():
                     # Skip self parameter
                     if param_name == "self":
