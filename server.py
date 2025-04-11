@@ -801,10 +801,15 @@ def list_langchain_classes():
     """List available classes within a LangChain module."""
     module_path = request.args.get("module", "langchain_community.document_loaders")
 
+    # Add debug logging
+    print(f"DEBUG: Received request for classes in module: {module_path}")
+
     # Check cache first
     cached_result = module_classes_cache.get(module_path)
     if cached_result:
-        print(f"Using cached classes for {module_path}")
+        print(
+            f"DEBUG: Using cached classes for {module_path}: {len(cached_result)} classes found"
+        )
         return jsonify({"classes": cached_result})
 
     try:
@@ -828,11 +833,12 @@ def list_langchain_classes():
 
             # Sort and cache the results
             classes = sorted(classes)
-            print(f"Found {len(classes)} classes in {module_path}")
+            print(f"DEBUG: Found {len(classes)} classes in {module_path}")
             module_classes_cache.set(module_path, classes)
             return jsonify({"classes": classes})
 
         # Import the base package
+        print(f"DEBUG: Attempting to import base module {module_path}")
         module = importlib.import_module(module_path)
         classes = []
 
@@ -841,11 +847,12 @@ def list_langchain_classes():
         try:
             # Check if module has __path__ attribute (indicating it's a package)
             if hasattr(module, "__path__"):
-                print(f"Scanning submodules in {module_path}")
+                print(f"DEBUG: Scanning submodules in {module_path}")
                 # Get all modules in the package (both modules and packages)
                 for finder, name, ispkg in pkgutil.iter_modules(module.__path__):
                     submodule_name = f"{module_path}.{name}"
                     submodules.append(submodule_name)
+                    print(f"DEBUG: Found submodule: {submodule_name}")
 
                     # If this is a frequently used module, look deeper
                     if name in [
@@ -862,23 +869,35 @@ def list_langchain_classes():
                                     sub_name,
                                     sub_ispkg,
                                 ) in pkgutil.iter_modules(sub.__path__):
-                                    submodules.append(f"{submodule_name}.{sub_name}")
-                        except ImportError:
+                                    nested_submodule = f"{submodule_name}.{sub_name}"
+                                    submodules.append(nested_submodule)
+                                    print(
+                                        f"DEBUG: Found nested submodule: {nested_submodule}"
+                                    )
+                        except ImportError as e:
+                            print(
+                                f"DEBUG: ImportError scanning nested submodule {submodule_name}: {str(e)}"
+                            )
                             pass
         except Exception as e:
-            print(f"Error scanning submodules: {str(e)}")
+            print(f"DEBUG: Error scanning submodules: {str(e)}")
 
         # Add the module itself to the list of modules to check
         modules_to_check = [module_path] + submodules
 
-        print(f"Found {len(modules_to_check)} modules/submodules to check for classes")
+        print(
+            f"DEBUG: Found {len(modules_to_check)} modules/submodules to check for classes"
+        )
+        print(f"DEBUG: Modules to check: {modules_to_check}")
 
         # Check each module for classes
         for mod_path in modules_to_check:
             try:
+                print(f"DEBUG: Importing module {mod_path}")
                 mod = importlib.import_module(mod_path)
 
                 # Get all attributes in the module that are classes
+                module_classes = []
                 for name, attr in inspect.getmembers(mod, inspect.isclass):
                     # Skip private attributes and avoid duplicates
                     if name.startswith("_") or name in classes:
@@ -888,13 +907,19 @@ def list_langchain_classes():
                     if hasattr(attr, "__module__") and attr.__module__.startswith(
                         module_path
                     ):
+                        module_classes.append(name)
                         classes.append(name)
-            except ImportError:
-                print(f"Could not import module {mod_path}")
+
+                print(
+                    f"DEBUG: Found {len(module_classes)} classes in {mod_path}: {module_classes}"
+                )
+            except ImportError as e:
+                print(f"DEBUG: Could not import module {mod_path}: {str(e)}")
                 continue
 
         # Sort the classes alphabetically and remove duplicates
         classes = sorted(list(set(classes)))
+        print(f"DEBUG: After removing duplicates, found {len(classes)} unique classes")
 
         # Special case for document loaders - prioritize common classes
         if "document_loaders" in module_path:
@@ -913,18 +938,26 @@ def list_langchain_classes():
                 else:
                     regular_classes.append(cls)
 
+            print(f"DEBUG: Priority document loader classes found: {priority_classes}")
             classes = priority_classes + regular_classes
 
-        print(f"Found {len(classes)} classes in {module_path}")
+        print(f"DEBUG: Final class list for {module_path}: {len(classes)} classes")
+        if len(classes) == 0:
+            print(f"WARNING: No classes found for {module_path}")
 
         # Cache the result
         module_classes_cache.set(module_path, classes)
 
         return jsonify({"classes": classes})
     except ImportError as e:
-        return jsonify({"error": f"Could not import {module_path}: {str(e)}"}), 400
+        error_msg = f"Could not import {module_path}: {str(e)}"
+        print(f"DEBUG: {error_msg}")
+        return jsonify({"error": error_msg}), 400
     except Exception as e:
-        return jsonify({"error": f"Error scanning classes: {str(e)}"}), 500
+        error_msg = f"Error scanning classes: {str(e)}"
+        print(f"DEBUG: {error_msg}")
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        return jsonify({"error": error_msg}), 500
 
 
 @app.route("/api/langchain/class_details", methods=["GET"])
@@ -1343,6 +1376,83 @@ def create_custom_block():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/langchain/test_document_loaders", methods=["GET"])
+def test_document_loaders():
+    """Test endpoint to directly check document loaders availability."""
+    try:
+        # Attempt to import both potential module paths
+        loaders = []
+        errors = []
+
+        # Try langchain_community.document_loaders
+        try:
+            import langchain_community.document_loaders
+
+            community_loaders = []
+
+            # Inspect the module for classes
+            for name, attr in inspect.getmembers(
+                langchain_community.document_loaders, inspect.isclass
+            ):
+                if name.startswith("_"):
+                    continue
+                if hasattr(attr, "__module__") and attr.__module__.startswith(
+                    "langchain_community.document_loaders"
+                ):
+                    community_loaders.append(name)
+
+            loaders.append(
+                {
+                    "module": "langchain_community.document_loaders",
+                    "count": len(community_loaders),
+                    "classes": sorted(community_loaders),
+                }
+            )
+            print(f"DEBUG: Found {len(community_loaders)} community document loaders")
+        except ImportError as e:
+            errors.append(
+                {"module": "langchain_community.document_loaders", "error": str(e)}
+            )
+            print(
+                f"DEBUG: Error importing langchain_community.document_loaders: {str(e)}"
+            )
+
+        # Try langchain.document_loaders (older versions)
+        try:
+            import langchain.document_loaders
+
+            langchain_loaders = []
+
+            # Inspect the module for classes
+            for name, attr in inspect.getmembers(
+                langchain.document_loaders, inspect.isclass
+            ):
+                if name.startswith("_"):
+                    continue
+                if hasattr(attr, "__module__") and attr.__module__.startswith(
+                    "langchain.document_loaders"
+                ):
+                    langchain_loaders.append(name)
+
+            loaders.append(
+                {
+                    "module": "langchain.document_loaders",
+                    "count": len(langchain_loaders),
+                    "classes": sorted(langchain_loaders),
+                }
+            )
+            print(f"DEBUG: Found {len(langchain_loaders)} langchain document loaders")
+        except ImportError as e:
+            errors.append({"module": "langchain.document_loaders", "error": str(e)})
+            print(f"DEBUG: Error importing langchain.document_loaders: {str(e)}")
+
+        return jsonify({"status": "success", "loaders": loaders, "errors": errors})
+    except Exception as e:
+        print(f"DEBUG: Error in test_document_loaders: {str(e)}")
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        return jsonify({"error": f"Error testing document loaders: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
