@@ -877,4 +877,31 @@ body.dark-mode {
 .dark-mode div.toast.error {
     background-color: var(--secondary-bg);
     color: var(--langchain-white);
+}
+
+.dark-mode .file-selection-modal {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .file-selection-content {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+}
+
+.dark-mode .file-upload-btn {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode input[type="file"] {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode .file-upload-area {
+    border: 2px dashed var(--border-color);
+    background-color: var(--secondary-bg);
 } 
