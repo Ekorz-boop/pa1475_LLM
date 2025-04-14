@@ -1,6 +1,67 @@
 # Multi-Method Block Tests
 
-This directory contains test cases to verify the multi-method handling functionality for blocks.
+This directory contains tests for the multi-method block functionality, which allows the creation of blocks that can expose multiple methods from a class.
+
+## Test Files
+
+### Functionality Verification Tests
+
+- **test_block_discovery.py**: Automated unit tests for the backend API endpoints related to block creation, manipulation, and discovery. These tests verify that the core backend functionality works correctly.
+
+### API Tests (Recommended)
+
+- **test_api.py**: API-level tests that directly call the server's endpoints without relying on UI automation. These tests verify the API contracts and behavior in a more reliable way.
+
+API tests are recommended for most scenarios because they:
+1. Are faster and more reliable than UI tests
+2. Are less brittle to UI changes
+3. Focus on the actual functionality rather than UI implementation details
+4. Can be run in CI/CD pipelines consistently
+
+### UI Automation Tests (Optional)
+
+- **test_ui_automation.py**: Selenium-based UI tests that automate user interactions. These tests are more complex and can be brittle if the UI changes.
+
+UI tests can be useful for:
+1. End-to-end validation of critical user flows
+2. Visual regression testing
+3. Validating UI-specific behavior that can't be tested via API
+4. Simulating real user interactions
+
+However, UI tests are more difficult to maintain and can be flaky due to timing issues, browser differences, and UI changes.
+
+## Requirements
+
+To run the tests, install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Running the Tests
+
+### Running API Tests (Recommended)
+
+```bash
+python -m unittest test_api.py
+```
+
+### Running UI Tests (Optional)
+
+```bash
+python -m unittest test_ui_automation.py
+```
+
+Note: UI tests require Chrome and ChromeDriver to be installed.
+
+## Test Strategy
+
+Our recommended testing strategy is:
+
+1. Focus on comprehensive API tests for functional verification
+2. Use UI tests sparingly for critical user flows
+3. Maintain a small set of UI smoke tests to verify basic functionality
+4. Prefer API tests for continuous integration and regression testing
 
 ## Purpose
 

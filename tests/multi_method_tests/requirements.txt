@@ -1,5 +1,10 @@
 # Test requirements for multi-method block tests
-selenium==4.18.1  # For UI automation tests
-pytest==7.4.3     # Alternative test runner
-pytest-selenium==4.0.1  # Integration between pytest and selenium
-webdriver-manager==4.0.1  # For managing WebDriver binaries 
+# Core testing dependencies
+pytest==7.3.1
+pytest-cov==4.1.0
+requests==2.31.0
+
+# UI testing dependencies (optional)
+selenium==4.11.0
+pytest-selenium==4.0.1
+webdriver-manager==4.0.0 
