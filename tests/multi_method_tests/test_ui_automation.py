@@ -18,6 +18,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 
 # Add the parent directory to the path so we can import the server
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -169,7 +170,9 @@ class TestUIAutomation(unittest.TestCase):
                 "//button[contains(text(), 'Create Custom Block')]",
                 "//div[contains(text(), 'Create Custom Block')]",
                 "//span[contains(text(), 'Create Custom Block')]",
-                "//*[contains(text(), 'Create Custom Block')]"
+                "//*[contains(text(), 'Create Custom Block')]",
+                "//div[contains(@class, 'create-custom-block')]",
+                "//button[contains(@class, 'create')]",
             ]
             
             for selector in selectors:
@@ -177,6 +180,7 @@ class TestUIAutomation(unittest.TestCase):
                     elements = self.driver.find_elements(By.XPATH, selector)
                     if elements:
                         create_button = elements[0]
+                        print(f"Found Create Custom Block button with selector: {selector}")
                         break
                 except:
                     continue
@@ -191,13 +195,36 @@ class TestUIAutomation(unittest.TestCase):
                 for button in buttons:
                     if button.is_displayed() and button.is_enabled():
                         create_button = button
+                        print("Found button by container search")
                         break
             
             if not create_button:
+                # Take a screenshot to help debugging
+                screenshot_path = os.path.join(os.path.dirname(__file__), 'button_not_found.png')
+                self.driver.save_screenshot(screenshot_path)
+                print(f"Button not found screenshot saved to {screenshot_path}")
                 self.fail("Could not find Create Custom Block button with any method")
-                
-            # Click the button
-            create_button.click()
+            
+            # Try to scroll to the button to make sure it's in view
+            self.driver.execute_script("arguments[0].scrollIntoView(true);", create_button)
+            time.sleep(1)
+            
+            # Try JavaScript click instead of regular click
+            try:
+                print("Trying JavaScript click")
+                self.driver.execute_script("arguments[0].click();", create_button)
+            except Exception as click_error:
+                print(f"JavaScript click failed: {click_error}")
+                try:
+                    # Try regular click as fallback
+                    print("Falling back to regular click")
+                    create_button.click()
+                except Exception as regular_click_error:
+                    print(f"Regular click also failed: {regular_click_error}")
+                    # Final resort - try to simulate the click via coordinates
+                    actions = ActionChains(self.driver)
+                    actions.move_to_element(create_button).click().perform()
+            
             print("Successfully clicked Create Custom Block button")
             
             # Wait for the modal to appear - look for the modal title
@@ -220,6 +247,10 @@ class TestUIAutomation(unittest.TestCase):
                     continue
                     
             if not modal_found:
+                # Take a screenshot to help debugging
+                screenshot_path = os.path.join(os.path.dirname(__file__), 'modal_not_found.png')
+                self.driver.save_screenshot(screenshot_path)
+                print(f"Modal not found screenshot saved to {screenshot_path}")
                 self.fail("Modal did not appear after clicking Create Custom Block button")
                 
             time.sleep(1)  # Allow modal animations to complete
