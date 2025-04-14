@@ -108,17 +108,9 @@ class TestUIAutomation(unittest.TestCase):
         self.driver.get("http://localhost:5000")
         time.sleep(2)  # Allow page to load
         
-        # Navigate to the Blocks page by clicking on the sidebar menu
+        # Navigate to the Blocks page by clicking on the sidebar menu item
         try:
-            # First, click the hamburger menu if it exists (for mobile/responsive views)
-            try:
-                menu_button = self.driver.find_element(By.CSS_SELECTOR, ".hamburger-menu, [aria-label='Menu']")
-                menu_button.click()
-                time.sleep(1)
-            except:
-                print("No hamburger menu found, assuming sidebar is already visible")
-                
-            # Click on the "Blocks" item in the sidebar
+            # The Blocks item is already visible in the sidebar - just click it
             blocks_menu_item = self.wait.until(
                 EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Blocks')] | //div[contains(., 'Blocks')]"))
             )
@@ -126,18 +118,20 @@ class TestUIAutomation(unittest.TestCase):
             time.sleep(1)
         except Exception as e:
             print(f"Error navigating to Blocks page: {e}")
+            # If we can't find the Blocks link, we might already be on the Blocks page
+            print("May already be on Blocks page, continuing with test")
     
     def _open_create_block_modal(self):
         """Helper to open the Create Custom Block modal."""
         # Click on the Create Custom Block button
         create_button = self.wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Create Custom Block')] | //div[contains(., 'Create Custom Block')]"))
+            EC.element_to_be_clickable((By.XPATH, "//button[.='Create Custom Block'] | //div[text()='Create Custom Block']"))
         )
         create_button.click()
         
         # Wait for the modal to appear
         self.wait.until(
-            EC.visibility_of_element_located((By.XPATH, "//div[contains(., 'Create Custom LangChain Block')]"))
+            EC.visibility_of_element_located((By.XPATH, "//div[contains(text(), 'Create Custom LangChain Block')]"))
         )
         time.sleep(1)
     
