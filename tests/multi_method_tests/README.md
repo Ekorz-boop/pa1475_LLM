@@ -6,32 +6,61 @@ This directory contains test cases to verify the multi-method handling functiona
 
 The primary goal of these tests is to ensure that blocks can execute multiple methods in sequence, rather than just a single method. This enables more complex workflows within a single block.
 
-## Test Cases
+## Test Files
 
-1. **Basic Multi-Method Configuration**
-   - Tests that a block can be configured with multiple methods
-   - Verifies the methods are stored correctly in the block instance
+### Existing Functionality Verification
 
-2. **Method Execution Sequence**
-   - Tests that methods are executed in the specified order
-   - Verifies all methods in the sequence are executed
+Before implementing new features, we verify that existing functionality works correctly:
 
-3. **Data Flow Between Methods**
-   - Tests that data flows correctly between method calls within the same block
-   - Verifies output from one method is used as input for the next method
+1. **test_block_discovery.py**
+   - Verifies that libraries, modules, classes, and methods are correctly discovered
+   - Tests the creation of custom blocks with the current implementation
+   - Ensures block connections work properly
+
+2. **test_ui_display.py**
+   - Contains manual test scenarios for verifying UI display of block information
+   - Tests the dropdowns, parameter inputs, and block visualization
+
+### Multi-Method Implementation Tests
+
+These tests verify the new multi-method functionality:
+
+1. **test_multi_method_blocks.py**
+   - Tests that blocks can be configured with multiple methods
+   - Verifies method execution sequence
+   - Tests data flow between methods within a block
+
+2. **test_api_integration.py**
+   - Tests the API endpoints related to multi-method blocks
+   - Verifies creation, editing, and execution of multi-method blocks
+
+3. **test_examples.py**
+   - Contains example test cases that demonstrate practical uses for multi-method blocks
+   - Provides test data for validating the implementation
 
 ## Running Tests
 
-To run these tests:
+To run the automated tests:
 
 ```bash
+python -m unittest tests/multi_method_tests/test_block_discovery.py
 python -m unittest tests/multi_method_tests/test_multi_method_blocks.py
+python -m unittest tests/multi_method_tests/test_api_integration.py
+python -m unittest tests/multi_method_tests/test_examples.py
+```
+
+To run all tests at once:
+
+```bash
+python -m unittest discover -s tests/multi_method_tests
 ```
 
 ## Test Status
 
 | Test Case | Status |
 |-----------|--------|
+| Block Discovery | ⬜ Not Started |
+| UI Display | ⬜ Not Started |
 | Basic Multi-Method Configuration | ⬜ Not Started |
 | Method Execution Sequence | ⬜ Not Started |
 | Data Flow Between Methods | ⬜ Not Started | 
