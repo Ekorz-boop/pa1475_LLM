@@ -17,9 +17,18 @@ Before implementing new features, we verify that existing functionality works co
    - Tests the creation of custom blocks with the current implementation
    - Ensures block connections work properly
 
-2. **test_ui_display.py**
+2. **test_ui_display.py** (Manual test guidelines)
    - Contains manual test scenarios for verifying UI display of block information
    - Tests the dropdowns, parameter inputs, and block visualization
+
+3. **test_ui_interaction.py** (Manual test guidelines)
+   - Contains manual test scenarios for UI interactions with multi-method blocks
+   - Documents expected behavior for multi-method selection and configuration
+
+4. **test_ui_automation.py** (Automated UI tests)
+   - Automated Selenium tests replacing the manual tests in test_ui_display.py and test_ui_interaction.py
+   - Verifies UI components and interactions programmatically
+   - Requires Selenium WebDriver and Chrome/Firefox to be installed
 
 ### Multi-Method Implementation Tests
 
