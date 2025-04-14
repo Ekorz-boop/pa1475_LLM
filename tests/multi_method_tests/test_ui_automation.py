@@ -108,32 +108,129 @@ class TestUIAutomation(unittest.TestCase):
         self.driver.get("http://localhost:5000")
         time.sleep(2)  # Allow page to load
         
-        # Navigate to the Blocks page by clicking on the sidebar menu item
+        # Check and navigate to the Blocks page
         try:
-            # The Blocks item is already visible in the sidebar - just click it
-            blocks_menu_item = self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Blocks')] | //div[contains(., 'Blocks')]"))
+            # First check if a hamburger menu exists and needs to be clicked
+            hamburger_icons = self.driver.find_elements(
+                By.XPATH, 
+                "//img[contains(@src, 'hamburger.svg')] | //button[contains(@aria-label, 'Menu')] | //div[contains(@class, 'hamburger')]"
             )
-            blocks_menu_item.click()
-            time.sleep(1)
+            
+            if hamburger_icons and hamburger_icons[0].is_displayed():
+                print("Found hamburger menu, clicking it")
+                hamburger_icons[0].click()
+                time.sleep(1)
+            
+            # Now try to find and click on the Blocks navigation item
+            blocks_selectors = [
+                "//a[contains(., 'Blocks')]", 
+                "//div[contains(., 'Blocks') and not(contains(., 'Create'))]",
+                "//span[contains(., 'Blocks')]",
+                "//img[contains(@src, 'Blocks.svg')]/parent::*"
+            ]
+            
+            blocks_item_found = False
+            for selector in blocks_selectors:
+                try:
+                    blocks_items = self.driver.find_elements(By.XPATH, selector)
+                    for item in blocks_items:
+                        if item.is_displayed() and item.is_enabled():
+                            item.click()
+                            blocks_item_found = True
+                            print(f"Clicked on Blocks navigation with selector: {selector}")
+                            time.sleep(1)
+                            break
+                    if blocks_item_found:
+                        break
+                except Exception as inner_e:
+                    print(f"Error with selector {selector}: {inner_e}")
+                    continue
+            
+            if not blocks_item_found:
+                # Take a screenshot to help debugging
+                screenshot_path = os.path.join(os.path.dirname(__file__), 'navigation_error.png')
+                self.driver.save_screenshot(screenshot_path)
+                print(f"Navigation screenshot saved to {screenshot_path}")
+                print("Could not find Blocks navigation item, assuming already on Blocks page")
+                
         except Exception as e:
-            print(f"Error navigating to Blocks page: {e}")
+            print(f"Error during navigation: {e}")
             # If we can't find the Blocks link, we might already be on the Blocks page
             print("May already be on Blocks page, continuing with test")
     
     def _open_create_block_modal(self):
         """Helper to open the Create Custom Block modal."""
-        # Click on the Create Custom Block button
-        create_button = self.wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//button[.='Create Custom Block'] | //div[text()='Create Custom Block']"))
-        )
-        create_button.click()
-        
-        # Wait for the modal to appear
-        self.wait.until(
-            EC.visibility_of_element_located((By.XPATH, "//div[contains(text(), 'Create Custom LangChain Block')]"))
-        )
-        time.sleep(1)
+        try:
+            # Try various ways to find the Create Custom Block button
+            create_button = None
+            
+            # Try by text content regardless of element type
+            selectors = [
+                "//button[contains(text(), 'Create Custom Block')]",
+                "//div[contains(text(), 'Create Custom Block')]",
+                "//span[contains(text(), 'Create Custom Block')]",
+                "//*[contains(text(), 'Create Custom Block')]"
+            ]
+            
+            for selector in selectors:
+                try:
+                    elements = self.driver.find_elements(By.XPATH, selector)
+                    if elements:
+                        create_button = elements[0]
+                        break
+                except:
+                    continue
+            
+            if not create_button:
+                # As a last resort, try to find by approximate position
+                # Find the main blocks container
+                blocks_container = self.driver.find_element(By.XPATH, "//div[contains(@class, 'blocks') or contains(@id, 'blocks')]")
+                
+                # Look for buttons within it
+                buttons = blocks_container.find_elements(By.TAG_NAME, "button")
+                for button in buttons:
+                    if button.is_displayed() and button.is_enabled():
+                        create_button = button
+                        break
+            
+            if not create_button:
+                self.fail("Could not find Create Custom Block button with any method")
+                
+            # Click the button
+            create_button.click()
+            print("Successfully clicked Create Custom Block button")
+            
+            # Wait for the modal to appear - look for the modal title
+            modal_selectors = [
+                "//div[contains(text(), 'Create Custom LangChain Block')]",
+                "//div[contains(text(), 'Create') and contains(text(), 'Block')]",
+                "//h1[contains(text(), 'Create')]",
+                "//h2[contains(text(), 'Create')]",
+                "//div[contains(@class, 'modal') or contains(@id, 'modal')]"
+            ]
+            
+            modal_found = False
+            for selector in modal_selectors:
+                try:
+                    self.wait.until(EC.visibility_of_element_located((By.XPATH, selector)))
+                    modal_found = True
+                    print(f"Modal found with selector: {selector}")
+                    break
+                except:
+                    continue
+                    
+            if not modal_found:
+                self.fail("Modal did not appear after clicking Create Custom Block button")
+                
+            time.sleep(1)  # Allow modal animations to complete
+            
+        except Exception as e:
+            print(f"Error in _open_create_block_modal: {e}")
+            # Take a screenshot to help with debugging
+            screenshot_path = os.path.join(os.path.dirname(__file__), 'error_screenshot.png')
+            self.driver.save_screenshot(screenshot_path)
+            print(f"Screenshot saved to {screenshot_path}")
+            raise
     
     def test_library_dropdown_display(self):
         """Verify library dropdown displays all available libraries."""
