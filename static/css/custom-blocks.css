@@ -44,10 +44,11 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 10px 15px;
+    padding: 10px 0;
     align-items: center;
-    width: calc(100% - 30px);
-    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
 }
 
 /* Custom Block Styling */
@@ -60,7 +61,9 @@
     position: relative;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
-    width: 100%;
+    width: 92%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .block-template[data-block-type="custom"] .block-header {
@@ -274,29 +277,14 @@
 /* Style the custom blocks section */
 .custom-blocks-section {
     margin-top: 15px;
-    width: 100%;
 }
 
-.custom-blocks-section .section-title {
-    font-size: 12px;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 0 15px 8px;
-    margin-bottom: 10px;
-    font-weight: 500;
-    border-bottom: 1px solid #e0e0e0;
-    position: relative;
-}
-
-.custom-blocks-section .section-title::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 15px;
-    width: 50px;
-    height: 2px;
-    background-color: var(--langchain-primary);
+.section-header {
+    font-size: 16px;
+    color: var(--langchain-text);
+    margin: 15px 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--langchain-border);
 }
 
 /* Block content */
@@ -304,4 +292,33 @@
     position: relative;
     z-index: 1;
     background: #fff;
+}
+
+.custom-blocks-section-header {
+    width: calc(100% - 16px);
+    box-sizing: border-box;
+    text-align: left;
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
+    letter-spacing: 0.5px;
+    margin: 18px 0 6px 0;
+    padding-left: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.custom-blocks-section-header span {
+    margin-bottom: 2px;
+}
+
+.custom-blocks-divider {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(to right, var(--langchain-primary) 0%, #e0e0e0 100%);
+    border: none;
+    border-radius: 2px;
+    margin: 0 0 8px 0;
+    box-sizing: border-box;
 }

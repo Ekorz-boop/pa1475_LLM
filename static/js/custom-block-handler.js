@@ -1217,10 +1217,10 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
     if (!customBlocksContainer) return;
 
-    // Find the section title
-    const sectionTitle = blocksContent.querySelector('.custom-blocks-section .section-title');
-    if (sectionTitle) {
-        sectionTitle.style.display = 'block';
+    // Show the section header if not already visible
+    const sectionHeader = blocksContent.querySelector('#custom-blocks-section-header');
+    if (sectionHeader) {
+        sectionHeader.style.display = '';
     }
 
     // Check if this block already exists in the menu
@@ -1381,6 +1381,7 @@ let customBlockHandler = null;
 document.addEventListener('DOMContentLoaded', () => {
     // Load saved custom blocks
     loadCustomBlocks();
+    updateCustomBlocksSectionHeaderVisibility();
 
     // Add event listener to clear sessionStorage on page unload
     window.addEventListener('beforeunload', () => {
@@ -1906,5 +1907,38 @@ function updateBlockNameInStorage(blockId, newName) {
         }
     } catch (error) {
         console.error('Error updating block name in storage:', error);
+    }
+}
+
+// After removing a block, hide the section header if no custom blocks remain
+function removeCustomBlockFromMenu(blockId) {
+    const blocksContent = document.getElementById('blocks-content');
+    if (!blocksContent) return;
+    const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
+    if (!customBlocksContainer) return;
+    const block = customBlocksContainer.querySelector(`[data-block-id="${blockId}"]`);
+    if (block) {
+        customBlocksContainer.removeChild(block);
+    }
+    if (customBlocksContainer.children.length === 0) {
+        const sectionHeader = blocksContent.querySelector('#custom-blocks-section-header');
+        if (sectionHeader) {
+            sectionHeader.style.display = 'none';
+        }
+    }
+}
+
+// On page load, hide the section header if there are no custom blocks
+function updateCustomBlocksSectionHeaderVisibility() {
+    const blocksContent = document.getElementById('blocks-content');
+    if (!blocksContent) return;
+    const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
+    const sectionHeader = blocksContent.querySelector('#custom-blocks-section-header');
+    if (sectionHeader) {
+        if (customBlocksContainer && customBlocksContainer.children.length > 0) {
+            sectionHeader.style.display = '';
+        } else {
+            sectionHeader.style.display = 'none';
+        }
     }
 }
