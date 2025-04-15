@@ -86,22 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('sidebarExpanded', sidebar.classList.contains('expanded'));
     });
 
-    // Close sidebar and sub-menus when clicking outside
-    document.addEventListener('click', (e) => {
-        // Check if the click was outside the sidebar and sidebar toggle
-        if (!e.target.closest('.main-menu') && 
-            !e.target.closest('.sub-menu') && 
-            !e.target.closest('#sidebar-toggle')) {
-            // Close sidebar
-            sidebar.classList.remove('expanded');
-            localStorage.setItem('sidebarExpanded', 'false');
-            
-            // Close all sub-menus
-            subMenus.forEach(menu => menu.classList.remove('active'));
-            menuItems.forEach(item => item.classList.remove('active'));
-        }
-    });
-
     // Initialize custom block handler
     const customBlockHandler = new CustomBlockHandler();
 
