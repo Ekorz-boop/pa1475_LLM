@@ -49,3 +49,8 @@ db.sqlite3
 Thumbs.db
 
 static/css/blocks_old.css
+
+# Test screenshots and artifacts
+tests/multi_method_tests/screenshots/
+**/screenshots/*.png
+*.png
