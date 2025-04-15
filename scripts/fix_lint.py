@@ -7,7 +7,6 @@ format code and fix common linting issues in the project.
 """
 
 import subprocess
-import os
 import sys
 from pathlib import Path
 
