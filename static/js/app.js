@@ -1267,7 +1267,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update miniature map viewport
         const miniMap = document.querySelector('.mini-map');
         const miniMapViewport = document.querySelector('.mini-map-viewport');
-        if (miniMap && miniMapViewport) {
+        const miniMapSVG = document.querySelector('.mini-map-svg');
+        if (miniMap && miniMapViewport && miniMapSVG) {
             const canvasWidth = 10000; // Total canvas width
             const canvasHeight = 10000; // Total canvas height
             const viewportWidth = window.innerWidth;
@@ -1306,6 +1307,68 @@ document.addEventListener('DOMContentLoaded', () => {
             miniMapViewport.style.top = `${viewportY}px`;
             miniMapViewport.style.width = `${viewportWidthScaled}px`;
             miniMapViewport.style.height = `${viewportHeightScaled}px`;
+
+            // Render live SVG preview of blocks and connections
+            miniMapSVG.innerHTML = '';
+            // Draw connections
+            connections.forEach(conn => {
+                const sourceBlock = document.getElementById(conn.source);
+                const targetBlock = document.getElementById(conn.target);
+                if (!sourceBlock || !targetBlock) return;
+                // Get block positions
+                const getBlockCenter = block => {
+                    const transform = block.style.transform;
+                    const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
+                    if (match) {
+                        const blockX = parseFloat(match[1]);
+                        const blockY = parseFloat(match[2]);
+                        // Center of block (approximate)
+                        return {
+                            x: (blockX + block.offsetWidth / 2) * scaleX,
+                            y: (blockY + block.offsetHeight / 2) * scaleY
+                        };
+                    }
+                    return null;
+                };
+                const src = getBlockCenter(sourceBlock);
+                const tgt = getBlockCenter(targetBlock);
+                if (src && tgt) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', src.x);
+                    line.setAttribute('y1', src.y);
+                    line.setAttribute('x2', tgt.x);
+                    line.setAttribute('y2', tgt.y);
+                    line.setAttribute('stroke', '#888');
+                    line.setAttribute('stroke-width', '1.5');
+                    line.setAttribute('opacity', '0.7');
+                    miniMapSVG.appendChild(line);
+                }
+            });
+            // Draw blocks
+            const blocks = blockContainer.querySelectorAll('.block');
+            blocks.forEach(block => {
+                const transform = block.style.transform;
+                const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
+                if (match) {
+                    const blockX = parseFloat(match[1]);
+                    const blockY = parseFloat(match[2]);
+                    const miniX = blockX * scaleX;
+                    const miniY = blockY * scaleY;
+                    const w = Math.max(8, block.offsetWidth * scaleX);
+                    const h = Math.max(8, block.offsetHeight * scaleY);
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', miniX);
+                    rect.setAttribute('y', miniY);
+                    rect.setAttribute('width', w);
+                    rect.setAttribute('height', h);
+                    rect.setAttribute('rx', 2);
+                    rect.setAttribute('fill', '#00a67e');
+                    rect.setAttribute('stroke', '#fff');
+                    rect.setAttribute('stroke-width', '1');
+                    rect.setAttribute('opacity', '0.85');
+                    miniMapSVG.appendChild(rect);
+                }
+            });
         }
     }
 
