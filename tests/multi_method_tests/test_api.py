@@ -27,39 +27,39 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
         # Find the server.py file
         current_dir = os.path.dirname(os.path.abspath(__file__))
         server_path = os.path.abspath(os.path.join(current_dir, "../../server.py"))
-        
+
         if not os.path.exists(server_path):
             server_path = os.path.abspath(os.path.join(current_dir, "../server.py"))
-        
+
         if not os.path.exists(server_path):
             server_path = os.path.abspath("./server.py")
-            
+
         print(f"Server path: {server_path}")
-        
+
         # Start the server in the background
         print("Starting server for API tests...")
-        
+
         if platform.system() == "Windows":
             cls.server_process = subprocess.Popen(
                 [sys.executable, server_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
             )
         else:
             cls.server_process = subprocess.Popen(
                 [sys.executable, server_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                preexec_fn=os.setsid
+                preexec_fn=os.setsid,
             )
-            
+
         # Wait for the server to start
         print("Waiting for server to start...")
         base_url = "http://localhost:5000"
         max_attempts = 30
         attempts = 0
-        
+
         while attempts < max_attempts:
             try:
                 requests.get(f"{base_url}/")
@@ -68,11 +68,11 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
             except requests.RequestException:
                 attempts += 1
                 time.sleep(1)
-                
+
         if attempts == max_attempts:
             cls.tearDownClass()
             raise RuntimeError("Failed to start server")
-            
+
         # Wait a bit more to ensure the server is fully initialized
         time.sleep(2)
 
