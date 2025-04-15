@@ -1278,11 +1278,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const scaleY = miniMap.offsetHeight / canvasHeight;
             
             // Calculate the viewport position and size in the miniature map
-            const viewportX = (-currentTranslate.x / zoom) * scaleX;
-            const viewportY = (-currentTranslate.y / zoom) * scaleY;
-            const viewportWidthScaled = (viewportWidth / zoom) * scaleX;
-            const viewportHeightScaled = (viewportHeight / zoom) * scaleY;
-            
+            let viewportX = (-currentTranslate.x / zoom) * scaleX;
+            let viewportY = (-currentTranslate.y / zoom) * scaleY;
+            let viewportWidthScaled = (viewportWidth / zoom) * scaleX;
+            let viewportHeightScaled = (viewportHeight / zoom) * scaleY;
+
+            // Clamp the viewport rectangle so it always stays visible in the mini-map
+            if (viewportX < 0) viewportX = 0;
+            if (viewportY < 0) viewportY = 0;
+            if (viewportX + viewportWidthScaled > miniMap.offsetWidth) viewportX = miniMap.offsetWidth - viewportWidthScaled;
+            if (viewportY + viewportHeightScaled > miniMap.offsetHeight) viewportY = miniMap.offsetHeight - viewportHeightScaled;
+            // Prevent negative width/height
+            if (viewportWidthScaled > miniMap.offsetWidth) {
+                viewportX = 0;
+                viewportWidthScaled = miniMap.offsetWidth;
+            }
+            if (viewportHeightScaled > miniMap.offsetHeight) {
+                viewportY = 0;
+                viewportHeightScaled = miniMap.offsetHeight;
+            }
+            // Clamp again in case of overflows
+            if (viewportX < 0) viewportX = 0;
+            if (viewportY < 0) viewportY = 0;
+
             // Update the viewport rectangle
             miniMapViewport.style.left = `${viewportX}px`;
             miniMapViewport.style.top = `${viewportY}px`;
@@ -1783,6 +1801,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update the visual connections
         updateConnections();
+    }
+
+    // Mini-map interactive navigation
+    const miniMap = document.querySelector('.mini-map');
+    const miniMapViewport = document.querySelector('.mini-map-viewport');
+    let isDraggingMiniMapViewport = false;
+    let miniMapDragOffset = { x: 0, y: 0 };
+
+    if (miniMap && miniMapViewport) {
+        // Helper to get scale factors
+        function getMiniMapScale() {
+            const canvasWidth = 10000;
+            const canvasHeight = 10000;
+            return {
+                scaleX: miniMap.offsetWidth / canvasWidth,
+                scaleY: miniMap.offsetHeight / canvasHeight
+            };
+        }
+
+        // Click to pan
+        miniMap.addEventListener('mousedown', (e) => {
+            // Only left mouse button
+            if (e.button !== 0) return;
+            // If clicking on the viewport, start drag
+            if (e.target === miniMapViewport) {
+                isDraggingMiniMapViewport = true;
+                miniMapDragOffset.x = e.offsetX;
+                miniMapDragOffset.y = e.offsetY;
+                document.body.style.userSelect = 'none';
+            } else {
+                // Only pan if not clicking on the viewport rectangle
+                if (!isDraggingMiniMapViewport) {
+                    const rect = miniMap.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const { scaleX, scaleY } = getMiniMapScale();
+                    // Center the main canvas on the clicked point
+                    currentTranslate.x = -((x / scaleX) - (window.innerWidth / (2 * zoom)));
+                    currentTranslate.y = -((y / scaleY) - (window.innerHeight / (2 * zoom)));
+                    updateCanvasTransform();
+                }
+            }
+        });
+
+        // Drag the viewport rectangle
+        document.addEventListener('mousemove', (e) => {
+            if (isDraggingMiniMapViewport) {
+                const rect = miniMap.getBoundingClientRect();
+                const { scaleX, scaleY } = getMiniMapScale();
+                let x = e.clientX - rect.left - miniMapDragOffset.x + miniMapViewport.offsetWidth / 2;
+                let y = e.clientY - rect.top - miniMapDragOffset.y + miniMapViewport.offsetHeight / 2;
+                // Clamp to mini-map bounds
+                x = Math.max(0, Math.min(x, miniMap.offsetWidth));
+                y = Math.max(0, Math.min(y, miniMap.offsetHeight));
+                // Pan the main canvas so the viewport is centered at (x, y)
+                currentTranslate.x = -((x / scaleX) - (window.innerWidth / (2 * zoom)));
+                currentTranslate.y = -((y / scaleY) - (window.innerHeight / (2 * zoom)));
+                updateCanvasTransform();
+            }
+        });
+        document.addEventListener('mouseup', () => {
+            isDraggingMiniMapViewport = false;
+            document.body.style.userSelect = '';
+        });
     }
 });
 
