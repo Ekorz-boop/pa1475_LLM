@@ -697,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Canvas pan functionality
     canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 1 || (e.button === 0 && e.altKey)) {
+        if (e.button === 0) { // Left mouse button only
             isPanning = true;
             canvas.classList.add('grabbing');
             startPoint = {
