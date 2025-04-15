@@ -1217,6 +1217,12 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
     if (!customBlocksContainer) return;
 
+    // Find the section title
+    const sectionTitle = blocksContent.querySelector('.custom-blocks-section .section-title');
+    if (sectionTitle) {
+        sectionTitle.style.display = 'block';
+    }
+
     // Check if this block already exists in the menu
     if (customBlocksContainer.querySelector(`[data-block-id="${blockId}"]`)) {
         console.log(`Block ${blockId} already exists in menu, skipping`);

@@ -255,8 +255,7 @@
 /* Search Container */
 .search-container {
     position: relative;
-    margin: 10px auto;
-    width: calc(100% - 30px);
+    margin: 10px 30px;
 }
 
 .search-icon {
