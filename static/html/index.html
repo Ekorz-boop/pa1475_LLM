@@ -36,65 +36,117 @@
         <div class="main-content">
             <div id="sidebar">
                 <div class="main-menu">
-                    <div class="menu-section">
-                        <div class="menu-item" data-menu="dashboard">
-                            <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
-                            <span>Dashboard</span>
+                    <!-- Main Menu Content -->
+                    <div class="menu-content" id="main-menu-content">
+                        <div class="menu-section">
+                            <div class="menu-item" data-menu="dashboard">
+                                <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
+                                <span>Dashboard</span>
+                            </div>
+                            <div class="menu-item" data-menu="blocks">
+                                <img src="/static/images/icons/Blocks.svg" alt="Blocks">
+                                <span>Blocks</span>
+                            </div>
+                            <div class="menu-item" data-menu="templates">
+                                <img src="/static/images/icons/Templates.svg" alt="Templates">
+                                <span>Templates</span>
+                            </div>
                         </div>
-                        <div class="menu-item" data-menu="blocks">
-                            <img src="/static/images/icons/Blocks.svg" alt="Blocks">
-                            <span>Blocks</span>
+                        
+                        <div class="menu-section">
+                            <div class="section-title">Theme</div>
+                            <div class="theme-options">
+                                <div class="theme-option" data-theme="light" title="Light mode">
+                                    <span>☀️</span>
+                                </div>
+                                <div class="theme-option" data-theme="dark" title="Dark mode">
+                                    <span>🌙</span>
+                                </div>
+                                <div class="theme-option" data-theme="system" title="System default">
+                                    <span>💻</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="menu-item" data-menu="templates">
-                            <img src="/static/images/icons/Templates.svg" alt="Templates">
-                            <span>Templates</span>
+                        
+                        <div class="menu-section">
+                            <div class="section-title">Canvas Background</div>
+                            <div class="bg-color-options">
+                                <div class="bg-color-option" data-color="default" title="Default">
+                                    <div class="color-preview default-bg"></div>
+                                </div>
+                                <div class="bg-color-option" data-color="white" title="White">
+                                    <div class="color-preview white-bg"></div>
+                                </div>
+                                <div class="bg-color-option" data-color="light-blue" title="Light Blue">
+                                    <div class="color-preview light-blue-bg"></div>
+                                </div>
+                                <div class="bg-color-option" data-color="light-yellow" title="Light Yellow">
+                                    <div class="color-preview light-yellow-bg"></div>
+                                </div>
+                                <div class="bg-color-option" data-color="light-green" title="Light Green">
+                                    <div class="color-preview light-green-bg"></div>
+                                </div>
+                                <div class="bg-color-option" data-color="light-purple" title="Light Purple">
+                                    <div class="color-preview light-purple-bg"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bottom-menu">
+                            <div class="menu-item" id="management-button" data-menu="system">
+                                <img src="/static/images/icons/status.svg" alt="System Status">
+                                <span>System Status</span>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="menu-section">
-                        <div class="section-title">Theme</div>
-                        <div class="theme-options">
-                            <div class="theme-option" data-theme="light" title="Light mode">
-                                <span>☀️</span>
+
+                    <!-- Dashboard Content -->
+                    <div class="menu-content" id="dashboard-content">
+                        <div class="content-header">
+                            <button class="back-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: rgba(0, 0, 0, 1);transform: ;msFilter:;"><path d="M21 11H6.414l5.293-5.293-1.414-1.414L2.586 12l7.707 7.707 1.414-1.414L6.414 13H21z"></path></svg>
+                            </button>
+                            <h3>Dashboard</h3>
+                        </div>
+                        <!-- Dashboard specific content -->
+                    </div>
+
+                    <!-- Blocks Content -->
+                    <div class="menu-content" id="blocks-content">
+                        <div class="content-header">
+                            <button class="back-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: rgba(0, 0, 0, 1);transform: ;msFilter:;"><path d="M21 11H6.414l5.293-5.293-1.414-1.414L2.586 12l7.707 7.707 1.414-1.414L6.414 13H21z"></path></svg>
+                            </button>
+                            <h3>Blocks</h3>
+                        </div>
+                        <div class="search-container">
+                            <input type="text" id="block-search" placeholder="Search blocks...">
+                            <div class="search-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
                             </div>
-                            <div class="theme-option" data-theme="dark" title="Dark mode">
-                                <span>🌙</span>
+                        </div>
+                        <div class="block-templates-container">
+                            <div class="custom-blocks-message">
+                                <button id="create-custom-block-btn" class="primary-btn">Create Custom Block</button>
                             </div>
-                            <div class="theme-option" data-theme="system" title="System default">
-                                <span>💻</span>
-                            </div>
+
+                            <!-- Custom blocks will appear here -->
+                            <div id="custom-blocks-container"></div>
                         </div>
                     </div>
-                    
-                    <div class="menu-section">
-                        <div class="section-title">Canvas Background</div>
-                        <div class="bg-color-options">
-                            <div class="bg-color-option" data-color="default" title="Default">
-                                <div class="color-preview default-bg"></div>
-                            </div>
-                            <div class="bg-color-option" data-color="white" title="White">
-                                <div class="color-preview white-bg"></div>
-                            </div>
-                            <div class="bg-color-option" data-color="light-blue" title="Light Blue">
-                                <div class="color-preview light-blue-bg"></div>
-                            </div>
-                            <div class="bg-color-option" data-color="light-yellow" title="Light Yellow">
-                                <div class="color-preview light-yellow-bg"></div>
-                            </div>
-                            <div class="bg-color-option" data-color="light-green" title="Light Green">
-                                <div class="color-preview light-green-bg"></div>
-                            </div>
-                            <div class="bg-color-option" data-color="light-purple" title="Light Purple">
-                                <div class="color-preview light-purple-bg"></div>
-                            </div>
+
+                    <!-- Templates Content -->
+                    <div class="menu-content" id="templates-content">
+                        <div class="content-header">
+                            <button class="back-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: rgba(0, 0, 0, 1);transform: ;msFilter:;"><path d="M21 11H6.414l5.293-5.293-1.414-1.414L2.586 12l7.707 7.707 1.414-1.414L6.414 13H21z"></path></svg>
+                            </button>
+                            <h3>Templates</h3>
                         </div>
-                    </div>
-                    
-                    <div class="bottom-menu">
-                        <div class="menu-item" id="management-button" data-menu="system">
-                            <img src="/static/images/icons/status.svg" alt="System Status">
-                            <span>System Status</span>
-                        </div>
+                        <!-- Templates specific content -->
                     </div>
                 </div>
             </div>
@@ -123,44 +175,6 @@
                     <button class="zoom-button" id="zoom-fit" title="Reset zoom">⟲</button>
                 </div>
             </div>
-        </div>
-
-        <!-- Add these sub-menus after the sidebar -->
-        <div id="dashboard-menu" class="sub-menu">
-            <div class="sub-menu-header">
-                <h3>Dashboard</h3>
-            </div>
-            <!-- Dashboard content here -->
-        </div>
-
-        <div id="blocks-menu" class="sub-menu">
-            <div class="sub-menu-header">
-                <h3>Blocks</h3>
-            </div>
-            <div class="search-container">
-                <input type="text" id="block-search" placeholder="Search blocks...">
-                <div class="search-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                </div>
-            </div>
-            <div class="block-templates-container">
-                <div class="custom-blocks-message">
-                    <button id="create-custom-block-btn" class="primary-btn">Create Custom Block</button>
-                </div>
-
-                <!-- Custom blocks will appear here -->
-                <div id="custom-blocks-container"></div>
-            </div>
-        </div>
-
-        <div id="templates-menu" class="sub-menu">
-            <div class="sub-menu-header">
-                <h3>Templates</h3>
-            </div>
-            <!-- Templates content here -->
         </div>
 
         <!-- Add the management panel HTML directly -->

@@ -1209,21 +1209,16 @@ function showToast(message, type = 'info') {
 
 // Function to add the custom block to the blocks menu
 function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
-    // Find the blocks menu container
-    const blocksMenu = document.getElementById('blocks-menu');
-    if (!blocksMenu) return;
+    // Find the blocks content container
+    const blocksContent = document.getElementById('blocks-content');
+    if (!blocksContent) return;
 
-    // Find or create custom blocks section
-    let customBlocksSection = blocksMenu.querySelector('.custom-blocks-section');
-    if (!customBlocksSection) {
-        customBlocksSection = document.createElement('div');
-        customBlocksSection.className = 'custom-blocks-section';
-        customBlocksSection.innerHTML = '<div class="section-header">Custom Blocks</div>';
-        blocksMenu.appendChild(customBlocksSection);
-    }
+    // Find the custom blocks container
+    const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
+    if (!customBlocksContainer) return;
 
     // Check if this block already exists in the menu
-    if (customBlocksSection.querySelector(`[data-block-id="${blockId}"]`)) {
+    if (customBlocksContainer.querySelector(`[data-block-id="${blockId}"]`)) {
         console.log(`Block ${blockId} already exists in menu, skipping`);
         return;
     }
@@ -1300,8 +1295,8 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
         });
     }
 
-    // Add to custom blocks section
-    customBlocksSection.appendChild(blockTemplate);
+    // Add to custom blocks container
+    customBlocksContainer.appendChild(blockTemplate);
 
     // Save to sessionStorage for persistence
     saveCustomBlockToStorage(className, blockId, inputNodes, outputNodes);

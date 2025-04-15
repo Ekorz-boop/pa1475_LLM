@@ -94,6 +94,47 @@ document.addEventListener('DOMContentLoaded', () => {
         customBlockHandler.showModal();
     });
 
+    // Handle menu item clicks
+    menuItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const menuType = item.dataset.menu;
+            
+            // Hide all content sections
+            document.querySelectorAll('.menu-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show the selected content section
+            const selectedContent = document.getElementById(`${menuType}-content`);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+            
+            // Update active state of menu items
+            menuItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+        });
+    });
+
+    // Handle back button clicks
+    document.querySelectorAll('.back-button').forEach(button => {
+        button.addEventListener('click', () => {
+            // Hide all content sections
+            document.querySelectorAll('.menu-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show main menu content
+            document.getElementById('main-menu-content').classList.add('active');
+            
+            // Remove active state from all menu items
+            menuItems.forEach(item => item.classList.remove('active'));
+        });
+    });
+
+    // Initialize with main menu content visible
+    document.getElementById('main-menu-content').classList.add('active');
+
     menuItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
