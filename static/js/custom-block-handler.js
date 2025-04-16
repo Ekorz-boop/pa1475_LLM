@@ -527,13 +527,17 @@ class CustomBlockHandler {
         // Convert URLs to clickable links
         formatted = formatted.replace(
             /(https?:\/\/[^\s\)]+)/g, 
-            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1 <span class="external-link-icon">↗</span></a>'
         );
         
         // Format code blocks (text surrounded by triple backticks)
         formatted = formatted.replace(
-            /```([\s\S]*?)```/g,
-            '<pre class="code-block"><code>$1</code></pre>'
+            /```(?:python)?([\s\S]*?)```/g,
+            (match, code) => {
+                // Apply syntax highlighting to Python code
+                let highlightedCode = this.applySyntaxHighlighting(code);
+                return `<pre class="code-block"><code>${highlightedCode}</code></pre>`;
+            }
         );
         
         // Format inline code
@@ -558,7 +562,11 @@ class CustomBlockHandler {
         // Format Python code examples (commonly used in docstrings)
         formatted = formatted.replace(
             />>>([^\n]+)/g,
-            '<pre class="python-example"><code>>>> $1</code></pre>'
+            (match, code) => {
+                // Apply syntax highlighting to Python code
+                let highlightedCode = this.applySyntaxHighlighting(code);
+                return `<pre class="python-example"><code>>>> ${highlightedCode}</code></pre>`;
+            }
         );
 
         // Format common sections with headers
@@ -609,6 +617,83 @@ class CustomBlockHandler {
     }
     
     /**
+     * Apply basic syntax highlighting to Python code
+     * @param {string} code - The code to highlight
+     * @returns {string} - Highlighted HTML
+     */
+    applySyntaxHighlighting(code) {
+        if (!code) return '';
+        
+        // Python keywords
+        const keywords = [
+            'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 
+            'def', 'del', 'elif', 'else', 'except', 'False', 'finally', 'for', 
+            'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'None', 
+            'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True', 'try', 
+            'while', 'with', 'yield'
+        ];
+        
+        // Built-in functions
+        const builtins = [
+            'abs', 'all', 'any', 'bin', 'bool', 'bytes', 'callable', 'chr', 
+            'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod', 
+            'enumerate', 'eval', 'exec', 'filter', 'float', 'format', 'frozenset', 
+            'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input', 
+            'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals', 'map', 
+            'max', 'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 
+            'print', 'property', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 
+            'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 
+            'vars', 'zip'
+        ];
+        
+        let highlightedCode = code;
+        
+        // Escape HTML to prevent XSS
+        highlightedCode = highlightedCode
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        
+        // Highlight strings
+        highlightedCode = highlightedCode.replace(
+            /(["'])(.*?)\1/g, 
+            '<span class="code-string">$&</span>'
+        );
+        
+        // Highlight keywords
+        for (const keyword of keywords) {
+            const keywordRegex = new RegExp(`\\b(${keyword})\\b`, 'g');
+            highlightedCode = highlightedCode.replace(
+                keywordRegex, 
+                '<span class="code-keyword">$1</span>'
+            );
+        }
+        
+        // Highlight built-in functions
+        for (const builtin of builtins) {
+            const builtinRegex = new RegExp(`\\b(${builtin})\\b`, 'g');
+            highlightedCode = highlightedCode.replace(
+                builtinRegex, 
+                '<span class="code-builtin">$1</span>'
+            );
+        }
+        
+        // Highlight numbers
+        highlightedCode = highlightedCode.replace(
+            /\b(\d+(\.\d+)?)\b/g, 
+            '<span class="code-number">$1</span>'
+        );
+        
+        // Highlight comments
+        highlightedCode = highlightedCode.replace(
+            /(#.*?)($|\n)/g, 
+            '<span class="code-comment">$1</span>$2'
+        );
+        
+        return highlightedCode;
+    }
+    
+    /**
      * Format parameter list from docstring
      * @param {string} paramText - Parameter section text
      * @returns {string} - Formatted HTML for parameters
@@ -618,7 +703,14 @@ class CustomBlockHandler {
         
         // Split by parameter (assuming each is indented or has a name: description format)
         const lines = paramText.trim().split('\n');
-        let html = '<div class="parameter-list">';
+        let html = '<div class="parameter-table">';
+        html += '<div class="parameter-table-header">';
+        html += '<div class="param-name-header">Parameter</div>';
+        html += '<div class="param-type-header">Type</div>';
+        html += '<div class="param-desc-header">Description</div>';
+        html += '</div>';
+        
+        let rowIndex = 0;
         
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -646,8 +738,11 @@ class CustomBlockHandler {
                 }
                 i = j - 1; // Skip the lines we've processed
                 
+                const rowClass = rowIndex % 2 === 0 ? 'even-row' : 'odd-row';
+                rowIndex++;
+                
                 html += `
-                    <div class="parameter-item">
+                    <div class="parameter-item ${rowClass}">
                         <div class="param-name">${name}</div>
                         ${type ? `<div class="param-type">${type}</div>` : '<div class="param-type">—</div>'}
                         <div class="param-desc">${desc}</div>
