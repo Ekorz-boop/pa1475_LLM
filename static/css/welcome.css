@@ -7,7 +7,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 999;
+    z-index: 10;
     background-color: transparent;
     transition: opacity 0.5s ease;
     pointer-events: none;
@@ -18,7 +18,7 @@
     width: 100%;
     height: 100%;
     position: relative;
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .center-content {
@@ -28,6 +28,7 @@
     transform: translate(-50%, -50%);
     text-align: center;
     width: 100%;
+    pointer-events: none;
 }
 
 .title {
@@ -52,6 +53,7 @@
     font-family: "Caveat", cursive;
     font-size: 24px;
     color: var(--langchain-primary);
+    pointer-events: none;
 }
 
 /* Placera info-texterna på specifika platser */
@@ -82,4 +84,21 @@
 .hidden {
     opacity: 0 !important;
     pointer-events: none !important;
+}
+
+
+.dark-mode .welcome-container {
+    background-color: var(--background-color);
+}
+
+.dark-mode .title {
+    color: var(--langchain-primary);
+}
+
+.dark-mode .subtitle {
+    color: var(--langchain-white);
+}
+
+.dark-mode .info-text {
+    color: var(--langchain-white);
 }
