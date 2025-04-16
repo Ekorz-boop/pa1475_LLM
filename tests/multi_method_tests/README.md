@@ -14,8 +14,9 @@ The multi-method blocks feature allows users to:
 
 - `test_api.py`: Tests the server API endpoints used by the multi-method blocks feature
 - `test_block_discovery.py`: Tests that block creation and discovery works correctly
+- `test_block_representation.py`: Tests that blocks correctly represent selected methods in their structure
 
-Both test files use a simple testing approach that verifies the backend functionality without browser dependencies.
+All test files use a simple testing approach that verifies the backend functionality without browser dependencies.
 
 ## Running the Tests
 
@@ -53,5 +54,6 @@ We focus on simple, effective API-level tests that verify:
 2. Class details including methods can be retrieved
 3. Custom blocks can be created with the right configuration
 4. Block connections can be established
+5. Created blocks correctly represent selected methods
 
 This approach ensures core functionality works while keeping tests simple to maintain. 
