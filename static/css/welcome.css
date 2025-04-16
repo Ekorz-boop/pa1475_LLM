@@ -52,8 +52,10 @@
     position: absolute;
     font-family: "Caveat", cursive;
     font-size: 24px;
-    color: var(--langchain-primary);
+    color: var(--langchain-text-light);
     pointer-events: none;
+    display: flex;
+    align-items: center;
 }
 
 /* Placera info-texterna på specifika platser */
@@ -65,6 +67,17 @@
     text-align: left;
 }
 
+.info-text:nth-child(2)::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    background-image: url('/static/images/icons/handup.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
 /* Höger sida - exportknappen */
 .info-text:nth-child(3) {
     margin-top: 70px;
@@ -73,12 +86,34 @@
     text-align: right;
 }
 
+.info-text:nth-child(3)::after {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    background-image: url('/static/images/icons/handup.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
 /* Botten - zoom/expand knappen */
 .info-text:nth-child(4) {
-    margin-bottom: 50px;
-    bottom: 40px;
-    left: 60px;
+    margin-bottom: 20px;
+    bottom: 5px;
+    left: 65px;
     text-align: left;
+}
+
+.info-text:nth-child(4)::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    background-image: url('/static/images/icons/handleft.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
 }
 
 .hidden {
