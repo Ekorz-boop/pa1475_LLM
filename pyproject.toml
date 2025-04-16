@@ -1,0 +1,11 @@
+[tool.black]
+line-length = 120
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "Q"]
+ignore = ["E501", "B007", "B904"] 
