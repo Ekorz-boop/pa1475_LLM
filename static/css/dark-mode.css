@@ -1084,4 +1084,28 @@ body.dark-mode {
 
 .dark-mode #custom-block-modal .class-description .parameter-item.odd-row {
     background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Make back button arrow white in dark mode */
+.dark-mode .back-button {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.dark-mode .back-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .back-button svg {
+    fill: var(--text-color) !important;
+}
+
+.dark-mode .back-button svg path {
+    fill: var(--text-color) !important;
+}
+
+.dark-mode .zoom-controls {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
 } 
