@@ -382,7 +382,8 @@
 .bg-color-options {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 4px;
     margin: 8px 0;
     padding: 0 5px;
 }
@@ -393,8 +394,23 @@
     border-radius: 4px;
     border: 1px solid #ddd;
     cursor: pointer;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.bg-color-option:hover {
+    transform: scale(1.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.bg-color-option.active {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 1px rgba(0, 166, 126, 0.3);
+}
+
+.dark-mode .bg-color-option {
+    border-color: #444;
 }
 
 .bg-color-option .color-preview {
