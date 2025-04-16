@@ -15,57 +15,68 @@
 
 .welcome-container {
     text-align: center;
-    min-width: 800px;
-    padding: 40px;
+    width: 100%;
+    height: 100%;
+    position: relative;
     pointer-events: auto;
+}
+
+.center-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 100%;
 }
 
 .title {
     font-family: "Caveat", cursive;
-    font-optical-sizing: auto;
-    font-weight: 700;
-    font-style: normal;
     font-size: 72px;
-    color: var(--langchain-text);
+    font-weight: 700;
+    color: var(--langchain-primary);
     margin-bottom: 16px;
-    line-height: 1.2;
 }
 
 .subtitle {
     font-family: "Caveat", cursive;
-    font-optical-sizing: auto;
-    font-weight: 500;
-    font-style: normal;
     font-size: 28px;
+    font-weight: 500;
     color: var(--langchain-text-light);
     margin-bottom: 40px;
-    line-height: 1.4;
     white-space: nowrap;
 }
 
 .info-text {
+    position: absolute;
     font-family: "Caveat", cursive;
-    font-optical-sizing: auto;
-    font-weight: 400;
-    font-style: normal;
-    font-size: 22px;
+    font-size: 24px;
     color: var(--langchain-primary);
-    margin: 8px 0;
-    line-height: 1.3;
-    white-space: nowrap;
-    position: relative;
 }
 
-.dark-mode .title {
-    color: var(--langchain-white);
+/* Placera info-texterna på specifika platser */
+/* Vänster sida - hamburgermenyn */
+.info-text:nth-child(2) {
+    margin-top: 30px;
+    top: 40px;
+    left: 70px;
+    text-align: left;
 }
 
-.dark-mode .subtitle {
-    color: var(--langchain-border);
+/* Höger sida - exportknappen */
+.info-text:nth-child(3) {
+    margin-top: 70px;
+    top: 40px;
+    right: 70px;
+    text-align: right;
 }
 
-.dark-mode .info-text {
-    color: var(--langchain-primary);
+/* Botten - zoom/expand knappen */
+.info-text:nth-child(4) {
+    margin-bottom: 50px;
+    bottom: 40px;
+    left: 60px;
+    text-align: left;
 }
 
 .hidden {
