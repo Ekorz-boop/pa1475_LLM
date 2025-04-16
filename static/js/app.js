@@ -636,7 +636,11 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const blockType = e.dataTransfer.getData('text/plain');
         if (blockType) {
+            // Get the canvas rectangle
             const rect = canvas.getBoundingClientRect();
+            
+            // Calculate position in canvas coordinates, accounting for zoom and transform
+            // This is the key calculation that ensures accuracy at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom;
 
@@ -728,13 +732,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
-            // Calculate position relative to canvas, accounting for zoom and pan
+            
+            // Calculate position relative to canvas, correctly accounting for zoom and pan
+            // This calculation ensures the block stays under the cursor at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
             draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             updateConnections();
-
             e.preventDefault();
         }
 
@@ -925,10 +930,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggedBlock = block;
 
                 // Calculate offset from the mouse to the block's top-left corner
+                // This is critical for the block to stay at the correct position relative to cursor
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                dragOffset.x = (e.clientX - rect.left) / zoom;
-                dragOffset.y = (e.clientY - rect.top) / zoom;
+                
+                // Get the block's transform to find its real position
+                const transform = window.getComputedStyle(block).transform;
+                const matrix = new DOMMatrixReadOnly(transform);
+                const blockX = matrix.m41;
+                const blockY = matrix.m42;
+                
+                // Get mouse position in canvas coordinates
+                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
+                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
+                
+                // Calculate offset between mouse and block origin
+                dragOffset.x = mouseX - blockX;
+                dragOffset.y = mouseY - blockY;
 
                 block.style.zIndex = '1000';
                 e.preventDefault();
@@ -1786,10 +1804,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggedBlock = block;
 
                 // Calculate offset from the mouse to the block's top-left corner
+                // This is critical for the block to stay at the correct position relative to cursor
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                dragOffset.x = (e.clientX - rect.left) / zoom;
-                dragOffset.y = (e.clientY - rect.top) / zoom;
+                
+                // Get the block's transform to find its real position
+                const transform = window.getComputedStyle(block).transform;
+                const matrix = new DOMMatrixReadOnly(transform);
+                const blockX = matrix.m41;
+                const blockY = matrix.m42;
+                
+                // Get mouse position in canvas coordinates
+                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
+                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
+                
+                // Calculate offset between mouse and block origin
+                dragOffset.x = mouseX - blockX;
+                dragOffset.y = mouseY - blockY;
 
                 block.style.zIndex = '1000';
                 e.preventDefault();
@@ -1934,9 +1965,159 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', function(e) {
         const target = e.target.closest('#fit-to-view, .fit-to-view-button');
         if (target) {
-            console.log("Fit-to-view button clicked - using HTML-defined function");
+            fitAllBlocksToView();
         }
     });
+
+    // Function to fit all blocks to view
+    function fitAllBlocksToView() {
+        console.log("Fitting all blocks to view");
+        const blocks = document.querySelectorAll('.block');
+        if (blocks.length === 0) {
+            showToast("No blocks to fit", "info");
+            return;
+        }
+
+        try {
+            // Calculate the bounds of all blocks in their current positions
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+            
+            blocks.forEach(block => {
+                // Get block position from transform
+                const transform = block.style.transform;
+                const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
+                if (match) {
+                    const x = parseFloat(match[1]);
+                    const y = parseFloat(match[2]);
+                    const width = block.offsetWidth;
+                    const height = block.offsetHeight;
+                    
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + width);
+                    maxY = Math.max(maxY, y + height);
+                }
+            });
+            
+            if (minX === Infinity) {
+                console.log("Could not determine block bounds");
+                return;
+            }
+            
+            // Add padding
+            const padding = 50;
+            minX -= padding;
+            minY -= padding;
+            maxX += padding;
+            maxY += padding;
+            
+            // Calculate dimensions
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const centerX = minX + (width / 2);
+            const centerY = minY + (height / 2);
+            
+            // Calculate scale to fit
+            const canvasWidth = canvas.offsetWidth;
+            const canvasHeight = canvas.offsetHeight;
+            const scaleX = canvasWidth / width;
+            const scaleY = canvasHeight / height;
+            const newZoom = Math.min(scaleX, scaleY, 1.5);
+            
+            // Important: Just like the zoom buttons, ONLY update these two variables
+            // and let updateCanvasTransform do all the work
+            zoom = newZoom;
+            currentTranslate.x = (canvasWidth / 2) - (centerX * zoom);
+            currentTranslate.y = (canvasHeight / 2) - (centerY * zoom);
+            
+            // Do NOT set any global flags or variables that might interfere with the
+            // well-functioning drag and drop functionality
+            
+            // Use the same function that the zoom buttons use
+            updateCanvasTransform();
+            
+            showToast("Adjusted view to fit all blocks", "success");
+        } catch (e) {
+            console.error("Error in fitAllBlocksToView:", e);
+            showToast("Could not fit blocks to view", "error");
+        }
+    }
+
+    // Handle block dragging with zoom compensation
+    function initBlockDragging() {
+        let isDragging = false;
+        let currentBlock = null;
+        let startX, startY;
+        let blockStartX, blockStartY;
+        
+        // Function to handle block mousedown event
+        document.addEventListener('mousedown', function(e) {
+            // Check if target is a block drag handle
+            const dragHandle = e.target.closest('.block-drag-handle');
+            if (!dragHandle) return;
+            
+            const block = dragHandle.closest('.block');
+            if (!block) return;
+            
+            // Start dragging
+            isDragging = true;
+            currentBlock = block;
+            
+            // Get current block position from its transform style
+            const transform = window.getComputedStyle(block).transform;
+            const matrix = new DOMMatrixReadOnly(transform);
+            blockStartX = matrix.m41;
+            blockStartY = matrix.m42;
+            
+            // Get mouse position in screen coordinates
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            // Set cursor and add dragging class
+            document.body.style.cursor = 'grabbing';
+            block.classList.add('dragging');
+            block.style.zIndex = '1000';
+            
+            // Prevent default to avoid text selection
+            e.preventDefault();
+        });
+        
+        // Function to handle block mousemove event
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging || !currentBlock) return;
+
+            // Calculate the mouse movement delta in screen coordinates
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            // Apply the delta, adjusted for zoom level to maintain proper scaling
+            const newX = blockStartX + (deltaX / zoom);
+            const newY = blockStartY + (deltaY / zoom);
+            
+            // Apply the new position
+            currentBlock.style.transform = `translate(${newX}px, ${newY}px)`;
+            
+            // Update connections
+            updateConnections();
+        });
+
+        // Function to handle block mouseup event
+        document.addEventListener('mouseup', function() {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            if (currentBlock) {
+                currentBlock.classList.remove('dragging');
+                currentBlock.style.zIndex = '1';
+                currentBlock = null;
+            }
+            document.body.style.cursor = '';
+        });
+    }
+
+    // Initialize block dragging
+    initBlockDragging();
 });
 
 

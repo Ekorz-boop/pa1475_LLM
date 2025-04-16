@@ -397,57 +397,94 @@
                             
                             console.log("New transform: translate(" + tx + "px, " + ty + "px) scale(" + scale + ")");
                             
-                            // Update the global variables used by the application
+                            // Store values for protection
+                            window.fitToViewActive = true;
+                            window.fittedZoom = scale;
+                            window.fittedTranslateX = tx;
+                            window.fittedTranslateY = ty;
+                            
+                            // Update the global variables
                             if (typeof window.zoom !== 'undefined') window.zoom = scale;
                             if (typeof window.currentTranslate !== 'undefined') {
                                 window.currentTranslate.x = tx;
                                 window.currentTranslate.y = ty;
                             }
                             
-                            // Update the zoom display directly
+                            // Fix for accurate block placement after zoom
+                            // This ensures that blocks drop where expected regardless of zoom level
+                            if (typeof window.handleDragStart === 'function') {
+                                const originalHandleDragStart = window.handleDragStart;
+                                window.handleDragStart = function(e) {
+                                    // Store the current zoom when drag starts
+                                    window.dragStartZoom = window.zoom;
+                                    // Call the original function
+                                    return originalHandleDragStart.apply(this, arguments);
+                                };
+                            }
+                            
+                            if (typeof window.handleBlockDrop === 'function') {
+                                const originalHandleBlockDrop = window.handleBlockDrop;
+                                window.handleBlockDrop = function(e) {
+                                    // Adjust coordinates based on zoom if needed
+                                    if (window.fitToViewActive && window.dragStartZoom) {
+                                        // Calculate zoom compensation factor
+                                        const zoomCompensation = window.zoom / window.dragStartZoom;
+                                        
+                                        // Clone and modify the event to adjust coordinates
+                                        const adjustedEvent = {...e};
+                                        if (adjustedEvent.clientX !== undefined && adjustedEvent.clientY !== undefined) {
+                                            // Apply zoom compensation to drop position
+                                            const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
+                                            const centerX = canvasRect.left + canvasRect.width / 2;
+                                            const centerY = canvasRect.top + canvasRect.height / 2;
+                                            
+                                            // Calculate adjusted position based on center point
+                                            adjustedEvent.clientX = centerX + (adjustedEvent.clientX - centerX) * zoomCompensation;
+                                            adjustedEvent.clientY = centerY + (adjustedEvent.clientY - centerY) * zoomCompensation;
+                                        }
+                                        
+                                        // Call original with adjusted coordinates
+                                        return originalHandleBlockDrop.apply(this, [adjustedEvent]);
+                                    }
+                                    
+                                    // Call original function normally if no zoom adjustment needed
+                                    return originalHandleBlockDrop.apply(this, arguments);
+                                };
+                            }
+                            
+                            // Update zoom display
                             var zoomDisplay = document.querySelector('.zoom-level');
                             if (zoomDisplay) {
                                 zoomDisplay.textContent = Math.round(scale * 100) + '%';
                             }
                             
-                            // Let the existing updateCanvasTransform function handle the update
-                            if (typeof window.updateCanvasTransform === 'function') {
-                                window.updateCanvasTransform();
-                            } else {
-                                // Fallback if the function doesn't exist
-                                container.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + scale + ')';
-                            }
+                            // Add transition for smooth animation
+                            container.style.transition = 'transform 0.5s cubic-bezier(0.215, 0.61, 0.355, 1)';
                             
-                            // Update other UI elements
-                            if (typeof window.updateConnections === 'function') {
-                                setTimeout(window.updateConnections, 50);
-                            }
+                            // Apply transform with animation
+                            container.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
                             
-                            // Update the mini-map if it exists
-                            if (typeof window.updateMiniMap === 'function') {
-                                setTimeout(window.updateMiniMap, 50);
-                            }
+                            // Remove transition after animation completes
+                            setTimeout(function() {
+                                container.style.transition = '';
+                                
+                                // Update connections and mini-map after transition
+                                if (typeof window.updateConnections === 'function') {
+                                    window.updateConnections();
+                                }
+                                
+                                if (typeof window.updateMiniMap === 'function') {
+                                    window.updateMiniMap();
+                                }
+                            }, 600);
                             
-                            // DIRECT CONTROL APPROACH: Override the main zoom variables
-                            // This is the most direct approach to ensure the zoom doesn't change
-                            
-                            // 1. Store the original zoom and transform values
-                            window.fitToViewActive = true;
-                            window.originalZoom = window.zoom;  // store original in case we need it
-                            window.fittedZoom = scale;  // store our fitted zoom
-                            window.fittedTranslateX = tx;
-                            window.fittedTranslateY = ty;
-                            
-                            // 2. Create forceful protection by intercepting all drag operations
-                            // Override the existing canvas event listeners
-                            const canvas = document.getElementById('canvas');
-                            
-                            // 3. Create a MutationObserver to watch for changes to the transform
+                            // Create a MutationObserver to protect the zoom level during dragging
                             const transformObserver = new MutationObserver(function(mutations) {
                                 if (window.fitToViewActive) {
                                     mutations.forEach(function(mutation) {
                                         if (mutation.attributeName === 'style' && 
-                                            mutation.target === container) {
+                                            mutation.target === container &&
+                                            !container.style.transition) {  // Only apply when not animating
                                             
                                             // Get the current transform
                                             const currentTransform = container.style.transform;
@@ -467,6 +504,7 @@
                                                     const currentTranslateY = parseFloat(translateMatch[2]);
                                                     
                                                     // Apply transform with current translation but our fixed zoom
+                                                    // Do not use transition during drag operations - this makes it feel snappy
                                                     container.style.transform = 
                                                         `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${window.fittedZoom})`;
                                                     
