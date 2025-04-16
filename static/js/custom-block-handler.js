@@ -601,38 +601,136 @@ class CustomBlockHandler {
             }
         );
         
-        // Format code blocks with proper language indicators and copy buttons
+        // IMPROVED: First, extract and temporarily store all code blocks to prevent processing inside them
+        const codeBlocks = [];
+        let codeBlockCounter = 0;
+        
+        // Process RST style code-blocks with language indicators
         formatted = formatted.replace(
-            /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n|\n\s*\.\.|$)/g,
+            /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n\S|\n\S\S|\n\.\.|$)/g,
             (match, language, code) => {
-                // Apply syntax highlighting to code
-                let highlightedCode = this.applySyntaxHighlighting(code);
-                const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
-                return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
+                // Store the code block
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language,
+                    code: code.trim()
+                });
+                codeBlockCounter++;
+                return placeholder;
             }
         );
         
-        // Handle Python code blocks specifically (triple backticks)
+        // IMPROVED: Handle Python code blocks with triple backticks - improved regex for multi-line examples
         formatted = formatted.replace(
             /```(?:(python|bash|javascript|js|html|css|json|yaml|xml))?\n([\s\S]*?)```/g,
             (match, language, code) => {
-                // Apply syntax highlighting to code
-                let highlightedCode = this.applySyntaxHighlighting(code);
-                language = language || 'python'; // Default to python if language not specified
-                const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
-                return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
+                // Store the code block
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language: language || 'python', // Default to python if language not specified
+                    code: code.trim()
+                });
+                codeBlockCounter++;
+                return placeholder;
             }
         );
         
-        // Format inline code
+        // IMPROVED: Detect Python examples marked with >>> and ... continuations
+        // This pattern looks for consecutive lines starting with >>> or ...
+        let pythonConsoleExample = '';
+        let inConsoleExample = false;
+        
+        const lines = formatted.split('\n');
+        const newLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmedLine = line.trim();
+            
+            if (trimmedLine.startsWith('>>>') || trimmedLine.startsWith('...')) {
+                if (!inConsoleExample) {
+                    // Start a new console example
+                    inConsoleExample = true;
+                    pythonConsoleExample = line;
+                } else {
+                    // Continue the current example
+                    pythonConsoleExample += '\n' + line;
+                }
+            } else if (inConsoleExample && (trimmedLine === '' || /^\s+\S/.test(line))) {
+                // Empty line or indented line within a code block - keep it part of the example
+                pythonConsoleExample += '\n' + line;
+            } else if (inConsoleExample) {
+                // End of console example
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language: 'python',
+                    code: pythonConsoleExample.trim(),
+                    isConsole: true
+                });
+                codeBlockCounter++;
+                
+                inConsoleExample = false;
+                newLines.push(placeholder);
+                newLines.push(line); // Add the current line
+            } else {
+                newLines.push(line);
+            }
+        }
+        
+        // Handle case where console example is at the end of the content
+        if (inConsoleExample) {
+            const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+            codeBlocks.push({
+                placeholder,
+                language: 'python',
+                code: pythonConsoleExample.trim(),
+                isConsole: true
+            });
+            newLines.push(placeholder);
+        }
+        
+        formatted = newLines.join('\n');
+        
+        // IMPROVED: Detect and combine import statements with subsequent code
+        // This is a common pattern in LangChain docstrings
+        formatted = formatted.replace(
+            /(?:\n|^)((?:from|import)\s+[\w\.]+(?:\s+import\s+[\w\.,\s]+)?(?:\n(?:from|import)\s+[\w\.]+(?:\s+import\s+[\w\.,\s]+)?)*)\n+((?:[^\n]+\n)+?(?=\n|$))/g,
+            (match, imports, code) => {
+                // Check if this looks like Python code following imports
+                if (/\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=|[a-zA-Z_][a-zA-Z0-9_]*\(/.test(code)) {
+                    const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                    codeBlocks.push({
+                        placeholder,
+                        language: 'python',
+                        code: `${imports.trim()}\n\n${code.trim()}`
+                    });
+                    codeBlockCounter++;
+                    return placeholder;
+                }
+                return match;
+            }
+        );
+        
+        // Format inline code (but not inside our code block placeholders)
         formatted = formatted.replace(
             /`([^`]+)`/g,
-            '<code class="inline-code">$1</code>'
+            (match, code, offset) => {
+                // Check if we're inside a code block placeholder
+                for (const block of codeBlocks) {
+                    if (formatted.substring(0, offset).includes(block.placeholder)) {
+                        return match; // Inside placeholder, leave as is
+                    }
+                }
+                return '<code class="inline-code">' + code + '</code>';
+            }
         );
 
         // Format parameter names specifically
         formatted = formatted.replace(
-            /\b(web_path|header_template|verify_ssl)\b/g,
+            /\b(web_path|header_template|verify_ssl|file_path)\b/g,
             '<span class="parameter-name">$1</span>'
         );
 
@@ -655,16 +753,6 @@ class CustomBlockHandler {
             }
             return `<code class="inline-code">${match}</code>`;
         });
-
-        // Format Python code examples (commonly used in docstrings)
-        formatted = formatted.replace(
-            />>>([^\n]+)/g,
-            (match, code) => {
-                // Apply syntax highlighting to Python code
-                let highlightedCode = this.applySyntaxHighlighting(code);
-                return `<pre class="python-example" data-language="python"><code>>>> ${highlightedCode}</code></pre>`;
-            }
-        );
 
         // Create collapsible sections for long examples
         formatted = this.createCollapsibleSections(formatted);
@@ -719,6 +807,24 @@ class CustomBlockHandler {
             !formatted.startsWith('<div class="usage-section">') &&
             !formatted.startsWith('<div class="collapsible-section">')) {
             formatted = '<p>' + formatted + '</p>';
+        }
+        
+        // IMPROVED: Now replace all code block placeholders with their formatted HTML
+        for (const block of codeBlocks) {
+            // Apply syntax highlighting to code
+            let highlightedCode = this.applySyntaxHighlighting(block.code);
+            
+            const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
+            let formattedBlock;
+            
+            if (block.isConsole) {
+                formattedBlock = `<pre class="python-example" data-language="${block.language}">${copyButton}<code>${highlightedCode}</code></pre>`;
+            } else {
+                formattedBlock = `<pre class="code-block" data-language="${block.language}">${copyButton}<code>${highlightedCode}</code></pre>`;
+            }
+            
+            // Replace placeholder with actual formatted code block
+            formatted = formatted.replace(block.placeholder, formattedBlock);
         }
         
         return formatted;
