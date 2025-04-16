@@ -461,50 +461,36 @@ class CustomBlockHandler {
      * Handle class selection change
      */
     async onClassChange() {
-        const selectedLibrary = this.librarySelect.value;
-        const selectedModule = this.moduleSelect.value;
         const selectedClass = this.classSelect.value;
-
-        console.log(`Class selected: ${selectedClass}`);
-
-        // Update the selectedClass property
-        this.selectedClass = selectedClass;
-
-        // Clear method select
-        this.methodsContainer.innerHTML = '<p>Select a class first</p>';
-
         if (!selectedClass) {
             return;
         }
 
-        // Show loading message in the method select
-        this.methodsContainer.innerHTML = '<div class="loading-message">Loading methods...</div>';
-
-        // Update parameter container to show loading
-        this.parametersContainer.innerHTML = '<div class="loading-message">Loading class details...</div>';
+        this.selectedClass = selectedClass;
+        this.parameters = {}; // Clear parameters when changing class
 
         try {
-            // Clear previous details
-            this.selectedMethods = [];
-            this.parameters = {};
-            this.inputNodes = [];
-            this.outputNodes = [];
+            // Get library and module from selects
+            const library = this.librarySelect.value;
+            const module = this.moduleSelect.value;
 
-            // Perform the fetch
-            const response = await fetch(`/api/langchain/class_details?library=${selectedLibrary}&module=${selectedModule}&class_name=${selectedClass}`);
+            // Save module info for later use
+            saveModuleInfo(selectedClass, library, module);
 
+            // Fetch class details
+            const response = await fetch(`/api/langchain/class_details?library=${library}&module=${module}&class_name=${selectedClass}`);
             if (!response.ok) {
-                throw new Error(`Failed to load class details: ${response.statusText}`);
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
 
             const data = await response.json();
             this.classDetails = data;
 
-            // Update class description
+            // Update class description with formatted docstring
             const description = this.modal.querySelector('.class-description');
             description.innerHTML = `
-                <h3>${selectedClass}</h3>
-                <p>${data.doc || 'No description available.'}</p>
+                <div class="class-name-header"><h3>${selectedClass}</h3></div>
+                ${this.formatDocstring(data.doc || 'No description available.')}
             `;
 
             // Add common input/output nodes based on the component type
@@ -524,6 +510,154 @@ class CustomBlockHandler {
             description.innerHTML = `<p class="error">Error loading class details: ${error.message}</p>`;
             this.methodsContainer.innerHTML = `<p class="error">Failed to load methods: ${error.message}</p>`;
         }
+    }
+
+    /**
+     * Format a docstring with proper HTML formatting
+     * @param {string} docstring - The raw docstring text
+     * @returns {string} - Formatted HTML
+     */
+    formatDocstring(docstring) {
+        if (!docstring || typeof docstring !== 'string') {
+            return '<p>No description available.</p>';
+        }
+
+        let formatted = docstring;
+
+        // Convert URLs to clickable links
+        formatted = formatted.replace(
+            /(https?:\/\/[^\s\)]+)/g, 
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+        
+        // Format code blocks (text surrounded by triple backticks)
+        formatted = formatted.replace(
+            /```([\s\S]*?)```/g,
+            '<pre class="code-block"><code>$1</code></pre>'
+        );
+        
+        // Format inline code
+        formatted = formatted.replace(
+            /`([^`]+)`/g,
+            '<code class="inline-code">$1</code>'
+        );
+
+        // Format technical terms and file formats as inline code
+        // This captures common technical terms that should be formatted as code
+        const technicalTerms = [
+            'XML', 'JSON', 'CSV', 'YAML', 'HTML', 'PDF', 'DOCX', 'TXT',
+            'unstructured', 'langchain', 'python', 'mode=', 'strategy='
+        ];
+        
+        // Create a regex that matches these terms as whole words
+        const techTermsRegex = new RegExp(`\\b(${technicalTerms.join('|')})\\b`, 'g');
+        formatted = formatted.replace(techTermsRegex, (match) => {
+            return `<code class="inline-code">${match}</code>`;
+        });
+
+        // Format Python code examples (commonly used in docstrings)
+        formatted = formatted.replace(
+            />>>([^\n]+)/g,
+            '<pre class="python-example"><code>>>> $1</code></pre>'
+        );
+
+        // Format common sections with headers
+        const commonSections = [
+            "Parameters:", "Returns:", "Examples:", "Example:", 
+            "Usage:", "Notes:", "Note:", "Args:", "Arguments:",
+            "Attributes:", "Raises:", "Exceptions:", "References:"
+        ];
+        
+        // Process section titles
+        for (const section of commonSections) {
+            // Only replace if the section is at the beginning of a line (possibly with whitespace)
+            const sectionRegex = new RegExp(`(^|\\n)\\s*(${section})\\s*`, 'g');
+            formatted = formatted.replace(sectionRegex, (match, p1, p2) => {
+                return `${p1}<h4>${p2}</h4>`;
+            });
+        }
+
+        // Format parameter sections (assuming they start with "Parameters:")
+        if (formatted.includes("<h4>Parameters:</h4>") || formatted.includes("<h4>Args:</h4>")) {
+            const paramSectionRegex = /<h4>(Parameters:|Args:)<\/h4>([\s\S]*?)(?=<h4>|$)/;
+            const paramMatch = formatted.match(paramSectionRegex);
+            
+            if (paramMatch) {
+                // Extract the parameter section
+                const paramSection = paramMatch[2];
+                
+                // Format the parameters as a list
+                const formattedParams = this.formatParameterList(paramSection);
+                
+                // Replace the original parameter section with the formatted one
+                formatted = formatted.replace(
+                    paramSectionRegex, 
+                    `<h4>${paramMatch[1]}</h4>${formattedParams}`
+                );
+            }
+        }
+        
+        // Add paragraph breaks (preserve existing structure)
+        formatted = formatted.replace(/\n\s*\n/g, '</p><p>');
+        
+        // Wrap in paragraph tags if not already wrapped
+        if (!formatted.startsWith('<p>') && !formatted.startsWith('<h4>')) {
+            formatted = '<p>' + formatted + '</p>';
+        }
+        
+        return formatted;
+    }
+    
+    /**
+     * Format parameter list from docstring
+     * @param {string} paramText - Parameter section text
+     * @returns {string} - Formatted HTML for parameters
+     */
+    formatParameterList(paramText) {
+        if (!paramText) return '';
+        
+        // Split by parameter (assuming each is indented or has a name: description format)
+        const lines = paramText.trim().split('\n');
+        let html = '<div class="parameter-list">';
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line === '') continue;
+            
+            // Check if this is a parameter name line
+            // This regex matches patterns like:
+            // param_name (type): description
+            // param_name: description
+            // param_name (type) -- description
+            const paramMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]+)\))?\s*(?:--|:)\s*(.*)/);
+            
+            if (paramMatch) {
+                const name = paramMatch[1];
+                const type = paramMatch[2] || '';
+                let desc = paramMatch[3];
+                
+                // Look ahead for additional description lines (indented)
+                let j = i + 1;
+                while (j < lines.length && (lines[j].trim() === '' || lines[j].match(/^\s{2,}/))) {
+                    if (lines[j].trim() !== '') {
+                        desc += ' ' + lines[j].trim();
+                    }
+                    j++;
+                }
+                i = j - 1; // Skip the lines we've processed
+                
+                html += `
+                    <div class="parameter-item">
+                        <div class="param-name">${name}</div>
+                        ${type ? `<div class="param-type">${type}</div>` : '<div class="param-type">—</div>'}
+                        <div class="param-desc">${desc}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        html += '</div>';
+        return html;
     }
 
     /**
