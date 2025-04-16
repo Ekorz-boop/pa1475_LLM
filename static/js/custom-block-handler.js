@@ -1188,6 +1188,22 @@ class CustomBlockHandler {
             }
         }
         
+        // Format attributes sections similarly to parameters
+        if (formatted.includes("<h4>Attributes:</h4>")) {
+            const attrSectionRegex = /<h4>Attributes:<\/h4>([\s\S]*?)(?=<h4>|$)/;
+            const attrMatch = formatted.match(attrSectionRegex);
+            
+            if (attrMatch) {
+                const attrSection = attrMatch[1];
+                const formattedAttrs = this.formatParameterList(attrSection);
+                
+                formatted = formatted.replace(
+                    attrSectionRegex, 
+                    `<h4>Attributes:</h4>${formattedAttrs}`
+                );
+            }
+        }
+        
         // Add paragraph breaks
         formatted = formatted.replace(/\n\s*\n/g, '</p><p>');
         
@@ -1411,7 +1427,41 @@ class CustomBlockHandler {
             const line = lines[i].trim();
             if (line === '') continue;
             
-            // Check if this is a parameter name line
+            // First, check if this line contains multiple attributes in a list format
+            // Example: "runs (Iterable[Union[str, Run]]): The list of LLM run IDs or run objects. client (Client): Instance of LangSmith client for fetching data."
+            const multiAttrRegex = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]+)\):\s*([^.!?]+(?:\.[^.!?]+)*?)(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(|\.|$)/g;
+            let multiMatchFound = false;
+            let multiMatch;
+            const matches = [];
+            
+            // Find all parameter definitions in the line
+            while ((multiMatch = multiAttrRegex.exec(line)) !== null) {
+                matches.push({
+                    name: multiMatch[1].trim(),
+                    type: multiMatch[2].trim(),
+                    desc: multiMatch[3].trim()
+                });
+                multiMatchFound = true;
+            }
+            
+            // If we found multiple parameters, add each as a separate row
+            if (multiMatchFound && matches.length > 0) {
+                for (const match of matches) {
+                    const rowClass = rowIndex % 2 === 0 ? 'even-row' : 'odd-row';
+                    rowIndex++;
+                    
+                    html += `
+                        <div class="parameter-item ${rowClass}">
+                            <div class="param-name">${match.name}</div>
+                            ${match.type ? `<div class="param-type">${match.type}</div>` : '<div class="param-type">—</div>'}
+                            <div class="param-desc">${match.desc}</div>
+                        </div>
+                    `;
+                }
+                continue; // Skip to the next line
+            }
+            
+            // If not a multi-parameter line, check if this is a standard parameter name line
             // This regex matches patterns like:
             // param_name (type): description
             // param_name: description
