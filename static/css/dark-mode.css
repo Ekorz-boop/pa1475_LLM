@@ -161,8 +161,13 @@ body.dark-mode {
     color: var(--secondary-bg);
 }
 
-.dark-mode .custom-blocks-container {
-    background-color: var(--primary-bg);
+/* Custom blocks section header in dark mode */
+.dark-mode .custom-blocks-section-header {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-blocks-divider {
+    background: linear-gradient(to right, var(--langchain-primary) 0%, rgba(255, 255, 255, 0.2) 100%);
 }
 
 .dark-mode .block-template {
@@ -638,10 +643,6 @@ body.dark-mode {
 
 .dark-mode #create-custom-block-btn:hover {
     background-color: var(--langchain-primary-hover);
-}
-
-.dark-mode #custom-blocks-container {
-    background-color: var(--primary-bg);
 }
 
 .dark-mode .custom-block {
