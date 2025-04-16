@@ -493,7 +493,7 @@ class CustomBlockHandler {
             description.innerHTML = `
                 <div class="class-name-header">
                     <h3>${selectedClass}</h3>
-                    <div class="class-path">${library}.${module}.${selectedClass}</div>
+                    <div class="class-path" style="display: none;">${library}.${module}.${selectedClass}</div>
                 </div>
                 <div class="docstring-content">
                     ${this.formatDocstring(data.doc || 'No description available.')}
