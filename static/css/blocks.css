@@ -80,6 +80,8 @@
     z-index: 2;  /* Above nodes */
     position: relative;  /* Create stacking context */
     font-family: 'Open Sans', sans-serif;
+    background-color: #00B388; /* Green color similar to the image */
+    color: white; /* White text for better contrast */
 }
 
 /* ===== Blocks ===== */
