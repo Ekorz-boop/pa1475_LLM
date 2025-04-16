@@ -137,22 +137,22 @@
 .menu-item {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     cursor: pointer;
-    padding: 4px 5px;
+    padding: 5px 6px;
     border-radius: 4px;
     transition: background-color 0.2s ease;
     white-space: nowrap;
     color: #333;
     font-family: 'Open Sans', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .menu-item img {
-    width: 14px;
-    height: 14px;
-    min-width: 14px;
-    opacity: 0.7;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    opacity: 0.8;
     transition: opacity 0.2s ease;
 }
 
@@ -190,8 +190,8 @@
 }
 
 .theme-option {
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     border-radius: 4px;
     border: 1px solid #ddd;
     cursor: pointer;
@@ -199,12 +199,12 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    padding: 1px;
+    padding: 2px;
     background-color: transparent;
 }
 
 .theme-option img {
-    max-width: 14px;
+    max-width: 18px;
     height: auto;
     opacity: 0.9;
 }
