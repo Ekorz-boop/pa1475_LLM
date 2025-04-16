@@ -323,3 +323,29 @@
     z-index: 1;
     background: #fff;
 }
+
+/* Styles for displaying methods in blocks */
+.block-methods-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 5px;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #eee;
+}
+
+.methods-label {
+    font-size: 12px;
+    color: #555;
+    margin-right: 5px;
+}
+
+.method-badge {
+    display: inline-block;
+    background-color: var(--langchain-secondary);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    margin-right: 3px;
+}

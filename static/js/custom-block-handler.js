@@ -1012,7 +1012,7 @@ class CustomBlockHandler {
             saveMethods(this.selectedClass, this.selectedMethods, blockId);
 
             // Create the block on the canvas
-            createCustomBlock(
+            const block = createCustomBlock(
                 this.selectedClass,
                 this.inputNodes,
                 this.outputNodes,
@@ -1635,6 +1635,10 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         }
     }
 
+    // After populating methods, also display all methods
+    populateMethodsForBlock(block, className, blockId);
+    displayBlockMethods(block);
+    
     return block;
 }
 
@@ -1906,4 +1910,62 @@ function updateBlockNameInStorage(blockId, newName) {
     } catch (error) {
         console.error('Error updating block name in storage:', error);
     }
+}
+
+// Function to display all methods for a block
+function displayBlockMethods(block) {
+    const blockId = block.getAttribute('data-block-id');
+    if (!blockId) return;
+    
+    // Fetch methods from our new API endpoint
+    fetch(`/api/blocks/methods/${blockId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.methods || data.methods.length === 0) {
+                console.warn(`No methods found for block ${blockId}`);
+                return;
+            }
+            
+            // Create or get the methods display container
+            let methodsContainer = block.querySelector('.block-methods-list');
+            if (!methodsContainer) {
+                methodsContainer = document.createElement('div');
+                methodsContainer.className = 'block-methods-list';
+                
+                // Insert before the block parameters
+                const parametersContainer = block.querySelector('.block-parameters');
+                if (parametersContainer) {
+                    block.querySelector('.block-content').insertBefore(methodsContainer, parametersContainer);
+                } else {
+                    block.querySelector('.block-content').appendChild(methodsContainer);
+                }
+            }
+            
+            // Clear existing content
+            methodsContainer.innerHTML = '';
+            
+            // Add a label
+            const label = document.createElement('div');
+            label.className = 'methods-label';
+            label.textContent = 'Methods:';
+            methodsContainer.appendChild(label);
+            
+            // Add each method as a badge
+            data.methods.forEach(method => {
+                const methodBadge = document.createElement('span');
+                methodBadge.className = 'method-badge';
+                methodBadge.textContent = method;
+                methodsContainer.appendChild(methodBadge);
+            });
+            
+            console.log(`Displayed ${data.methods.length} methods for block ${blockId}`);
+        })
+        .catch(error => {
+            console.error(`Error fetching methods for block ${blockId}:`, error);
+        });
 }

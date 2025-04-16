@@ -156,19 +156,66 @@ class TestBlockRepresentation(unittest.TestCase):
         # Verify the block was found
         self.assertIsNotNone(found_block)
         
-        # The expected response format might vary, but we expect some representation of methods
-        # We'll check a few common possibilities
-        if "methods" in found_block:
-            # Direct methods field
-            self.assertIn("__init__", found_block["methods"])
-            self.assertIn("load", found_block["methods"])
-        elif "block_info" in found_block and "methods" in found_block["block_info"]:
-            # Nested in block_info
-            self.assertIn("__init__", found_block["block_info"]["methods"])
-            self.assertIn("load", found_block["block_info"]["methods"])
-            
-        print(f"Block listing includes method information for block: {found_block}")
-
+        # Print the response for debugging
+        print(f"Block listing response: {json.dumps(found_block, indent=2)}")
+        
+        # Verify methods are in the response
+        self.assertIn("methods", found_block, "Methods should be included in block listing")
+        methods = found_block["methods"]
+        self.assertEqual(len(methods), 2)
+        self.assertIn("__init__", methods)
+        self.assertIn("load", methods)
+        
+        # Also verify class name is included
+        self.assertIn("class_name", found_block)
+        self.assertEqual(found_block["class_name"], "PyPDFLoader")
+        
+    def test_api_endpoint_for_selected_methods(self):
+        """Test that there's an API endpoint that returns all selected methods for a block."""
+        # First create a block with multiple methods
+        block_data = {
+            "module_path": "langchain_community.document_loaders",
+            "class_name": "PyPDFLoader",
+            "id": "test_ui_methods_block",
+            "methods": ["__init__", "load", "load_and_split"],
+            "input_nodes": ["file_path"],
+            "output_nodes": ["documents"],
+            "parameters": {"file_path": "test.pdf"},
+        }
+        
+        # Create the block
+        response = self.client.post(
+            "/api/blocks/create_custom",
+            json=block_data,
+            content_type="application/json",
+        )
+        
+        # Verify block creation succeeded
+        self.assertEqual(response.status_code, 200)
+        
+        # Get methods directly from our new endpoint
+        response = self.client.get(f"/api/blocks/methods/test_ui_methods_block")
+        self.assertEqual(response.status_code, 200)
+        
+        # Parse the response
+        methods_data = json.loads(response.data)
+        
+        # Print the API response
+        print(f"Block methods API response: {json.dumps(methods_data, indent=2)}")
+        
+        # Verify the API returns all methods
+        self.assertIn("methods", methods_data)
+        methods = methods_data["methods"]
+        self.assertEqual(len(methods), 3)
+        self.assertIn("__init__", methods)
+        self.assertIn("load", methods)
+        self.assertIn("load_and_split", methods)
+        
+        print(f"API successfully returns all selected methods: {methods}")
+        
+        # The UI display issue is separate - this is just testing the API
+        # To fix the UI issue, we would need to update the JavaScript frontend code
+        # to display all methods, not just as dropdown options
 
 if __name__ == "__main__":
     unittest.main() 

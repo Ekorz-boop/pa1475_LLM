@@ -128,13 +128,27 @@ def export_blocks():
 
 @app.route("/api/blocks/list", methods=["GET"])
 def list_blocks():
-    try:
-        blocks = {
-            block_id: type(block).__name__ for block_id, block in canvas.blocks.items()
+    """List all blocks on the canvas."""
+    block_info = {}
+    for block_id, block in canvas.blocks.items():
+        # Prepare block info with more details
+        block_data = {
+            "type": block.__class__.__name__,
+            "inputs": list(block.inputs.keys()),
+            "outputs": list(block.outputs.keys()),
         }
-        return jsonify({"blocks": blocks, "connections": canvas.connections})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        
+        # Add methods if available
+        if hasattr(block, "methods") and block.methods:
+            block_data["methods"] = block.methods
+            
+        # Add class name if available
+        if hasattr(block, "class_name"):
+            block_data["class_name"] = block.class_name
+            
+        block_info[block_id] = block_data
+        
+    return jsonify({"blocks": block_info})
 
 
 @app.route("/api/blocks/process", methods=["POST"])
@@ -930,6 +944,27 @@ def create_custom_block():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# Add a new endpoint to retrieve block methods
+@app.route("/api/blocks/methods/<block_id>", methods=["GET"])
+def get_block_methods(block_id):
+    """Get all methods for a specific block."""
+    if block_id not in canvas.blocks:
+        return jsonify({"error": f"Block with ID {block_id} not found"}), 404
+        
+    block = canvas.blocks[block_id]
+    
+    # Check if the block has methods attribute
+    if not hasattr(block, "methods"):
+        return jsonify({"error": "Block does not have methods"}), 400
+        
+    # Return the methods
+    return jsonify({
+        "block_id": block_id,
+        "class_name": block.class_name if hasattr(block, "class_name") else "Unknown",
+        "methods": block.methods
+    })
 
 
 if __name__ == "__main__":
