@@ -1,3 +1,10 @@
+# This is intentionally permissive to pass CI
+line-length = 120
+
+# Assume Python 3.10
+target-version = "py310"
+
+[lint]
 # Enable flake8-bugbear (`B`) rules.
 select = ["E", "F", "B", "Q"]
 
@@ -26,14 +33,21 @@ exclude = [
     "venv",
 ]
 
-# This is intentionally permissive to pass CI
-line-length = 120
-
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Assume Python 3.10
-target-version = "py310"
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Ignore line length issues and unused loop variable issues
+ignore = ["E501", "B007", "B904"]
+
+[lint.per-file-ignores]
+# Tests can use assert and have long lines
+"tests/**/*test*.py" = ["S101", "E501"]
+# The specific file with unused os import
+"scripts/fix_lint.py" = ["F401"]
 
 [format]
 # Like Black, use double quotes for strings.
@@ -47,20 +61,3 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
-
-[lint]
-# Allow fix for all enabled rules (when `--fix`) is provided.
-fixable = ["ALL"]
-unfixable = []
-
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-# Ignore line length issues and unused loop variable issues
-ignore = ["E501", "B007", "B904"]
-
-[lint.per-file-ignores]
-# Tests can use assert and have long lines
-"tests/**/*test*.py" = ["S101", "E501"]
-# The specific file with unused os import
-"scripts/fix_lint.py" = ["F401"]
