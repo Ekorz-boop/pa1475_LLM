@@ -42,9 +42,7 @@ class TestBlockDiscovery(unittest.TestCase):
             self.assertIn(lib, libraries, f"Expected library {lib} not found")
 
         # Verify we have enough libraries
-        self.assertGreaterEqual(
-            len(libraries), 2, f"Expected at least 2 libraries, found {len(libraries)}"
-        )
+        self.assertGreaterEqual(len(libraries), 2, f"Expected at least 2 libraries, found {len(libraries)}")
 
         print(f"Found {len(libraries)} LangChain libraries: {', '.join(libraries)}")
 
@@ -69,9 +67,7 @@ class TestBlockDiscovery(unittest.TestCase):
             self.assertIn(module, modules, f"Expected module {module} not found")
 
         # Verify we have enough modules
-        self.assertGreaterEqual(
-            len(modules), 5, f"Expected at least 5 modules, found {len(modules)}"
-        )
+        self.assertGreaterEqual(len(modules), 5, f"Expected at least 5 modules, found {len(modules)}")
 
         print(f"Found {len(modules)} modules in langchain_community")
 
@@ -104,9 +100,7 @@ class TestBlockDiscovery(unittest.TestCase):
         # Verify we have expected classes
         expected_classes = ["PyPDFLoader", "TextLoader", "CSVLoader"]
         for cls in expected_classes:
-            self.assertIn(
-                cls, classes, f"Expected class {cls} not found in {module_path}"
-            )
+            self.assertIn(cls, classes, f"Expected class {cls} not found in {module_path}")
 
         # Verify we have enough classes
         self.assertGreaterEqual(

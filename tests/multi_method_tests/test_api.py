@@ -173,9 +173,7 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
 
         # This endpoint might be implemented differently in the actual API,
         # so we'll test the API connection but won't be strict about the exact response
-        response = requests.get(
-            f"{self.base_url}/langchain/class_details", params=params
-        )
+        response = requests.get(f"{self.base_url}/langchain/class_details", params=params)
 
         # Print the response details for debugging
         print(f"Class details API status: {response.status_code}")
@@ -199,11 +197,7 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
                 self.assertIsInstance(methods, list)
 
                 # Print method names if available
-                method_names = [
-                    m.get("name")
-                    for m in methods
-                    if isinstance(m, dict) and "name" in m
-                ]
+                method_names = [m.get("name") for m in methods if isinstance(m, dict) and "name" in m]
                 if method_names:
                     print(f"Found methods for PyPDFLoader: {method_names}")
         else:
@@ -225,9 +219,7 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
         }
 
         # Use the correct endpoint
-        response = requests.post(
-            f"{self.base_url}/blocks/create_custom", json=block_data
-        )
+        response = requests.post(f"{self.base_url}/blocks/create_custom", json=block_data)
 
         print(f"Create custom block status: {response.status_code}")
         print(f"Response content: {response.content}")
@@ -275,8 +267,7 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
                 if response.status_code == 200:
                     data = response.json()
                     if isinstance(data, list) or (
-                        isinstance(data, dict)
-                        and any(k in data for k in ["blocks", "custom_blocks"])
+                        isinstance(data, dict) and any(k in data for k in ["blocks", "custom_blocks"])
                     ):
                         blocks_found = True
                         print(f"Found blocks listing at endpoint {endpoint}")
