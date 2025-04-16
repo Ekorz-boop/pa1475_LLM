@@ -167,7 +167,7 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
         """Test the API endpoint that gets details about a class."""
         params = {
             "library": "langchain_community",
-            "module": "document_loaders",
+            "module": "langchain_community.document_loaders",
             "class_name": "PyPDFLoader",
         }
 
@@ -179,38 +179,40 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
         print(f"Class details API status: {response.status_code}")
         print(f"Response content: {response.content}")
 
-        # Instead of requiring 200, we'll just check if we got a response
-        self.assertIn(
+        # We'll expect a 200 response now that we're using the correct module path
+        self.assertEqual(
             response.status_code,
-            [200, 400, 404],
-            f"Unexpected status code: {response.status_code}",
+            200,
+            f"Expected status code 200 but got: {response.status_code}. Response: {response.content}",
         )
 
-        # If we got a 200 response, verify the structure
-        if response.status_code == 200:
-            data = response.json()
-            self.assertIsInstance(data, dict)
+        # Verify the structure of the response
+        data = response.json()
+        self.assertIsInstance(data, dict)
 
-            # Check if methods information is available
-            if "methods" in data:
-                methods = data["methods"]
-                self.assertIsInstance(methods, list)
+        # Check if methods information is available
+        self.assertIn("methods", data, f"Expected 'methods' in response but got: {data}")
+        methods = data["methods"]
+        self.assertIsInstance(methods, list)
 
-                # Print method names if available
-                method_names = [m.get("name") for m in methods if isinstance(m, dict) and "name" in m]
-                if method_names:
-                    print(f"Found methods for PyPDFLoader: {method_names}")
-        else:
-            print(
-                "Class details endpoint returned non-200 response. This might be normal if the API is implemented differently."
-            )
+        # Print method names if available
+        print(f"Found methods for PyPDFLoader: {methods}")
+        
+        # Check for expected methods
+        self.assertIn("__init__", methods, "Expected to find '__init__' method")
+        self.assertIn("load", methods, "Expected to find 'load' method")
+        
+        # Check if method details are available
+        self.assertIn("method_details", data, f"Expected 'method_details' in response but got: {data}")
+        method_details = data["method_details"]
+        self.assertIsInstance(method_details, list)
 
     def test_create_custom_block(self):
         """Test the API for creating a custom multi-method block."""
         # Create a block definition with the actual API structure
         block_data = {
             "library": "langchain_community",
-            "module": "document_loaders",
+            "module": "langchain_community.document_loaders",
             "class_name": "PyPDFLoader",
             "methods": ["__init__", "load"],
             "input_nodes": ["file_path"],

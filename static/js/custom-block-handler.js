@@ -1491,11 +1491,16 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     block.className = 'block custom-block';
     block.setAttribute('data-block-type', 'custom');
     block.setAttribute('data-class-name', className);
+    
+    // Set ID and data-block-id explicitly
     block.id = blockId;
+    block.setAttribute('data-block-id', blockId);
+    console.log(`Creating custom block with ID: ${blockId}`);
 
     // Store reference to original block if provided
     if (originalBlockId) {
         block.setAttribute('data-original-block-id', originalBlockId);
+        console.log(`Using original block ID: ${originalBlockId} as reference`);
     }
 
     // Create the block content structure that matches regular blocks
@@ -1637,7 +1642,12 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
 
     // After populating methods, also display all methods
     populateMethodsForBlock(block, className, blockId);
-    displayBlockMethods(block);
+    
+    // Explicitly call displayBlockMethods with a delay to ensure it runs after initialization
+    setTimeout(() => {
+        console.log(`Explicitly displaying methods for block ${blockId}`);
+        displayBlockMethods(block);
+    }, 200);
     
     return block;
 }
@@ -1656,53 +1666,96 @@ function populateMethodsForBlock(block, className, blockId) {
 
     // Try to find methods from sessionStorage for this specific block
     let customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+    console.log(`Found ${customBlocks.length} blocks in sessionStorage`);
 
     // First look for the specific block by ID
     let blockData = blockId ? customBlocks.find(b => b.id === blockId) : null;
+    
+    if (blockData) {
+        console.log(`Found block data for ID ${blockId}`);
+    }
 
     // If not found and this is a canvas instance, try to find the original block
     if (!blockData && block.hasAttribute('data-original-block-id')) {
         const originalId = block.getAttribute('data-original-block-id');
+        console.log(`Checking original block ID: ${originalId} for methods`);
         blockData = customBlocks.find(b => b.id === originalId);
+        
+        if (blockData) {
+            console.log(`Found block data using original ID ${originalId}`);
+        }
     }
 
     // If still not found, try to find by className
     if (!blockData) {
+        console.log(`Looking for block data by class name: ${className}`);
         blockData = customBlocks.find(b => b.className === className);
+        
+        if (blockData) {
+            console.log(`Found block data using class name ${className}`);
+        }
     }
 
     // As a fallback, also check localStorage (for backward compatibility)
     if (!blockData) {
         try {
+            console.log(`Checking localStorage as fallback`);
             const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
             blockData = localBlocks.find(b => b.className === className);
+            
+            if (blockData) {
+                console.log(`Found block data in localStorage using class name ${className}`);
+            }
         } catch (e) {
             console.warn('Error reading from localStorage:', e);
         }
     }
 
+    // Initialize methodsToUse array to track which methods we'll display
+    let methodsToUse = [];
+
     if (blockData && blockData.methods && blockData.methods.length > 0) {
         console.log(`Found ${blockData.methods.length} methods for ${blockId || className}: ${blockData.methods.join(', ')}`);
+        methodsToUse = blockData.methods;
 
-        // Add all methods to select
-        blockData.methods.forEach(method => {
-            const option = document.createElement('option');
-            option.value = method;
-            option.textContent = method;
-            methodSelect.appendChild(option);
-        });
-
-        // Set the first method as selected (often __init__)
-        if (methodSelect.options.length > 1) {
-            methodSelect.selectedIndex = 1;
-            // Trigger change event to update parameters
-            const changeEvent = new Event('change');
-            methodSelect.dispatchEvent(changeEvent);
+        // Save these methods for the current block if it's a new block instance
+        if (blockId && blockId !== blockData.id) {
+            console.log(`Copying methods from ${blockData.id} to new block ${blockId}`);
+            saveMethods(className, blockData.methods, blockId);
         }
     } else {
-        // If no methods found, fetch them from the server or use defaults
-        console.log(`No methods found for ${blockId || className}, fetching from server...`);
+        // If no methods found, use default methods
+        console.log(`No methods found for ${blockId || className}, using default methods`);
+        methodsToUse = ['__init__', 'call', 'run', 'invoke', 'execute'];
+        
+        // Save default methods to sessionStorage
+        saveMethods(className, methodsToUse, blockId);
+    }
 
+    // Add methods to dropdown
+    methodsToUse.forEach(method => {
+        const option = document.createElement('option');
+        option.value = method;
+        option.textContent = method === '__init__' ? 'Constructor (__init__)' : method;
+        methodSelect.appendChild(option);
+    });
+
+    // Set the first method as selected (often __init__)
+    if (methodSelect.options.length > 1) {
+        methodSelect.selectedIndex = 1;
+        // Trigger change event to update parameters
+        const changeEvent = new Event('change');
+        methodSelect.dispatchEvent(changeEvent);
+    }
+    
+    // Always display block methods using our enhanced function
+    setTimeout(() => {
+        displayBlockMethods(block);
+    }, 100);
+    
+    // Try to fetch methods from the server in the background to update our options
+    if (methodsToUse.length <= 1 || methodsToUse.every(m => ['__init__', 'call', 'run', 'invoke', 'execute'].includes(m))) {
+        console.log(`Attempting to fetch additional methods from server for ${className}`);
         // Find module info from sessionStorage
         const moduleInfo = findModuleInfoForClass(className);
 
@@ -1718,81 +1771,38 @@ function populateMethodsForBlock(block, className, blockId) {
                     return response.json();
                 })
                 .then(data => {
-                    console.log(`Fetched methods for ${blockId || className}:`, data);
+                    console.log(`Fetched methods from server for ${className}:`, data);
 
-                    // Add constructor
-                    const constructorOption = document.createElement('option');
-                    constructorOption.value = '__init__';
-                    constructorOption.textContent = 'Constructor (__init__)';
-                    methodSelect.appendChild(constructorOption);
-
-                    // Add other methods
                     if (data.methods && data.methods.length > 0) {
-                        data.methods.forEach(method => {
-                            if (method === '__init__') return; // Skip constructor, already added
-
-                            const option = document.createElement('option');
-                            option.value = method;
-                            option.textContent = method;
-                            methodSelect.appendChild(option);
-                        });
-
-                        // Save methods to sessionStorage for this specific block
-                        const methodsToSave = ['__init__', ...data.methods];
+                        // Ensure __init__ is included
+                        const methodsToSave = data.methods.includes('__init__') ? 
+                            data.methods.slice() : ['__init__', ...data.methods];
+                        
+                        // Update methods in sessionStorage
                         saveMethods(className, methodsToSave, blockId);
-                        console.log(`Saved ${methodsToSave.length} methods from API for ${blockId || className}`);
-
-                        // Set constructor as selected by default
-                        if (methodSelect.options.length > 1) {
-                            methodSelect.selectedIndex = 1;
-                            // Trigger change event to update parameters
-                            const changeEvent = new Event('change');
-                            methodSelect.dispatchEvent(changeEvent);
-                        }
+                        console.log(`Updated with ${methodsToSave.length} methods from API`);
+                        
+                        // Refresh the UI with the new methods
+                        populateMethodsForBlock(block, className, blockId);
                     }
                 })
                 .catch(error => {
-                    console.error(`Error fetching methods for ${blockId || className}:`, error);
-
-                    // Add default methods as fallback
-                    addDefaultMethods(methodSelect);
-
-                    // Set first method as selected
-                    if (methodSelect.options.length > 1) {
-                        methodSelect.selectedIndex = 1;
-                        // Trigger change event
-                        const changeEvent = new Event('change');
-                        methodSelect.dispatchEvent(changeEvent);
-                    }
+                    console.error(`Error fetching methods from server: ${error.message}`);
                 });
-        } else {
-            console.warn(`No module info found for ${blockId || className}, using default methods`);
-
-            // Add default methods
-            addDefaultMethods(methodSelect);
-
-            // Set first method as selected
-            if (methodSelect.options.length > 1) {
-                methodSelect.selectedIndex = 1;
-                // Trigger change event
-                const changeEvent = new Event('change');
-                methodSelect.dispatchEvent(changeEvent);
-            }
         }
     }
-
-    // Event listener for method selection is already added in createCustomBlock
 }
 
 // Helper function to add default methods
 function addDefaultMethods(methodSelect) {
-    const defaultMethods = ['call', 'run', 'invoke', 'execute'];
+    const defaultMethods = ['__init__', 'call', 'run', 'invoke', 'execute'];
     defaultMethods.forEach(method => {
         const option = document.createElement('option');
         option.value = method;
-        option.textContent = method;
+        option.textContent = method === '__init__' ? 'Constructor (__init__)' : method;
         methodSelect.appendChild(option);
     });
+    return defaultMethods;
 }
 
 // Helper function to find module info for a class from sessionStorage
@@ -1811,27 +1821,51 @@ function saveMethods(className, methods, blockId = null) {
     try {
         const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
+        // Make sure methods is an array and __init__ is always included
+        if (!Array.isArray(methods)) {
+            console.warn(`Invalid methods format for ${blockId || className}, expected array`);
+            methods = ['__init__'];
+        } else if (!methods.includes('__init__')) {
+            methods.unshift('__init__');
+        }
+        
+        console.log(`Saving methods for ${blockId || className}:`, methods);
+
         if (blockId) {
             // If blockId is provided, update that specific block
             const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
             if (existingBlockIndex >= 0) {
                 customBlocks[existingBlockIndex].methods = methods;
+                console.log(`Updated methods for existing block ${blockId}`);
+            } else {
+                // If block doesn't exist, create a new entry
+                customBlocks.push({
+                    id: blockId,
+                    className: className,
+                    methods: methods
+                });
+                console.log(`Created new block entry with ID ${blockId}`);
             }
         } else {
             // If no blockId, update by className (legacy behavior)
             const existingBlockIndex = customBlocks.findIndex(b => b.className === className);
             if (existingBlockIndex >= 0) {
                 customBlocks[existingBlockIndex].methods = methods;
+                console.log(`Updated methods for class ${className}`);
             } else {
                 customBlocks.push({
                     className,
                     methods
                 });
+                console.log(`Created new entry for class ${className}`);
             }
         }
 
+        // Save back to sessionStorage
         sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
-        console.log(`Saved methods for ${blockId || className}:`, methods);
+        
+        // Log the updated blocks for debugging
+        console.log(`Updated sessionStorage with ${customBlocks.length} blocks`);
     } catch (error) {
         console.error(`Error saving methods for ${blockId || className}:`, error);
     }
@@ -1914,22 +1948,123 @@ function updateBlockNameInStorage(blockId, newName) {
 
 // Function to display all methods for a block
 function displayBlockMethods(block) {
-    const blockId = block.getAttribute('data-block-id');
-    if (!blockId) return;
+    const blockId = block.getAttribute('data-block-id') || block.id;
+    if (!blockId) {
+        console.warn('No block ID found when trying to display methods');
+        return;
+    }
     
-    // Fetch methods from our new API endpoint
+    console.log(`Attempting to display methods for block ${blockId}`);
+    
+    // Try to find methods from sessionStorage first
+    let methods = [];
+    let customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+    
+    // First look for the specific block by ID
+    let blockData = customBlocks.find(b => b.id === blockId);
+    
+    // If not found and this is a canvas instance, try to find the original block
+    if (!blockData && block.hasAttribute('data-original-block-id')) {
+        const originalId = block.getAttribute('data-original-block-id');
+        console.log(`Checking original block ID: ${originalId}`);
+        blockData = customBlocks.find(b => b.id === originalId);
+    }
+    
+    // If still not found, try to find by className
+    if (!blockData && block.hasAttribute('data-class-name')) {
+        const className = block.getAttribute('data-class-name');
+        console.log(`Looking for methods by class name: ${className}`);
+        blockData = customBlocks.find(b => b.className === className);
+    }
+    
+    if (blockData && blockData.methods && blockData.methods.length > 0) {
+        methods = blockData.methods;
+        console.log(`Found methods in session storage:`, methods);
+    }
+    
+    // If we have methods from session storage, display them
+    if (methods.length > 0) {
+        // Create or get the methods display container
+        let methodsContainer = block.querySelector('.block-methods-list');
+        if (!methodsContainer) {
+            methodsContainer = document.createElement('div');
+            methodsContainer.className = 'block-methods-list';
+            
+            // Insert before the block parameters
+            const parametersContainer = block.querySelector('.block-parameters');
+            if (parametersContainer) {
+                block.querySelector('.block-content').insertBefore(methodsContainer, parametersContainer);
+            } else {
+                block.querySelector('.block-content').appendChild(methodsContainer);
+            }
+        }
+        
+        // Clear existing content
+        methodsContainer.innerHTML = '';
+        
+        // Add a label
+        const label = document.createElement('div');
+        label.className = 'methods-label';
+        label.textContent = 'Available Methods:';
+        methodsContainer.appendChild(label);
+        
+        // Add each method as a badge
+        methods.forEach(method => {
+            const methodBadge = document.createElement('span');
+            methodBadge.className = 'method-badge';
+            methodBadge.textContent = method;
+            methodsContainer.appendChild(methodBadge);
+        });
+        
+        console.log(`Displayed ${methods.length} methods for block ${blockId}`);
+        
+        // Also add method badges styling if it doesn't exist
+        if (!document.getElementById('method-badge-styles')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'method-badge-styles';
+            styleEl.textContent = `
+                .method-badge {
+                    display: inline-block;
+                    background-color: #3498db;
+                    color: white;
+                    font-size: 12px;
+                    padding: 2px 6px;
+                    margin: 2px;
+                    border-radius: 4px;
+                }
+                .methods-label {
+                    font-size: 12px;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                .block-methods-list {
+                    margin: 8px 0;
+                    padding: 5px;
+                    border-top: 1px solid #eee;
+                    border-bottom: 1px solid #eee;
+                }
+            `;
+            document.head.appendChild(styleEl);
+        }
+        
+        return;
+    }
+    
+    // As a fallback, try the API endpoint
     fetch(`/api/blocks/methods/${blockId}`)
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error(`Network response was not ok: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
             if (!data.methods || data.methods.length === 0) {
-                console.warn(`No methods found for block ${blockId}`);
+                console.warn(`No methods found for block ${blockId} from API`);
                 return;
             }
+            
+            console.log(`Got methods from API for ${blockId}:`, data.methods);
             
             // Create or get the methods display container
             let methodsContainer = block.querySelector('.block-methods-list');
@@ -1962,10 +2097,8 @@ function displayBlockMethods(block) {
                 methodBadge.textContent = method;
                 methodsContainer.appendChild(methodBadge);
             });
-            
-            console.log(`Displayed ${data.methods.length} methods for block ${blockId}`);
         })
         .catch(error => {
-            console.error(`Error fetching methods for block ${blockId}:`, error);
+            console.error(`Error fetching methods from API for block ${blockId}:`, error);
         });
 }
