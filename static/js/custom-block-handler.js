@@ -486,12 +486,22 @@ class CustomBlockHandler {
             const data = await response.json();
             this.classDetails = data;
 
-            // Update class description with formatted docstring
+            // Create a comprehensive class information display
             const description = this.modal.querySelector('.class-description');
+            
+            // Add class name header and formatted docstring
             description.innerHTML = `
-                <div class="class-name-header"><h3>${selectedClass}</h3></div>
-                ${this.formatDocstring(data.doc || 'No description available.')}
+                <div class="class-name-header">
+                    <h3>${selectedClass}</h3>
+                    <div class="class-path">${library}.${module}.${selectedClass}</div>
+                </div>
+                <div class="docstring-content">
+                    ${this.formatDocstring(data.doc || 'No description available.')}
+                </div>
             `;
+
+            // Initialize collapsible sections
+            this.initCollapsibleSections();
 
             // Add common input/output nodes based on the component type
             if (data.component_type) {
@@ -513,6 +523,24 @@ class CustomBlockHandler {
     }
 
     /**
+     * Initialize collapsible sections
+     */
+    initCollapsibleSections() {
+        // Find all collapsible sections
+        const collapsibleSections = this.modal.querySelectorAll('.collapsible-section');
+        
+        // Add click event listeners to each collapsible header
+        collapsibleSections.forEach(section => {
+            const header = section.querySelector('.collapsible-header');
+            
+            header.addEventListener('click', () => {
+                // Toggle the expanded class
+                section.classList.toggle('expanded');
+            });
+        });
+    }
+
+    /**
      * Format a docstring with proper HTML formatting
      * @param {string} docstring - The raw docstring text
      * @returns {string} - Formatted HTML
@@ -523,20 +551,76 @@ class CustomBlockHandler {
         }
 
         let formatted = docstring;
+        
+        // Handle deprecation notices - these often start with ".. deprecated::" or similar text
+        const deprecationRegex = /\.\.?\s*deprecated:?:?|\bdeprecated\b[.:]\s*(.*?)(?=\n\n|\n[^\s]|$)/i;
+        const deprecationMatch = formatted.match(deprecationRegex);
+        
+        if (deprecationMatch) {
+            // Extract the deprecation message and remove it from the main text
+            const deprecationMessage = deprecationMatch[0];
+            formatted = formatted.replace(deprecationRegex, '');
+            
+            // Add it back as a styled warning box
+            formatted = `<div class="deprecation-warning">⚠️ ${deprecationMessage}</div>${formatted}`;
+        }
+
+        // Detect installation section
+        const installRegex = /Set?up:?\s*Install/i;
+        if (installRegex.test(formatted)) {
+            // Wrap the installation section in a themed container
+            formatted = formatted.replace(/(Set?up:?\s*Install[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/i, 
+                '<div class="install-section"><h4>Installation</h4>$1</div>');
+        }
+
+        // Detect usage example sections
+        const usageRegex = /(?:Usage|Instantiate|Example|Lazy load):/i;
+        if (usageRegex.test(formatted)) {
+            // Wrap usage examples in a themed container
+            formatted = formatted.replace(/((?:Usage|Instantiate|Example|Lazy load):[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/gi, 
+                '<div class="usage-section"><h4>$1</div>');
+            
+            // Fix the heading format
+            formatted = formatted.replace(/<h4>((?:Usage|Instantiate|Example|Lazy load)):([\s\S]*?)<\/div>/gi, 
+                '<h4>$1</h4>$2</div>');
+        }
 
         // Convert URLs to clickable links
         formatted = formatted.replace(
             /(https?:\/\/[^\s\)]+)/g, 
-            '<a href="$1" target="_blank" rel="noopener noreferrer">$1 <span class="external-link-icon">↗</span></a>'
+            '<a href="$1" target="_blank" rel="noopener noreferrer" class="url">$1 <span class="external-link-icon">↗</span></a>'
         );
         
-        // Format code blocks (text surrounded by triple backticks)
+        // Detect and format class references like `langchain_google_community.BigQueryLoader`
         formatted = formatted.replace(
-            /```(?:python)?([\s\S]*?)```/g,
-            (match, code) => {
-                // Apply syntax highlighting to Python code
+            /`?([a-zA-Z0-9_]+\.)*[A-Z][a-zA-Z0-9_]+(Loader|Chain|Model|Store|Splitter|Processor|Parser|Retriever|Embeddings?)`?/g,
+            match => {
+                // Remove any backticks that might be present
+                const cleanMatch = match.replace(/`/g, '');
+                return `<span class="class-reference">${cleanMatch}</span>`;
+            }
+        );
+        
+        // Format code blocks with proper language indicators and copy buttons
+        formatted = formatted.replace(
+            /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n|\n\s*\.\.|$)/g,
+            (match, language, code) => {
+                // Apply syntax highlighting to code
                 let highlightedCode = this.applySyntaxHighlighting(code);
-                return `<pre class="code-block"><code>${highlightedCode}</code></pre>`;
+                const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
+                return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
+            }
+        );
+        
+        // Handle Python code blocks specifically (triple backticks)
+        formatted = formatted.replace(
+            /```(?:(python|bash|javascript|js|html|css|json|yaml|xml))?\n([\s\S]*?)```/g,
+            (match, language, code) => {
+                // Apply syntax highlighting to code
+                let highlightedCode = this.applySyntaxHighlighting(code);
+                language = language || 'python'; // Default to python if language not specified
+                const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
+                return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
             }
         );
         
@@ -546,16 +630,29 @@ class CustomBlockHandler {
             '<code class="inline-code">$1</code>'
         );
 
+        // Format parameter names specifically
+        formatted = formatted.replace(
+            /\b(web_path|header_template|verify_ssl)\b/g,
+            '<span class="parameter-name">$1</span>'
+        );
+
         // Format technical terms and file formats as inline code
         // This captures common technical terms that should be formatted as code
         const technicalTerms = [
             'XML', 'JSON', 'CSV', 'YAML', 'HTML', 'PDF', 'DOCX', 'TXT',
-            'unstructured', 'langchain', 'python', 'mode=', 'strategy='
+            'unstructured', 'langchain', 'python', 'mode=', 'strategy=',
+            'BigQuery', 'Google Cloud Platform', 'metadata_columns', 'page_content_columns',
+            'lazy_load', 'docs', 'loader', 'append', 'print', 'None', 'True', 'False'
         ];
         
         // Create a regex that matches these terms as whole words
         const techTermsRegex = new RegExp(`\\b(${technicalTerms.join('|')})\\b`, 'g');
         formatted = formatted.replace(techTermsRegex, (match) => {
+            // Don't reformat if already in a code element
+            if (formatted.includes(`<code class="inline-code">${match}</code>`) || 
+                formatted.includes(`<span class="parameter-name">${match}</span>`)) {
+                return match;
+            }
             return `<code class="inline-code">${match}</code>`;
         });
 
@@ -565,9 +662,12 @@ class CustomBlockHandler {
             (match, code) => {
                 // Apply syntax highlighting to Python code
                 let highlightedCode = this.applySyntaxHighlighting(code);
-                return `<pre class="python-example"><code>>>> ${highlightedCode}</code></pre>`;
+                return `<pre class="python-example" data-language="python"><code>>>> ${highlightedCode}</code></pre>`;
             }
         );
+
+        // Create collapsible sections for long examples
+        formatted = this.createCollapsibleSections(formatted);
 
         // Format common sections with headers
         const commonSections = [
@@ -581,6 +681,10 @@ class CustomBlockHandler {
             // Only replace if the section is at the beginning of a line (possibly with whitespace)
             const sectionRegex = new RegExp(`(^|\\n)\\s*(${section})\\s*`, 'g');
             formatted = formatted.replace(sectionRegex, (match, p1, p2) => {
+                // Don't replace if it's already in an h4 tag
+                if (formatted.includes(`<h4>${p2}</h4>`)) {
+                    return match;
+                }
                 return `${p1}<h4>${p2}</h4>`;
             });
         }
@@ -609,9 +713,60 @@ class CustomBlockHandler {
         formatted = formatted.replace(/\n\s*\n/g, '</p><p>');
         
         // Wrap in paragraph tags if not already wrapped
-        if (!formatted.startsWith('<p>') && !formatted.startsWith('<h4>')) {
+        if (!formatted.startsWith('<p>') && !formatted.startsWith('<h4>') && 
+            !formatted.startsWith('<div class="deprecation-warning">') &&
+            !formatted.startsWith('<div class="install-section">') &&
+            !formatted.startsWith('<div class="usage-section">') &&
+            !formatted.startsWith('<div class="collapsible-section">')) {
             formatted = '<p>' + formatted + '</p>';
         }
+        
+        return formatted;
+    }
+    
+    /**
+     * Create collapsible sections for long content blocks
+     * @param {string} formatted - The formatted HTML content
+     * @returns {string} - HTML with collapsible sections
+     */
+    createCollapsibleSections(formatted) {
+        // Find sections that might benefit from being collapsible
+        
+        // Create collapsible section for long parameter tables
+        if (formatted.includes('<div class="parameter-table">') && 
+            (formatted.match(/<div class="parameter-item/g) || []).length > 5) {
+            // Count parameter items
+            formatted = formatted.replace(
+                /(<h4>(Parameters:|Args:)<\/h4>)([\s\S]*?)(<div class="parameter-table">[\s\S]*?<\/div>)/g,
+                (match, h4Start, title, spacer, table) => {
+                    return `${h4Start}${spacer}<div class="collapsible-section">
+                        <div class="collapsible-header">${title} Table</div>
+                        <div class="collapsible-content">${table}</div>
+                    </div>`;
+                }
+            );
+        }
+        
+        // Create collapsible sections for long code examples
+        // This regex looks for code blocks that are more than 10 lines long
+        formatted = formatted.replace(
+            /(<pre class="code-block" data-language="[^"]*">[\s\S]*?<\/pre>)/g,
+            (match) => {
+                // Count the number of lines
+                const lineCount = (match.match(/\n/g) || []).length;
+                
+                // If the code block is long, make it collapsible
+                if (lineCount > 10) {
+                    const language = match.match(/data-language="([^"]*)"/)[1];
+                    return `<div class="collapsible-section">
+                        <div class="collapsible-header">${language.charAt(0).toUpperCase() + language.slice(1)} Example</div>
+                        <div class="collapsible-content">${match}</div>
+                    </div>`;
+                }
+                
+                return match;
+            }
+        );
         
         return formatted;
     }
@@ -646,6 +801,15 @@ class CustomBlockHandler {
             'vars', 'zip'
         ];
         
+        // Common method and function patterns
+        const functionPattern = /(\w+)\s*\(/g;
+        
+        // Class pattern
+        const classPattern = /\b([A-Z]\w*)\b/g;
+        
+        // Variable assignment pattern
+        const variablePattern = /\b(\w+)\s*=/g;
+        
         let highlightedCode = code;
         
         // Escape HTML to prevent XSS
@@ -658,6 +822,39 @@ class CustomBlockHandler {
         highlightedCode = highlightedCode.replace(
             /(["'])(.*?)\1/g, 
             '<span class="code-string">$&</span>'
+        );
+        
+        // Highlight functions
+        highlightedCode = highlightedCode.replace(
+            functionPattern,
+            (match, funcName) => {
+                if (keywords.includes(funcName) || builtins.includes(funcName)) {
+                    return match; // Let the keyword/builtin rules handle this
+                }
+                return match.replace(funcName, `<span class="code-function">${funcName}</span>`);
+            }
+        );
+        
+        // Highlight classes (capitalized words)
+        highlightedCode = highlightedCode.replace(
+            classPattern,
+            (match, className) => {
+                if (keywords.includes(className) || builtins.includes(className)) {
+                    return match; // Let the keyword/builtin rules handle this
+                }
+                return `<span class="code-class">${className}</span>`;
+            }
+        );
+        
+        // Highlight variable assignments
+        highlightedCode = highlightedCode.replace(
+            variablePattern,
+            (match, varName) => {
+                if (keywords.includes(varName) || builtins.includes(varName)) {
+                    return match; // Let the keyword/builtin rules handle this
+                }
+                return match.replace(varName, `<span class="code-variable">${varName}</span>`);
+            }
         );
         
         // Highlight keywords
