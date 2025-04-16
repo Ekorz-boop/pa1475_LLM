@@ -314,9 +314,8 @@
 
 /* Dark mode updates */
 .dark-mode .main-menu {
-    background-color: rgba(30, 30, 30, 0.85);
+    background-color: rgba(30, 30, 30, 1);
     border: 1px solid #333;
-    backdrop-filter: blur(2px);
 }
 
 .dark-mode .menu-item {
