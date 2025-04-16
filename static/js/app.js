@@ -1929,6 +1929,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.userSelect = '';
         });
     }
+
+    // Add global event listener for the fit-to-view button
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('#fit-to-view, .fit-to-view-button');
+        if (target) {
+            console.log("Fit-to-view button clicked - using HTML-defined function");
+        }
+    });
 });
 
 
