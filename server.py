@@ -99,9 +99,7 @@ def connect_block_nodes():
     try:
         success = canvas.connect_blocks(source_id, target_id)
         if success:
-            return jsonify(
-                {"status": "success", "message": "Blocks connected successfully"}
-            )
+            return jsonify({"status": "success", "message": "Blocks connected successfully"})
         else:
             return jsonify({"error": "Invalid connection"}), 400
     except Exception as e:
@@ -137,17 +135,17 @@ def list_blocks():
             "inputs": list(block.inputs.keys()),
             "outputs": list(block.outputs.keys()),
         }
-        
+
         # Add methods if available
         if hasattr(block, "methods") and block.methods:
             block_data["methods"] = block.methods
-            
+
         # Add class name if available
         if hasattr(block, "class_name"):
             block_data["class_name"] = block.class_name
-            
+
         block_info[block_id] = block_data
-        
+
     return jsonify({"blocks": block_info})
 
 
@@ -160,9 +158,7 @@ def process_block():
         config = data.get("config", {})
         debug_mode = data.get("debug_mode", False)
 
-        print(
-            f"\n[PROCESSING] Block: {block_type} (ID: {block_id}), Debug mode: {debug_mode}"
-        )
+        print(f"\n[PROCESSING] Block: {block_type} (ID: {block_id}), Debug mode: {debug_mode}")
 
         # Check if the block exists in the canvas
         block = canvas.blocks.get(block_id)
@@ -301,9 +297,7 @@ def list_langchain_classes():
                         continue
 
                     # Only include classes from this module or submodules
-                    if hasattr(attr, "__module__") and attr.__module__.startswith(
-                        module_path
-                    ):
+                    if hasattr(attr, "__module__") and attr.__module__.startswith(module_path):
                         classes.append(name)
             except ImportError:
                 print(f"Could not import module {mod_path}")
@@ -371,9 +365,7 @@ def get_langchain_class_details():
             # Try to find the class in a submodule
             class_obj = None
 
-            for submodule_info in pkgutil.iter_modules(
-                module.__path__ if hasattr(module, "__path__") else []
-            ):
+            for submodule_info in pkgutil.iter_modules(module.__path__ if hasattr(module, "__path__") else []):
                 submodule_name = f"{module_path}.{submodule_info.name}"
                 try:
                     submodule = importlib.import_module(submodule_name)
@@ -385,11 +377,7 @@ def get_langchain_class_details():
 
             if class_obj is None:
                 return (
-                    jsonify(
-                        {
-                            "error": f"Class {class_name} not found in module {module_path}"
-                        }
-                    ),
+                    jsonify({"error": f"Class {class_name} not found in module {module_path}"}),
                     404,
                 )
         else:
@@ -402,9 +390,7 @@ def get_langchain_class_details():
         embedding_param_mapping = {"embed_documents": "texts", "embed_query": "text"}
 
         # Special patching for embedding classes to fix parameter names
-        is_embedding_class = (
-            "embedding" in module_path.lower() or "embed" in class_name.lower()
-        )
+        is_embedding_class = "embedding" in module_path.lower() or "embed" in class_name.lower()
 
         # Get methods and patch them if needed
         methods = []
@@ -423,19 +409,13 @@ def get_langchain_class_details():
                 parameters = []
 
                 # Handle special case for embeddings
-                if (
-                    is_embedding_class
-                    and name in embedding_param_mapping
-                    and "data" in sig.parameters
-                ):
+                if is_embedding_class and name in embedding_param_mapping and "data" in sig.parameters:
                     # Create new parameters dictionary with renamed parameter
                     new_params = {}
                     for param_name, param in sig.parameters.items():
                         if param_name == "data":
                             new_param_name = embedding_param_mapping[name]
-                            new_params[new_param_name] = param.replace(
-                                name=new_param_name
-                            )
+                            new_params[new_param_name] = param.replace(name=new_param_name)
                         else:
                             new_params[param_name] = param
 
@@ -448,26 +428,14 @@ def get_langchain_class_details():
                         continue
 
                     # Use the correct parameter name for embeddings
-                    if (
-                        is_embedding_class
-                        and param_name == "data"
-                        and name in embedding_param_mapping
-                    ):
+                    if is_embedding_class and param_name == "data" and name in embedding_param_mapping:
                         param_name = embedding_param_mapping[name]
 
                     param_info = {
                         "name": param_name,
                         "required": param.default == inspect.Parameter.empty,
-                        "default": (
-                            str(param.default)
-                            if param.default != inspect.Parameter.empty
-                            else None
-                        ),
-                        "type": (
-                            str(param.annotation)
-                            if param.annotation != inspect.Parameter.empty
-                            else "Any"
-                        ),
+                        "default": (str(param.default) if param.default != inspect.Parameter.empty else None),
+                        "type": (str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"),
                     }
                     parameters.append(param_info)
 
@@ -486,9 +454,7 @@ def get_langchain_class_details():
         init_params = []
 
         # Special handling for document loaders - applied before any automatic detection
-        is_document_loader = (
-            "document_loader" in module_path.lower() or "loader" in class_name.lower()
-        )
+        is_document_loader = "document_loader" in module_path.lower() or "loader" in class_name.lower()
 
         # Document loader special cases
         if is_document_loader:
@@ -614,9 +580,7 @@ def get_langchain_class_details():
             init_sig = inspect.signature(class_obj.__init__)
 
             # Check if this might be a Pydantic model
-            has_pydantic_structure = "**data" in str(init_sig) or "kwargs" in str(
-                init_sig
-            )
+            has_pydantic_structure = "**data" in str(init_sig) or "kwargs" in str(init_sig)
 
             if has_pydantic_structure:
                 # Try different ways to get fields for potential Pydantic models
@@ -628,9 +592,7 @@ def get_langchain_class_details():
                     instance = class_obj()
                     # Get fields from the instance
                     for field_name in dir(instance):
-                        if not field_name.startswith("_") and not callable(
-                            getattr(instance, field_name)
-                        ):
+                        if not field_name.startswith("_") and not callable(getattr(instance, field_name)):
                             field_parameters.append(
                                 {
                                     "name": field_name,
@@ -648,26 +610,12 @@ def get_langchain_class_details():
                         field_parameters.append(
                             {
                                 "name": field_name,
-                                "required": (
-                                    field.required
-                                    if hasattr(field, "required")
-                                    else False
-                                ),
-                                "default": (
-                                    str(field.default)
-                                    if hasattr(field, "default")
-                                    else "None"
-                                ),
-                                "type": (
-                                    str(field.type_)
-                                    if hasattr(field, "type_")
-                                    else "Any"
-                                ),
+                                "required": (field.required if hasattr(field, "required") else False),
+                                "default": (str(field.default) if hasattr(field, "default") else "None"),
+                                "type": (str(field.type_) if hasattr(field, "type_") else "Any"),
                             }
                         )
-                    print(
-                        f"Found Pydantic v1 fields: {[p['name'] for p in field_parameters]}"
-                    )
+                    print(f"Found Pydantic v1 fields: {[p['name'] for p in field_parameters]}")
 
                 # Try Pydantic v2
                 if not field_parameters and hasattr(class_obj, "model_fields"):
@@ -675,23 +623,12 @@ def get_langchain_class_details():
                         field_parameters.append(
                             {
                                 "name": field_name,
-                                "required": not hasattr(field, "default")
-                                or field.default is None,
-                                "default": (
-                                    str(field.default)
-                                    if hasattr(field, "default")
-                                    else "None"
-                                ),
-                                "type": (
-                                    str(field.annotation)
-                                    if hasattr(field, "annotation")
-                                    else "Any"
-                                ),
+                                "required": not hasattr(field, "default") or field.default is None,
+                                "default": (str(field.default) if hasattr(field, "default") else "None"),
+                                "type": (str(field.annotation) if hasattr(field, "annotation") else "Any"),
                             }
                         )
-                    print(
-                        f"Found Pydantic v2 fields: {[p['name'] for p in field_parameters]}"
-                    )
+                    print(f"Found Pydantic v2 fields: {[p['name'] for p in field_parameters]}")
 
                 # Try __annotations__ as a fallback
                 if not field_parameters and hasattr(class_obj, "__annotations__"):
@@ -724,17 +661,13 @@ def get_langchain_class_details():
                                         "type": "Any",
                                     }
                                 )
-                            print(
-                                f"Found fields via source inspection: {[p['name'] for p in field_parameters]}"
-                            )
+                            print(f"Found fields via source inspection: {[p['name'] for p in field_parameters]}")
                     except Exception:
                         pass
 
                 if field_parameters:
                     init_params = field_parameters
-                    print(
-                        f"Using dynamic field inspection for {class_name}: {len(field_parameters)} fields found"
-                    )
+                    print(f"Using dynamic field inspection for {class_name}: {len(field_parameters)} fields found")
 
             # If no fields found from Pydantic-style inspection, use regular signature inspection
             if not init_params:
@@ -751,16 +684,8 @@ def get_langchain_class_details():
                         param_info = {
                             "name": param_name,
                             "required": param.default == inspect.Parameter.empty,
-                            "default": (
-                                str(param.default)
-                                if param.default != inspect.Parameter.empty
-                                else None
-                            ),
-                            "type": (
-                                str(param.annotation)
-                                if param.annotation != inspect.Parameter.empty
-                                else "Any"
-                            ),
+                            "default": (str(param.default) if param.default != inspect.Parameter.empty else None),
+                            "type": (str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"),
                         }
                         init_params.append(param_info)
         except (ValueError, TypeError) as e:
@@ -823,32 +748,24 @@ def get_langchain_class_details():
 
                                 param_info = {
                                     "name": param_name,
-                                    "required": param.default
-                                    == inspect.Parameter.empty,
+                                    "required": param.default == inspect.Parameter.empty,
                                     "default": (
-                                        str(param.default)
-                                        if param.default != inspect.Parameter.empty
-                                        else None
+                                        str(param.default) if param.default != inspect.Parameter.empty else None
                                     ),
                                     "type": (
-                                        str(param.annotation)
-                                        if param.annotation != inspect.Parameter.empty
-                                        else "Any"
+                                        str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
                                     ),
                                 }
                                 parameters.append(param_info)
 
                             method_info = {
                                 "name": method_name,
-                                "doc": inspect.getdoc(method)
-                                or "No documentation available",
+                                "doc": inspect.getdoc(method) or "No documentation available",
                                 "parameters": parameters,
                             }
                             methods.append(method_info)
                             method_names.append(method_name)
-                            print(
-                                f"Added common method {method_name} for {component_type}"
-                            )
+                            print(f"Added common method {method_name} for {component_type}")
                         except Exception as e:
                             print(f"Error adding common method {method_name}: {str(e)}")
 
@@ -902,9 +819,7 @@ def create_custom_block():
 
         # Add additional method calls if provided
         for method in methods:
-            if (
-                method != "__init__"
-            ):  # Skip __init__ as it's handled in the instantiation
+            if method != "__init__":  # Skip __init__ as it's handled in the instantiation
                 method_params = data.get(f"params_{method}", {})
                 param_str = ", ".join([f"{k}={v}" for k, v in method_params.items()])
                 function_parts.append(f"    # Call {method} method")
@@ -952,19 +867,21 @@ def get_block_methods(block_id):
     """Get all methods for a specific block."""
     if block_id not in canvas.blocks:
         return jsonify({"error": f"Block with ID {block_id} not found"}), 404
-        
+
     block = canvas.blocks[block_id]
-    
+
     # Check if the block has methods attribute
     if not hasattr(block, "methods"):
         return jsonify({"error": "Block does not have methods"}), 400
-        
+
     # Return the methods
-    return jsonify({
-        "block_id": block_id,
-        "class_name": block.class_name if hasattr(block, "class_name") else "Unknown",
-        "methods": block.methods
-    })
+    return jsonify(
+        {
+            "block_id": block_id,
+            "class_name": block.class_name if hasattr(block, "class_name") else "Unknown",
+            "methods": block.methods,
+        }
+    )
 
 
 if __name__ == "__main__":

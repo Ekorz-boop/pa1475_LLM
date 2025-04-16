@@ -50,25 +50,25 @@ class TestBlockRepresentation(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         result = json.loads(response.data)
         self.assertEqual(result["status"], "success")
-        
+
         # Verify block was added to canvas
         self.assertIn("test_method_block", server.canvas.blocks)
-        
+
         # Get the block from the canvas
         block = server.canvas.blocks["test_method_block"]
-        
+
         # Verify the block has the correct methods
         self.assertEqual(len(block.methods), 3)
         self.assertIn("__init__", block.methods)
         self.assertIn("load", block.methods)
         self.assertIn("load_and_split", block.methods)
-        
+
         # Verify class and module path
         self.assertEqual(block.class_name, "PyPDFLoader")
         self.assertEqual(block.module_path, "langchain_community.document_loaders")
-        
+
         print(f"Block successfully includes methods: {', '.join(block.methods)}")
-        
+
     def test_method_parameters_in_block(self):
         """Test that method parameters are correctly represented in the block."""
         # Create a block with parameters for specific methods
@@ -79,31 +79,28 @@ class TestBlockRepresentation(unittest.TestCase):
             "methods": ["__init__", "load"],
             "input_nodes": ["file_path"],
             "output_nodes": ["documents"],
-            "parameters": {
-                "__init__": {"file_path": "test.pdf"},
-                "load": {}
-            }
+            "parameters": {"__init__": {"file_path": "test.pdf"}, "load": {}},
         }
-        
+
         # Create the block
         response = self.client.post(
             "/api/blocks/create_custom",
             json=block_data,
             content_type="application/json",
         )
-        
+
         # Verify block creation succeeded
         self.assertEqual(response.status_code, 200)
-        
+
         # Verify block was added to canvas
         self.assertIn("test_param_block", server.canvas.blocks)
-        
+
         # Get the block
         block = server.canvas.blocks["test_param_block"]
-        
+
         # Verify parameters are stored
         self.assertIsNotNone(block.parameters)
-        
+
         # The parameters might be stored differently depending on implementation
         # Let's check the block has some representation of parameters
         if isinstance(block.parameters, dict):
@@ -113,9 +110,9 @@ class TestBlockRepresentation(unittest.TestCase):
             else:
                 # If parameters are stored directly
                 self.assertIn("file_path", block.parameters)
-                
+
         print(f"Block parameters successfully verified: {block.parameters}")
-        
+
     def test_block_listing_has_methods(self):
         """Test that the block listing endpoint includes method information."""
         # First create a block with methods
@@ -128,48 +125,48 @@ class TestBlockRepresentation(unittest.TestCase):
             "output_nodes": ["documents"],
             "parameters": {"file_path": "test.pdf"},
         }
-        
+
         # Create the block
         response = self.client.post(
             "/api/blocks/create_custom",
             json=block_data,
             content_type="application/json",
         )
-        
+
         # Verify block creation succeeded
         self.assertEqual(response.status_code, 200)
-        
+
         # Now get the block listing
         response = self.client.get("/api/blocks/list")
         self.assertEqual(response.status_code, 200)
-        
+
         # Parse the response
         blocks_data = json.loads(response.data)
-        
+
         # Find our block
         found_block = None
         for block_id, block_info in blocks_data["blocks"].items():
             if block_id == "test_list_block":
                 found_block = block_info
                 break
-        
+
         # Verify the block was found
         self.assertIsNotNone(found_block)
-        
+
         # Print the response for debugging
         print(f"Block listing response: {json.dumps(found_block, indent=2)}")
-        
+
         # Verify methods are in the response
         self.assertIn("methods", found_block, "Methods should be included in block listing")
         methods = found_block["methods"]
         self.assertEqual(len(methods), 2)
         self.assertIn("__init__", methods)
         self.assertIn("load", methods)
-        
+
         # Also verify class name is included
         self.assertIn("class_name", found_block)
         self.assertEqual(found_block["class_name"], "PyPDFLoader")
-        
+
     def test_api_endpoint_for_selected_methods(self):
         """Test that there's an API endpoint that returns all selected methods for a block."""
         # First create a block with multiple methods
@@ -182,27 +179,27 @@ class TestBlockRepresentation(unittest.TestCase):
             "output_nodes": ["documents"],
             "parameters": {"file_path": "test.pdf"},
         }
-        
+
         # Create the block
         response = self.client.post(
             "/api/blocks/create_custom",
             json=block_data,
             content_type="application/json",
         )
-        
+
         # Verify block creation succeeded
         self.assertEqual(response.status_code, 200)
-        
+
         # Get methods directly from our new endpoint
-        response = self.client.get(f"/api/blocks/methods/test_ui_methods_block")
+        response = self.client.get("/api/blocks/methods/test_ui_methods_block")
         self.assertEqual(response.status_code, 200)
-        
+
         # Parse the response
         methods_data = json.loads(response.data)
-        
+
         # Print the API response
         print(f"Block methods API response: {json.dumps(methods_data, indent=2)}")
-        
+
         # Verify the API returns all methods
         self.assertIn("methods", methods_data)
         methods = methods_data["methods"]
@@ -210,12 +207,13 @@ class TestBlockRepresentation(unittest.TestCase):
         self.assertIn("__init__", methods)
         self.assertIn("load", methods)
         self.assertIn("load_and_split", methods)
-        
+
         print(f"API successfully returns all selected methods: {methods}")
-        
+
         # The UI display issue is separate - this is just testing the API
         # To fix the UI issue, we would need to update the JavaScript frontend code
         # to display all methods, not just as dropdown options
 
+
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()

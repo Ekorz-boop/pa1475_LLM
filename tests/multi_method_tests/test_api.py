@@ -197,11 +197,11 @@ class TestMultiMethodBlocksAPI(unittest.TestCase):
 
         # Print method names if available
         print(f"Found methods for PyPDFLoader: {methods}")
-        
+
         # Check for expected methods
         self.assertIn("__init__", methods, "Expected to find '__init__' method")
         self.assertIn("load", methods, "Expected to find 'load' method")
-        
+
         # Check if method details are available
         self.assertIn("method_details", data, f"Expected 'method_details' in response but got: {data}")
         method_details = data["method_details"]

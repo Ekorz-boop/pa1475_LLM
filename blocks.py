@@ -91,12 +91,8 @@ from langchain_community.vectorstores import FAISS"""
 
     def validate_connections(self) -> bool:
         # Check if the inputs contain at least one TextSplitterBlock and one EmbeddingBlock
-        has_text_splitter = any(
-            isinstance(inp, TextSplitterBlock) for inp in self.inputs.values()
-        )
-        has_embedding = any(
-            isinstance(inp, EmbeddingBlock) for inp in self.inputs.values()
-        )
+        has_text_splitter = any(isinstance(inp, TextSplitterBlock) for inp in self.inputs.values())
+        has_embedding = any(isinstance(inp, EmbeddingBlock) for inp in self.inputs.values())
 
         return has_text_splitter and has_embedding
 
@@ -222,10 +218,7 @@ from langchain.chains import RetrievalQA"""
     return chain"""
 
     def validate_connections(self) -> bool:
-        return all(
-            isinstance(inp, (ChatModelBlock, VectorStoreBlock))
-            for inp in self.inputs.values()
-        )
+        return all(isinstance(inp, (ChatModelBlock, VectorStoreBlock)) for inp in self.inputs.values())
 
 
 class Canvas:
@@ -324,12 +317,8 @@ class Canvas:
             # Write main execution
             f.write("if __name__ == '__main__':\n")
             f.write("    print('Welcome to the RAG Pipeline Application!')\n")
-            f.write(
-                "    print('This application will help you analyze a PDF document using AI.')\n"
-            )
-            f.write(
-                "    print('You will be prompted to provide the path to your PDF file.')\n"
-            )
+            f.write("    print('This application will help you analyze a PDF document using AI.')\n")
+            f.write("    print('You will be prompted to provide the path to your PDF file.')\n")
             f.write("    print()\n")
             f.write(main_code)
 
@@ -378,9 +367,7 @@ class Canvas:
                 source_block = self.blocks[source_id]
                 target_block = self.blocks[target_id]
 
-                if isinstance(target_block, TextSplitterBlock) and isinstance(
-                    source_block, PDFLoaderBlock
-                ):
+                if isinstance(target_block, TextSplitterBlock) and isinstance(source_block, PDFLoaderBlock):
                     input_map[target_id]["documents"] = source_id
                 elif isinstance(target_block, VectorStoreBlock):
                     if isinstance(source_block, TextSplitterBlock):
@@ -398,23 +385,17 @@ class Canvas:
 
             if isinstance(block, PDFLoaderBlock):
                 code_lines.append("    # Load PDF")
-                code_lines.append(
-                    f"    {block_id}_result = load_pdf('your_pdf_file.pdf')"
-                )
+                code_lines.append(f"    {block_id}_result = load_pdf('your_pdf_file.pdf')")
                 results[block_id] = f"{block_id}_result"
 
             elif isinstance(block, TextSplitterBlock):
                 if block_id in input_map and "documents" in input_map[block_id]:
                     input_var = results[input_map[block_id]["documents"]]
                     code_lines.append("    # Split text")
-                    code_lines.append(
-                        f"    {block_id}_result = split_text({input_var})"
-                    )
+                    code_lines.append(f"    {block_id}_result = split_text({input_var})")
                     results[block_id] = f"{block_id}_result"
                 else:
-                    code_lines.append(
-                        "    # WARNING: TextSplitterBlock missing document input"
-                    )
+                    code_lines.append("    # WARNING: TextSplitterBlock missing document input")
                     code_lines.append(f"    {block_id}_result = split_text([])")
                     results[block_id] = f"{block_id}_result"
 
@@ -425,22 +406,14 @@ class Canvas:
 
             elif isinstance(block, VectorStoreBlock):
                 # Make sure we have both document chunks and embeddings
-                if (
-                    block_id in input_map
-                    and "documents" in input_map[block_id]
-                    and "embeddings" in input_map[block_id]
-                ):
+                if block_id in input_map and "documents" in input_map[block_id] and "embeddings" in input_map[block_id]:
                     docs_var = results[input_map[block_id]["documents"]]
                     emb_var = results[input_map[block_id]["embeddings"]]
                     code_lines.append("    # Create vector store")
-                    code_lines.append(
-                        f"    {block_id}_result = create_vectorstore({docs_var}, {emb_var})"
-                    )
+                    code_lines.append(f"    {block_id}_result = create_vectorstore({docs_var}, {emb_var})")
                     results[block_id] = f"{block_id}_result"
                 else:
-                    code_lines.append(
-                        "    # WARNING: VectorStoreBlock missing required inputs"
-                    )
+                    code_lines.append("    # WARNING: VectorStoreBlock missing required inputs")
                     # Create empty placeholder
                     if "documents" not in input_map.get(block_id, {}):
                         code_lines.append("    # Missing document chunks input")
@@ -454,22 +427,14 @@ class Canvas:
                 results[block_id] = f"{block_id}_result"
 
             elif isinstance(block, RAGPromptBlock):
-                if (
-                    block_id in input_map
-                    and "llm" in input_map[block_id]
-                    and "vectorstore" in input_map[block_id]
-                ):
+                if block_id in input_map and "llm" in input_map[block_id] and "vectorstore" in input_map[block_id]:
                     llm_var = results[input_map[block_id]["llm"]]
                     vs_var = results[input_map[block_id]["vectorstore"]]
                     code_lines.append("    # Create RAG chain")
-                    code_lines.append(
-                        f"    {block_id}_result = create_rag_chain({llm_var}, {vs_var})"
-                    )
+                    code_lines.append(f"    {block_id}_result = create_rag_chain({llm_var}, {vs_var})")
                     results[block_id] = f"{block_id}_result"
                 else:
-                    code_lines.append(
-                        "    # WARNING: RAGPromptBlock missing required inputs"
-                    )
+                    code_lines.append("    # WARNING: RAGPromptBlock missing required inputs")
                     if "llm" not in input_map.get(block_id, {}):
                         code_lines.append("    # Missing LLM input")
                     if "vectorstore" not in input_map.get(block_id, {}):
