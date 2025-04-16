@@ -2131,6 +2131,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize block dragging
     initBlockDragging();
+
+    // Simple welcome message handler
+    const welcomeMessage = document.getElementById('welcome-message');
+    if (welcomeMessage) {
+        // Hide message when a block is created
+        document.addEventListener('DOMNodeInserted', function(e) {
+            if (e.target && e.target.classList && e.target.classList.contains('block')) {
+                welcomeMessage.style.display = 'none';
+            }
+        }, true);
+    }
 });
 
 

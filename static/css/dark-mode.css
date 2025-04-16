@@ -130,8 +130,7 @@ body.dark-mode {
 }
 
 .dark-mode .sub-menu {
-    background-color: rgba(30, 30, 30, 0.85);
-    backdrop-filter: blur(2px);
+    background-color: rgba(30, 30, 30, 1);
     border-right: 1px solid var(--border-color);
 }
 
@@ -790,8 +789,8 @@ body.dark-mode {
 }
 
 .dark-mode .main-menu {
-    background-color: rgba(30, 30, 30, 0.85);
-    backdrop-filter: blur(2px);
+    background-color: rgba(30, 30, 30, 1);
+    border: 1px solid var(--border-color);
 }
 
 .dark-mode .menu-item {
@@ -808,8 +807,7 @@ body.dark-mode {
 }
 
 .dark-mode .sub-menu {
-    background-color: rgba(30, 30, 30, 0.85);
-    backdrop-filter: blur(2px);
+    background-color: rgba(30, 30, 30, 1);
     border-right: 1px solid var(--border-color);
 }
 
