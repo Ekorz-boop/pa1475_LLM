@@ -61,6 +61,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-right: 10px; /* Add space between buttons if they're side by side */
 }
 
 #run-all:hover, #export-pipeline:hover {
@@ -96,5 +97,29 @@ body {
 
 .primary-btn:hover {
     background-color: var(--langchain-primary-hover);
+}
+
+/* Menu spacing adjustments */
+.menu-item + .menu-item {
+    margin-top: 4px; /* Add space between adjacent menu items */
+}
+
+.menu-section {
+    margin-bottom: 18px; /* Add more space between menu sections */
+}
+
+/* Custom button margins */
+#run-all, #export-pipeline {
+    margin-right: 10px; /* Add space between buttons if they're side by side */
+}
+
+/* Content Header */
+.content-header {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Increased spacing if present, or added if not */
+    padding: 8px 10px; /* Increased padding if present, or added if not */
+    margin-bottom: 10px; /* Increased margin if present, or added if not */
+    border-bottom: 1px solid var(--langchain-border);
 }
 
