@@ -45,22 +45,19 @@
 
 /* When sidebar is expanded */
 #sidebar.expanded {
-    width: 250px;
+    width: 170px;
 }
 
 /* Floating sidebar container */
 .main-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 230px;
+    width: 150px;
     position: fixed;
     top: 60px;
     left: 10px;
     background-color: white;
-    border-radius: 12px;
+    border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    padding: 20px 10px;
+    padding: 10px 5px;
     max-height: calc(100vh - 80px);
     overflow-y: auto;
     transform: translateX(-300px);
@@ -89,16 +86,16 @@
 .content-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
-    margin-bottom: 10px;
+    gap: 6px;
+    padding: 6px 5px;
+    margin-bottom: 6px;
     border-bottom: 1px solid #eee;
 }
 
 .back-button {
     background: none;
     border: none;
-    padding: 5px;
+    padding: 3px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -119,20 +116,20 @@
 
 .content-header h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
     color: #333;
 }
 
 /* Menu Sections */
 .menu-section {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .section-title {
-    font-size: 12px;
+    font-size: 9px;
     color: #666;
-    margin: 15px 0 8px 10px;
+    margin: 8px 0 4px 5px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -140,22 +137,22 @@
 .menu-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     cursor: pointer;
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 5px 6px;
+    border-radius: 4px;
     transition: background-color 0.2s ease;
     white-space: nowrap;
     color: #333;
     font-family: 'Open Sans', sans-serif;
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .menu-item img {
     width: 20px;
     height: 20px;
     min-width: 20px;
-    opacity: 0.7;
+    opacity: 0.8;
     transition: opacity 0.2s ease;
 }
 
@@ -179,45 +176,50 @@
 
 /* Bottom menu styling */
 .bottom-menu {
-    margin-top: 20px;
+    margin-top: 12px;
     border-top: 1px solid #eee;
-    padding-top: 20px;
+    padding-top: 12px;
 }
 
 .theme-options {
     display: flex;
-    justify-content: space-around;
-    margin: 10px 0;
+    justify-content: flex-start;
+    gap: 4px;
+    margin: 8px 0;
+    padding: 0 5px;
 }
 
 .theme-option {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
     border: 1px solid #ddd;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
+    padding: 2px;
+    background-color: transparent;
+}
+
+.theme-option img {
+    max-width: 18px;
+    height: auto;
+    opacity: 0.9;
 }
 
 .theme-option.active {
     border-color: var(--langchain-primary);
-    box-shadow: 0 0 0 2px rgba(0, 166, 126, 0.2);
+    box-shadow: 0 0 0 1px rgba(0, 166, 126, 0.3);
 }
 
-.theme-option[data-theme="light"] {
-    background-color: #fff;
-    color: #333;
+.dark-mode .theme-option {
+    border-color: #444;
 }
 
-.theme-option[data-theme="dark"] {
-    background-color: #1e1e1e;
-    color: #fff;
-}
-
-.theme-option[data-theme="system"] {
-    background-color: #f5f5f7;
+.dark-mode .theme-option img {
+    filter: brightness(0) invert(1);
 }
 
 .custom-blocks-section {
@@ -255,12 +257,15 @@
 /* Search Container */
 .search-container {
     position: relative;
-    margin: 10px 30px;
+    margin: 6px 0;
+    padding: 0 5px;
+    display: flex;
+    align-items: center;
 }
 
 .search-icon {
     position: absolute;
-    right: 10px;
+    right: 12px;
     top: 50%;
     transform: translateY(-50%);
     opacity: 0.5;
@@ -268,24 +273,24 @@
 
 #block-search {
     width: 100%;
-    padding: 8px 10px;
+    padding: 4px 22px 4px 5px;
     border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
+    border-radius: 4px;
+    font-size: 11px;
 }
 
 /* Block templates container */
 .block-templates-container {
-    padding: 0 10px;
+    padding: 0 5px;
     overflow-y: auto;
-    max-height: calc(100vh - 250px);
+    max-height: calc(100vh - 190px);
 }
 
 .custom-blocks-message {
     display: flex;
     justify-content: center;
-    padding: 15px 10px;
-    margin-bottom: 15px;
+    padding: 10px 5px;
+    margin-bottom: 10px;
 }
 
 /* Dark mode updates */
@@ -336,13 +341,13 @@
 /* Custom Block Button Styling */
 #create-custom-block-btn {
     width: 100%;
-    padding: 12px 16px;
+    padding: 6px 10px;
     background-color: var(--langchain-primary);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 4px;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 11px;
     transition: background-color 0.2s ease, transform 0.1s ease;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -358,5 +363,63 @@
 #create-custom-block-btn:active {
     transform: translateY(1px);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .theme-option {
+    background-color: #333;
+    border-color: #444;
+}
+
+.dark-mode .theme-option.active {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 2px rgba(0, 166, 126, 0.4);
+}
+
+.dark-mode .theme-option img {
+    filter: brightness(0) invert(1);
+}
+
+.bg-color-options {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 4px;
+    margin: 8px 0;
+    padding: 0 5px;
+}
+
+.bg-color-option {
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    border: 1px solid #999;
+    cursor: pointer;
+    margin-bottom: 3px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.bg-color-option:hover {
+    transform: scale(1.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.bg-color-option.active {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 1px rgba(0, 166, 126, 0.3);
+}
+
+.dark-mode .bg-color-option {
+    border-color: #444;
+}
+
+.bg-color-option .color-preview {
+    width: 100%;
+    height: 100%;
+}
+
+.theme-option:hover {
+    transform: scale(1.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
