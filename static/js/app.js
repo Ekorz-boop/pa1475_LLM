@@ -108,6 +108,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedContent = document.getElementById(`${menuType}-content`);
             if (selectedContent) {
                 selectedContent.classList.add('active');
+                
+                // Add submenu-open class to sidebar and main-menu when not on main menu
+                if (menuType !== 'main-menu') {
+                    sidebar.classList.add('submenu-open');
+                    mainMenu.classList.add('submenu-open');
+                } else {
+                    sidebar.classList.remove('submenu-open');
+                    mainMenu.classList.remove('submenu-open');
+                }
             }
             
             // Update active state of menu items
@@ -129,6 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Remove active state from all menu items
             menuItems.forEach(item => item.classList.remove('active'));
+            
+            // Remove submenu-open class
+            sidebar.classList.remove('submenu-open');
+            mainMenu.classList.remove('submenu-open');
         });
     });
 

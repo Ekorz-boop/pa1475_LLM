@@ -48,6 +48,19 @@
     width: 170px;
 }
 
+#sidebar.expanded.submenu-open {
+    width: 250px;
+}
+
+/* När man klickar på ett menyval (Blocks, Dashboard, etc) */
+.main-menu:has(.menu-content.active:not(#main-menu-content)) {
+    width: 180px;
+}
+
+.main-menu.submenu-open {
+    width: 180px;
+}
+
 /* Floating sidebar container */
 .main-menu {
     width: 150px;
@@ -265,10 +278,15 @@
 
 .search-icon {
     position: absolute;
-    right: 12px;
+    right: 14px;
     top: 50%;
     transform: translateY(-50%);
-    opacity: 0.5;
+    opacity: 0.6;
+}
+
+.search-icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 #block-search {
@@ -276,7 +294,8 @@
     padding: 4px 22px 4px 5px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 14px;
+    height: 30px;
 }
 
 /* Block templates container */
