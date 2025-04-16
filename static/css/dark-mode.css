@@ -335,11 +335,56 @@ body.dark-mode {
 }
 
 .dark-mode #custom-block-modal.modal .class-description {
-    color: var(--text-color) !important;
     background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border-left: 3px solid var(--langchain-primary);
+    border-top: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description h3 {
+    color: var(--langchain-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description h4 {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description a {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal.modal .class-description code.inline-code {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description pre.code-block,
+.dark-mode #custom-block-modal.modal .class-description pre.python-example {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description .parameter-list {
     border: 1px solid var(--border-color);
-    padding: 10px;
-    margin: 10px 0;
+}
+
+.dark-mode #custom-block-modal.modal .class-description .parameter-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description .param-name {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal.modal .class-description .param-type {
+    color: #aaa;
+}
+
+.dark-mode #custom-block-modal.modal .class-description .param-desc {
+    color: var(--text-color);
 }
 
 .dark-mode #custom-block-modal.modal div.node-item {
@@ -429,7 +474,54 @@ body.dark-mode {
 .dark-mode #custom-block-modal .class-description {
     background-color: var(--secondary-bg);
     color: var(--text-color);
+    border-left: 3px solid var(--langchain-primary);
+    border-top: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description h3 {
+    color: var(--langchain-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description h4 {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description a {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal .class-description code.inline-code {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description pre.code-block,
+.dark-mode #custom-block-modal .class-description pre.python-example {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-list {
     border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .param-name {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal .class-description .param-type {
+    color: #aaa;
+}
+
+.dark-mode #custom-block-modal .class-description .param-desc {
+    color: var(--text-color);
 }
 
 .dark-mode #custom-block-modal #methods-container {
@@ -935,4 +1027,60 @@ body.dark-mode {
 
 .dark-mode .color-preview.light-purple-bg {
     background-color: var(--bg-dark-purple);
+}
+
+.dark-mode #custom-block-modal .class-name-header h3 {
+    color: var(--langchain-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Syntax highlighting in dark mode */
+.dark-mode #custom-block-modal .class-description .code-keyword {
+    color: #569CD6;
+    font-weight: bold;
+}
+
+.dark-mode #custom-block-modal .class-description .code-builtin {
+    color: #4EC9B0;
+}
+
+.dark-mode #custom-block-modal .class-description .code-string {
+    color: #CE9178;
+}
+
+.dark-mode #custom-block-modal .class-description .code-number {
+    color: #B5CEA8;
+}
+
+.dark-mode #custom-block-modal .class-description .code-comment {
+    color: #6A9955;
+    font-style: italic;
+}
+
+/* Parameter table styling in dark mode */
+.dark-mode #custom-block-modal .class-description .parameter-table {
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-table-header {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .param-name-header,
+.dark-mode #custom-block-modal .class-description .param-type-header,
+.dark-mode #custom-block-modal .class-description .param-desc-header {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item.even-row {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item.odd-row {
+    background-color: rgba(255, 255, 255, 0.06);
 } 

@@ -86,22 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('sidebarExpanded', sidebar.classList.contains('expanded'));
     });
 
-    // Close sidebar and sub-menus when clicking outside
-    document.addEventListener('click', (e) => {
-        // Check if the click was outside the sidebar and sidebar toggle
-        if (!e.target.closest('.main-menu') && 
-            !e.target.closest('.sub-menu') && 
-            !e.target.closest('#sidebar-toggle')) {
-            // Close sidebar
-            sidebar.classList.remove('expanded');
-            localStorage.setItem('sidebarExpanded', 'false');
-            
-            // Close all sub-menus
-            subMenus.forEach(menu => menu.classList.remove('active'));
-            menuItems.forEach(item => item.classList.remove('active'));
-        }
-    });
-
     // Initialize custom block handler
     const customBlockHandler = new CustomBlockHandler();
 
@@ -109,6 +93,47 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('create-custom-block-btn')?.addEventListener('click', () => {
         customBlockHandler.showModal();
     });
+
+    // Handle menu item clicks
+    menuItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const menuType = item.dataset.menu;
+            
+            // Hide all content sections
+            document.querySelectorAll('.menu-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show the selected content section
+            const selectedContent = document.getElementById(`${menuType}-content`);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+            
+            // Update active state of menu items
+            menuItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+        });
+    });
+
+    // Handle back button clicks
+    document.querySelectorAll('.back-button').forEach(button => {
+        button.addEventListener('click', () => {
+            // Hide all content sections
+            document.querySelectorAll('.menu-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show main menu content
+            document.getElementById('main-menu-content').classList.add('active');
+            
+            // Remove active state from all menu items
+            menuItems.forEach(item => item.classList.remove('active'));
+        });
+    });
+
+    // Initialize with main menu content visible
+    document.getElementById('main-menu-content').classList.add('active');
 
     menuItems.forEach(item => {
         item.addEventListener('click', (e) => {
@@ -611,7 +636,11 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const blockType = e.dataTransfer.getData('text/plain');
         if (blockType) {
+            // Get the canvas rectangle
             const rect = canvas.getBoundingClientRect();
+            
+            // Calculate position in canvas coordinates, accounting for zoom and transform
+            // This is the key calculation that ensures accuracy at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom;
 
@@ -672,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Canvas pan functionality
     canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 1 || (e.button === 0 && e.altKey)) {
+        if (e.button === 0) { // Left mouse button only
             isPanning = true;
             canvas.classList.add('grabbing');
             startPoint = {
@@ -703,13 +732,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
-            // Calculate position relative to canvas, accounting for zoom and pan
+            
+            // Calculate position relative to canvas, correctly accounting for zoom and pan
+            // This calculation ensures the block stays under the cursor at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
             draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             updateConnections();
-
             e.preventDefault();
         }
 
@@ -900,10 +930,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggedBlock = block;
 
                 // Calculate offset from the mouse to the block's top-left corner
+                // This is critical for the block to stay at the correct position relative to cursor
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                dragOffset.x = (e.clientX - rect.left) / zoom;
-                dragOffset.y = (e.clientY - rect.top) / zoom;
+                
+                // Get the block's transform to find its real position
+                const transform = window.getComputedStyle(block).transform;
+                const matrix = new DOMMatrixReadOnly(transform);
+                const blockX = matrix.m41;
+                const blockY = matrix.m42;
+                
+                // Get mouse position in canvas coordinates
+                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
+                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
+                
+                // Calculate offset between mouse and block origin
+                dragOffset.x = mouseX - blockX;
+                dragOffset.y = mouseY - blockY;
 
                 block.style.zIndex = '1000';
                 e.preventDefault();
@@ -1242,7 +1285,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update miniature map viewport
         const miniMap = document.querySelector('.mini-map');
         const miniMapViewport = document.querySelector('.mini-map-viewport');
-        if (miniMap && miniMapViewport) {
+        const miniMapSVG = document.querySelector('.mini-map-svg');
+        if (miniMap && miniMapViewport && miniMapSVG) {
             const canvasWidth = 10000; // Total canvas width
             const canvasHeight = 10000; // Total canvas height
             const viewportWidth = window.innerWidth;
@@ -1253,16 +1297,96 @@ document.addEventListener('DOMContentLoaded', () => {
             const scaleY = miniMap.offsetHeight / canvasHeight;
             
             // Calculate the viewport position and size in the miniature map
-            const viewportX = (-currentTranslate.x / zoom) * scaleX;
-            const viewportY = (-currentTranslate.y / zoom) * scaleY;
-            const viewportWidthScaled = (viewportWidth / zoom) * scaleX;
-            const viewportHeightScaled = (viewportHeight / zoom) * scaleY;
-            
+            let viewportX = (-currentTranslate.x / zoom) * scaleX;
+            let viewportY = (-currentTranslate.y / zoom) * scaleY;
+            let viewportWidthScaled = (viewportWidth / zoom) * scaleX;
+            let viewportHeightScaled = (viewportHeight / zoom) * scaleY;
+
+            // Clamp the viewport rectangle so it always stays visible in the mini-map
+            if (viewportX < 0) viewportX = 0;
+            if (viewportY < 0) viewportY = 0;
+            if (viewportX + viewportWidthScaled > miniMap.offsetWidth) viewportX = miniMap.offsetWidth - viewportWidthScaled;
+            if (viewportY + viewportHeightScaled > miniMap.offsetHeight) viewportY = miniMap.offsetHeight - viewportHeightScaled;
+            // Prevent negative width/height
+            if (viewportWidthScaled > miniMap.offsetWidth) {
+                viewportX = 0;
+                viewportWidthScaled = miniMap.offsetWidth;
+            }
+            if (viewportHeightScaled > miniMap.offsetHeight) {
+                viewportY = 0;
+                viewportHeightScaled = miniMap.offsetHeight;
+            }
+            // Clamp again in case of overflows
+            if (viewportX < 0) viewportX = 0;
+            if (viewportY < 0) viewportY = 0;
+
             // Update the viewport rectangle
             miniMapViewport.style.left = `${viewportX}px`;
             miniMapViewport.style.top = `${viewportY}px`;
             miniMapViewport.style.width = `${viewportWidthScaled}px`;
             miniMapViewport.style.height = `${viewportHeightScaled}px`;
+
+            // Render live SVG preview of blocks and connections
+            miniMapSVG.innerHTML = '';
+            // Draw connections
+            connections.forEach(conn => {
+                const sourceBlock = document.getElementById(conn.source);
+                const targetBlock = document.getElementById(conn.target);
+                if (!sourceBlock || !targetBlock) return;
+                // Get block positions
+                const getBlockCenter = block => {
+                    const transform = block.style.transform;
+                    const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
+                    if (match) {
+                        const blockX = parseFloat(match[1]);
+                        const blockY = parseFloat(match[2]);
+                        // Center of block (approximate)
+                        return {
+                            x: (blockX + block.offsetWidth / 2) * scaleX,
+                            y: (blockY + block.offsetHeight / 2) * scaleY
+                        };
+                    }
+                    return null;
+                };
+                const src = getBlockCenter(sourceBlock);
+                const tgt = getBlockCenter(targetBlock);
+                if (src && tgt) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', src.x);
+                    line.setAttribute('y1', src.y);
+                    line.setAttribute('x2', tgt.x);
+                    line.setAttribute('y2', tgt.y);
+                    line.setAttribute('stroke', '#888');
+                    line.setAttribute('stroke-width', '1.5');
+                    line.setAttribute('opacity', '0.7');
+                    miniMapSVG.appendChild(line);
+                }
+            });
+            // Draw blocks
+            const blocks = blockContainer.querySelectorAll('.block');
+            blocks.forEach(block => {
+                const transform = block.style.transform;
+                const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
+                if (match) {
+                    const blockX = parseFloat(match[1]);
+                    const blockY = parseFloat(match[2]);
+                    const miniX = blockX * scaleX;
+                    const miniY = blockY * scaleY;
+                    const w = Math.max(8, block.offsetWidth * scaleX);
+                    const h = Math.max(8, block.offsetHeight * scaleY);
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', miniX);
+                    rect.setAttribute('y', miniY);
+                    rect.setAttribute('width', w);
+                    rect.setAttribute('height', h);
+                    rect.setAttribute('rx', 2);
+                    rect.setAttribute('fill', '#00a67e');
+                    rect.setAttribute('stroke', '#fff');
+                    rect.setAttribute('stroke-width', '1');
+                    rect.setAttribute('opacity', '0.85');
+                    miniMapSVG.appendChild(rect);
+                }
+            });
         }
     }
 
@@ -1680,10 +1804,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggedBlock = block;
 
                 // Calculate offset from the mouse to the block's top-left corner
+                // This is critical for the block to stay at the correct position relative to cursor
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                dragOffset.x = (e.clientX - rect.left) / zoom;
-                dragOffset.y = (e.clientY - rect.top) / zoom;
+                
+                // Get the block's transform to find its real position
+                const transform = window.getComputedStyle(block).transform;
+                const matrix = new DOMMatrixReadOnly(transform);
+                const blockX = matrix.m41;
+                const blockY = matrix.m42;
+                
+                // Get mouse position in canvas coordinates
+                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
+                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
+                
+                // Calculate offset between mouse and block origin
+                dragOffset.x = mouseX - blockX;
+                dragOffset.y = mouseY - blockY;
 
                 block.style.zIndex = '1000';
                 e.preventDefault();
@@ -1759,6 +1896,228 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update the visual connections
         updateConnections();
     }
+
+    // Mini-map interactive navigation
+    const miniMap = document.querySelector('.mini-map');
+    const miniMapViewport = document.querySelector('.mini-map-viewport');
+    let isDraggingMiniMapViewport = false;
+    let miniMapDragOffset = { x: 0, y: 0 };
+
+    if (miniMap && miniMapViewport) {
+        // Helper to get scale factors
+        function getMiniMapScale() {
+            const canvasWidth = 10000;
+            const canvasHeight = 10000;
+            return {
+                scaleX: miniMap.offsetWidth / canvasWidth,
+                scaleY: miniMap.offsetHeight / canvasHeight
+            };
+        }
+
+        // Click to pan
+        miniMap.addEventListener('mousedown', (e) => {
+            // Only left mouse button
+            if (e.button !== 0) return;
+            // If clicking on the viewport, start drag
+            if (e.target === miniMapViewport) {
+                isDraggingMiniMapViewport = true;
+                miniMapDragOffset.x = e.offsetX;
+                miniMapDragOffset.y = e.offsetY;
+                document.body.style.userSelect = 'none';
+            } else {
+                // Only pan if not clicking on the viewport rectangle
+                if (!isDraggingMiniMapViewport) {
+                    const rect = miniMap.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const { scaleX, scaleY } = getMiniMapScale();
+                    // Center the main canvas on the clicked point
+                    currentTranslate.x = -((x / scaleX) - (window.innerWidth / (2 * zoom)));
+                    currentTranslate.y = -((y / scaleY) - (window.innerHeight / (2 * zoom)));
+                    updateCanvasTransform();
+                }
+            }
+        });
+
+        // Drag the viewport rectangle
+        document.addEventListener('mousemove', (e) => {
+            if (isDraggingMiniMapViewport) {
+                const rect = miniMap.getBoundingClientRect();
+                const { scaleX, scaleY } = getMiniMapScale();
+                let x = e.clientX - rect.left - miniMapDragOffset.x + miniMapViewport.offsetWidth / 2;
+                let y = e.clientY - rect.top - miniMapDragOffset.y + miniMapViewport.offsetHeight / 2;
+                // Clamp to mini-map bounds
+                x = Math.max(0, Math.min(x, miniMap.offsetWidth));
+                y = Math.max(0, Math.min(y, miniMap.offsetHeight));
+                // Pan the main canvas so the viewport is centered at (x, y)
+                currentTranslate.x = -((x / scaleX) - (window.innerWidth / (2 * zoom)));
+                currentTranslate.y = -((y / scaleY) - (window.innerHeight / (2 * zoom)));
+                updateCanvasTransform();
+            }
+        });
+        document.addEventListener('mouseup', () => {
+            isDraggingMiniMapViewport = false;
+            document.body.style.userSelect = '';
+        });
+    }
+
+    // Add global event listener for the fit-to-view button
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('#fit-to-view, .fit-to-view-button');
+        if (target) {
+            fitAllBlocksToView();
+        }
+    });
+
+    // Function to fit all blocks to view
+    function fitAllBlocksToView() {
+        console.log("Fitting all blocks to view");
+        const blocks = document.querySelectorAll('.block');
+        if (blocks.length === 0) {
+            showToast("No blocks to fit", "info");
+            return;
+        }
+
+        try {
+            // Calculate the bounds of all blocks in their current positions
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+            
+            blocks.forEach(block => {
+                // Get block position from transform
+                const transform = block.style.transform;
+                const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
+                if (match) {
+                    const x = parseFloat(match[1]);
+                    const y = parseFloat(match[2]);
+                    const width = block.offsetWidth;
+                    const height = block.offsetHeight;
+                    
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + width);
+                    maxY = Math.max(maxY, y + height);
+                }
+            });
+            
+            if (minX === Infinity) {
+                console.log("Could not determine block bounds");
+                return;
+            }
+            
+            // Add padding
+            const padding = 50;
+            minX -= padding;
+            minY -= padding;
+            maxX += padding;
+            maxY += padding;
+            
+            // Calculate dimensions
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const centerX = minX + (width / 2);
+            const centerY = minY + (height / 2);
+            
+            // Calculate scale to fit
+            const canvasWidth = canvas.offsetWidth;
+            const canvasHeight = canvas.offsetHeight;
+            const scaleX = canvasWidth / width;
+            const scaleY = canvasHeight / height;
+            const newZoom = Math.min(scaleX, scaleY, 1.5);
+            
+            // Important: Just like the zoom buttons, ONLY update these two variables
+            // and let updateCanvasTransform do all the work
+            zoom = newZoom;
+            currentTranslate.x = (canvasWidth / 2) - (centerX * zoom);
+            currentTranslate.y = (canvasHeight / 2) - (centerY * zoom);
+            
+            // Do NOT set any global flags or variables that might interfere with the
+            // well-functioning drag and drop functionality
+            
+            // Use the same function that the zoom buttons use
+            updateCanvasTransform();
+            
+            showToast("Adjusted view to fit all blocks", "success");
+        } catch (e) {
+            console.error("Error in fitAllBlocksToView:", e);
+            showToast("Could not fit blocks to view", "error");
+        }
+    }
+
+    // Handle block dragging with zoom compensation
+    function initBlockDragging() {
+        let isDragging = false;
+        let currentBlock = null;
+        let startX, startY;
+        let blockStartX, blockStartY;
+        
+        // Function to handle block mousedown event
+        document.addEventListener('mousedown', function(e) {
+            // Check if target is a block drag handle
+            const dragHandle = e.target.closest('.block-drag-handle');
+            if (!dragHandle) return;
+            
+            const block = dragHandle.closest('.block');
+            if (!block) return;
+            
+            // Start dragging
+            isDragging = true;
+            currentBlock = block;
+            
+            // Get current block position from its transform style
+            const transform = window.getComputedStyle(block).transform;
+            const matrix = new DOMMatrixReadOnly(transform);
+            blockStartX = matrix.m41;
+            blockStartY = matrix.m42;
+            
+            // Get mouse position in screen coordinates
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            // Set cursor and add dragging class
+            document.body.style.cursor = 'grabbing';
+            block.classList.add('dragging');
+            block.style.zIndex = '1000';
+            
+            // Prevent default to avoid text selection
+            e.preventDefault();
+        });
+        
+        // Function to handle block mousemove event
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging || !currentBlock) return;
+
+            // Calculate the mouse movement delta in screen coordinates
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            // Apply the delta, adjusted for zoom level to maintain proper scaling
+            const newX = blockStartX + (deltaX / zoom);
+            const newY = blockStartY + (deltaY / zoom);
+            
+            // Apply the new position
+            currentBlock.style.transform = `translate(${newX}px, ${newY}px)`;
+            
+            // Update connections
+            updateConnections();
+        });
+
+        // Function to handle block mouseup event
+        document.addEventListener('mouseup', function() {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            if (currentBlock) {
+                currentBlock.classList.remove('dragging');
+                currentBlock.style.zIndex = '1';
+                currentBlock = null;
+            }
+            document.body.style.cursor = '';
+        });
+    }
+
+    // Initialize block dragging
+    initBlockDragging();
 });
 
 
