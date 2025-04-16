@@ -552,29 +552,376 @@ class CustomBlockHandler {
 
         let formatted = docstring;
         
-        // IMPROVED: Pre-process docstring to identify structured parameter documentation patterns
-        // and convert them to a format we can handle better
+        // PHASE 1: Pre-process docstring to identify structured patterns
+        
+        // Extract parameter documentation patterns
         const sphinxParamPattern = /(?:^|\n)\s*:param\s+([^:]+):\s*([^\n]*(?:\n\s+[^\n:]*)*)/g;
         
-        // IMPROVED: More flexible pattern to capture both standalone and consecutive type declarations
-        // This now handles patterns like ":type param1: type1 :type param2: type2"
+        // Enhanced pattern for type declarations that handles consecutive declarations
         const sphinxTypePattern = /(?:^|\n|:type\s+[^:]+:[^:]*)\s*:type\s+([^:]+):\s*([^:]*?)(?=\s*:\s*(?:type|param|raises)|$|\n)/g;
         
+        // Pattern for raised exceptions
         const sphinxRaisesPattern = /(?:^|\n)\s*:raises\s+([^:]+):\s*([^\n]*(?:\n\s+[^\n:]*)*)/g;
         
-        // Extract parameter documentation to convert to our standard format
+        // Pattern for loose exception mentions
+        const looseErrorPattern = /(?::raises\s+)?([A-Z][a-zA-Z]*Error):\s*([^\n]+)/g;
+        
+        // Pattern for ContentFormat references
+        const contentFormatPattern = /(?:\s*`?ContentFormat\.([A-Z_]+)`?,?\s*)+(?:and\s+`?ContentFormat\.([A-Z_]+)`?)?/g;
+        
+        // Extract documentation sections
         let paramDocs = {};
         let typeInfos = {};
         let raisesDocs = [];
         
-        // First extract all type information
-        let typeMatch;
+        // PHASE 2: Extract and temporarily store all code blocks to prevent processing inside them
+        const codeBlocks = [];
+        let codeBlockCounter = 0;
+        
+        // Process RST style code-blocks with language indicators
+        formatted = formatted.replace(
+            /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n\S|\n\S\S|\n\.\.|$)/g,
+            (match, language, code) => {
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language,
+                    code: code.trim()
+                });
+                codeBlockCounter++;
+                return placeholder;
+            }
+        );
+        
+        // Handle triple backtick code blocks
+        formatted = formatted.replace(
+            /```(?:(python|bash|javascript|js|html|css|json|yaml|xml))?\n([\s\S]*?)```/g,
+            (match, language, code) => {
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language: language || 'python',
+                    code: code.trim()
+                });
+                codeBlockCounter++;
+                return placeholder;
+            }
+        );
+        
+        // Detect Python examples marked with >>> and ... continuations
+        let pythonConsoleExample = '';
+        let inConsoleExample = false;
+        
+        const lines = formatted.split('\n');
+        const newLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmedLine = line.trim();
+            
+            if (trimmedLine.startsWith('>>>') || trimmedLine.startsWith('...')) {
+                if (!inConsoleExample) {
+                    inConsoleExample = true;
+                    pythonConsoleExample = line;
+                } else {
+                    pythonConsoleExample += '\n' + line;
+                }
+            } else if (inConsoleExample && (trimmedLine === '' || /^\s+\S/.test(line))) {
+                pythonConsoleExample += '\n' + line;
+            } else if (inConsoleExample) {
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language: 'python',
+                    code: pythonConsoleExample.trim(),
+                    isConsole: true
+                });
+                codeBlockCounter++;
+                
+                inConsoleExample = false;
+                newLines.push(placeholder);
+                newLines.push(line);
+            } else {
+                newLines.push(line);
+            }
+        }
+        
+        if (inConsoleExample) {
+            const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+            codeBlocks.push({
+                placeholder,
+                language: 'python',
+                code: pythonConsoleExample.trim(),
+                isConsole: true
+            });
+            newLines.push(placeholder);
+        }
+        
+        formatted = newLines.join('\n');
+        
+        // PHASE 3: Handle trailing code elements and fragmented code blocks
+        
+        // Find and merge trailing closing parentheses, brackets, braces with previous code block
+        formatted = formatted.replace(
+            /(__CODE_BLOCK_\d+__)\s*([)\}\]]+)/g,
+            (match, placeholder, closingDelimiters) => {
+                const blockIndex = codeBlocks.findIndex(block => block.placeholder === placeholder);
+                if (blockIndex !== -1) {
+                    codeBlocks[blockIndex].code += closingDelimiters;
+                    return placeholder;
+                }
+                return match;
+            }
+        );
+        
+        // Find and merge trailing comments that appear to be part of code blocks
+        formatted = formatted.replace(
+            /(__CODE_BLOCK_\d+__)\s*(?:\n\s*)(#[^\n]+)(?:\n|$)/g, 
+            (match, placeholder, comment) => {
+                const blockIndex = codeBlocks.findIndex(block => block.placeholder === placeholder);
+                if (blockIndex !== -1) {
+                    codeBlocks[blockIndex].code += `\n${comment}`;
+                    return `${placeholder}\n`;
+                }
+                return match;
+            }
+        );
+        
+        // Look for similar patterns where comments about extraction/parsing are separated
+        formatted = formatted.replace(
+            /(#\s*extract_images\s*=.*|#\s*images_parser\s*=.*)/g,
+            (match) => {
+                const lines = formatted.split('\n');
+                const matchIndex = lines.findIndex(line => line.includes(match));
+                
+                if (matchIndex > 0 && lines[matchIndex - 1].includes('__CODE_BLOCK_')) {
+                    const placeholderMatch = lines[matchIndex - 1].match(/__CODE_BLOCK_\d+__/);
+                    if (placeholderMatch) {
+                        const placeholder = placeholderMatch[0];
+                        const blockIndex = codeBlocks.findIndex(block => block.placeholder === placeholder);
+                        
+                        if (blockIndex !== -1) {
+                            codeBlocks[blockIndex].code += `\n${match}`;
+                            return '';
+                        }
+                    }
+                }
+                
+                if (/=\s*[A-Z][a-zA-Z]+/.test(match)) {
+                    const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                    codeBlocks.push({
+                        placeholder,
+                        language: 'python',
+                        code: match
+                    });
+                    codeBlockCounter++;
+                    return placeholder;
+                }
+                
+                return match;
+            }
+        );
+        
+        // NEW: Identify and merge Python code blocks that belong together
+        // This handles the case where multiple code snippets should be part of the same block
+        let mergedFormatted = formatted;
+        
+        // First identify all code block placeholders
+        const blockPlaceholders = [];
+        let match;
+        const placeholderRegex = /__CODE_BLOCK_(\d+)__/g;
+        while ((match = placeholderRegex.exec(formatted)) !== null) {
+            blockPlaceholders.push({
+                placeholder: match[0],
+                index: match.index,
+                blockIndex: parseInt(match[1], 10)
+            });
+        }
+        
+        // Sort by position in the text
+        blockPlaceholders.sort((a, b) => a.index - b.index);
+        
+        // Check for blocks that should be merged
+        for (let i = 0; i < blockPlaceholders.length - 1; i++) {
+            const current = blockPlaceholders[i];
+            const next = blockPlaceholders[i + 1];
+            
+            // Get the text between the two placeholders
+            const betweenText = formatted.substring(
+                current.index + current.placeholder.length,
+                next.index
+            ).trim();
+            
+            // Get the current code blocks
+            const currentBlock = codeBlocks.find(b => b.placeholder === current.placeholder);
+            const nextBlock = codeBlocks.find(b => b.placeholder === next.placeholder);
+            
+            if (!currentBlock || !nextBlock) continue;
+            
+            // Check if they're both Python blocks and close to each other (with just a comma, small text between)
+            const shouldMerge = currentBlock.language === 'python' && 
+                               nextBlock.language === 'python' && 
+                               (betweenText === ',' || 
+                                betweenText === ')' ||
+                                betweenText === ';' ||
+                                betweenText.length < 10);
+            
+            if (shouldMerge) {
+                // Before merging, get the lines from the current block
+                const currentLines = currentBlock.code.split('\n');
+                const nextLines = nextBlock.code.split('\n');
+                
+                // Only add lines from the next block that don't already exist in the current block
+                for (const line of nextLines) {
+                    if (!currentLines.includes(line)) {
+                        currentBlock.code += '\n' + line;
+                    }
+                }
+                
+                // Remove the next block's placeholder from formatted
+                mergedFormatted = mergedFormatted.replace(next.placeholder, '');
+                
+                // Mark the next block as merged so we can skip it later
+                nextBlock.merged = true;
+            }
+        }
+        
+        // Update formatted with the merged version
+        formatted = mergedFormatted;
+        
+        // Now look for any specific patterns that indicate related code blocks
+        // For example: extract_images = True followed by images_parser = RapidOCRBlobParser()
+        const extractImagesPattern = /extract_images\s*=\s*True/;
+        const imagesParserPattern = /images_parser\s*=\s*[A-Za-z0-9]+Parser\(\)/;
+        
+        // Find blocks containing these patterns
+        let extractImagesBlock = null;
+        let imagesParserBlock = null;
+        let parentBlock = null;
+        
+        for (const block of codeBlocks) {
+            if (block.merged) continue; // Skip already merged blocks
+            
+            if (extractImagesPattern.test(block.code)) {
+                extractImagesBlock = block;
+            }
+            if (imagesParserPattern.test(block.code)) {
+                imagesParserBlock = block;
+            }
+            if (block.code.includes('pages_delimiter') || block.code.includes('headers') || block.code.includes('password')) {
+                parentBlock = block;
+            }
+        }
+        
+        // If we found related blocks, merge them
+        if (parentBlock && (extractImagesBlock || imagesParserBlock)) {
+            // Before merging, normalize the parent block by removing duplicate lines
+            const parentLines = parentBlock.code.split('\n');
+            const uniqueParentLines = [...new Set(parentLines)];
+            parentBlock.code = uniqueParentLines.join('\n');
+            
+            if (extractImagesBlock && extractImagesBlock !== parentBlock) {
+                // Check for duplicate lines before merging
+                const extractLines = extractImagesBlock.code.split('\n');
+                for (const line of extractLines) {
+                    // Only add lines that don't already exist in the parent block
+                    if (!uniqueParentLines.includes(line)) {
+                        parentBlock.code += '\n' + line;
+                    }
+                }
+                formatted = formatted.replace(extractImagesBlock.placeholder, '');
+                extractImagesBlock.merged = true;
+            }
+            
+            if (imagesParserBlock && imagesParserBlock !== parentBlock) {
+                // Check for duplicate lines before merging
+                const parserLines = imagesParserBlock.code.split('\n');
+                for (const line of parserLines) {
+                    // Split parent block code into lines again as it might have changed
+                    const currentParentLines = parentBlock.code.split('\n');
+                    // Only add lines that don't already exist in the parent block
+                    if (!currentParentLines.includes(line)) {
+                        parentBlock.code += '\n' + line;
+                    }
+                }
+                formatted = formatted.replace(imagesParserBlock.placeholder, '');
+                imagesParserBlock.merged = true;
+            }
+        }
+        
+        // Additional deduplication for all remaining code blocks
+        for (const block of codeBlocks) {
+            if (block.merged) continue;
+            
+            // Split the code into lines, remove duplicates, and join back
+            const lines = block.code.split('\n');
+            const uniqueLines = [];
+            
+            // Only add lines if they're not already in the array (preserving order)
+            for (const line of lines) {
+                if (!uniqueLines.includes(line)) {
+                    uniqueLines.push(line);
+                }
+            }
+            
+            block.code = uniqueLines.join('\n');
+        }
+        
+        // Detect and combine import statements with subsequent code
+        formatted = formatted.replace(
+            /(?:\n|^)((?:from|import)\s+[\w\.]+(?:\s+import\s+[\w\.,\s]+)?(?:\n(?:from|import)\s+[\w\.]+(?:\s+import\s+[\w\.,\s]+)?)*\n+((?:[^\n]+(?:\n\s+[^\n]+)*\n)+?(?=\n|$)))/g,
+            (match, group) => {
+                if (/[a-zA-Z_][a-zA-Z0-9_]*\s*=|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(group)) {
+                    const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                    codeBlocks.push({
+                        placeholder,
+                        language: 'python',
+                        code: group.trim()
+                    });
+                    codeBlockCounter++;
+                    return placeholder;
+                }
+                return match;
+            }
+        );
+        
+        // Capture multi-line function calls or object instantiations
+        formatted = formatted.replace(
+            /(?:\n|^)([a-zA-Z_][a-zA-Z0-9_]*\s*=\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\()([^)]*?)(\))(?=\n|$)/gs,
+            (match, start, params, end) => {
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language: 'python',
+                    code: `${start}${params}${end}`.trim()
+                });
+                codeBlockCounter++;
+                return placeholder;
+            }
+        );
+        
+        // Capture multi-line method calls like loader.load(...)
+        formatted = formatted.replace(
+            /(?:\n|^)([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+\s*\()([^)]*?)(\))(?=\n|$)/gs,
+            (match, start, params, end) => {
+                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
+                codeBlocks.push({
+                    placeholder,
+                    language: 'python',
+                    code: `${start}${params}${end}`.trim()
+                });
+                codeBlockCounter++;
+                return placeholder;
+            }
+        );
+        
+        // PHASE 4: Process structured documentation sections
         
         // Preprocess to make consecutive type declarations more parseable
-        // Replace patterns like ":type param1: type1:type param2: type2" with proper spacing
         formatted = formatted.replace(/:type\s+([^:]+):\s*([^:]*)(?=:type)/g, ":type $1: $2\n");
         
-        // Handle special case of tightly packed type declarations
+        // Extract type information first
+        let typeMatch;
         while ((typeMatch = sphinxTypePattern.exec(formatted)) !== null) {
             const paramName = typeMatch[1].trim();
             const typeInfo = typeMatch[2].trim();
@@ -594,7 +941,6 @@ class CustomBlockHandler {
                 type: typeInfo
             };
             
-            // Build standard parameter documentation format
             paramSection += `${paramName} (${typeInfo}): ${paramDesc}\n\n`;
         }
         
@@ -606,7 +952,6 @@ class CustomBlockHandler {
                     type: typeInfo
                 };
                 
-                // Add to parameter section
                 paramSection += `${paramName} (${typeInfo}): No description available\n\n`;
             }
         }
@@ -623,24 +968,18 @@ class CustomBlockHandler {
                 description: exceptionDesc
             });
             
-            // Add to raises section if it doesn't exist yet
             if (!raisesSection) {
                 raisesSection = "Raises:\n";
             }
             raisesSection += `${exceptionName}: ${exceptionDesc}\n\n`;
         }
         
-        // NEW: Look for loose exception mentions that aren't in the standard format
-        // This catches patterns like ":raises ImportError: Required dependencies not installed"
-        // or standalone "ImportError: Required dependencies not installed" or just "Error: message"
-        const looseErrorPattern = /(?::raises\s+)?([A-Z][a-zA-Z]*Error):\s*([^\n]+)/g;
+        // Process loose error mentions
         let looseErrorMatch;
-        
         while ((looseErrorMatch = looseErrorPattern.exec(formatted)) !== null) {
             const exceptionName = looseErrorMatch[1].trim();
             const exceptionDesc = looseErrorMatch[2].trim();
             
-            // Check if this exception is already in the raises docs
             const existingError = raisesDocs.find(e => e.name === exceptionName);
             
             if (!existingError) {
@@ -649,24 +988,19 @@ class CustomBlockHandler {
                     description: exceptionDesc
                 });
                 
-                // Add to raises section if it doesn't exist yet
                 if (!raisesSection) {
                     raisesSection = "Raises:\n";
                 }
                 raisesSection += `${exceptionName}: ${exceptionDesc}\n\n`;
                 
-                // Remove the error from the main text
                 formatted = formatted.replace(looseErrorMatch[0], '');
             }
         }
         
-        // NEW: Handle ContentFormat references for the content_format parameter
-        // This specifically looks for the pattern often found in the ContentFormat documentation
-        const contentFormatPattern = /(?:\s*`?ContentFormat\.([A-Z_]+)`?,?\s*)+(?:and\s+`?ContentFormat\.([A-Z_]+)`?)?/g;
+        // Handle ContentFormat references for the content_format parameter
         const contentFormatMatch = formatted.match(contentFormatPattern);
         
         if (contentFormatMatch && paramDocs['content_format']) {
-            // Find all ContentFormat references
             const contentFormatValues = [];
             let formatMatch;
             const formatRegex = /ContentFormat\.([A-Z_]+)/g;
@@ -675,7 +1009,6 @@ class CustomBlockHandler {
                 contentFormatValues.push(formatMatch[1]);
             }
             
-            // Update the description for content_format
             if (contentFormatValues.length > 0) {
                 const formattedValues = contentFormatValues.map(val => `ContentFormat.${val}`).join(', ');
                 const currentDesc = paramDocs['content_format'].description;
@@ -686,26 +1019,23 @@ class CustomBlockHandler {
                     paramDocs['content_format'].description = `Supported values: ${formattedValues}`;
                 }
                 
-                // Update the parameter section
                 paramSection = paramSection.replace(
                     new RegExp(`content_format \\([^\\)]*\\): [^\n]*\n\n`),
                     `content_format (${paramDocs['content_format'].type}): ${paramDocs['content_format'].description}\n\n`
                 );
                 
-                // Remove the ContentFormat references from the main text
                 formatted = formatted.replace(contentFormatPattern, '');
             }
         }
         
-        // If we found parameter documentation, remove the raw :param/:type/:raises sections
-        // and append our standardized parameter and raises sections
+        // Remove the original structured sections and append standardized ones
         if (Object.keys(paramDocs).length > 0 || raisesDocs.length > 0) {
-            // Remove the original sections - improved to catch consecutive type declarations
+            // Remove the original sections
             formatted = formatted.replace(/(?:^|\n)\s*:param\s+[^:]+:\s*[^\n]*(?:\n\s+[^\n:]*)*\n*/g, '\n');
             formatted = formatted.replace(/(?:^|\n|\s*):type\s+[^:]+:\s*[^:\n]*(?=\s*:|$|\n)/g, '\n');
             formatted = formatted.replace(/(?:^|\n)\s*:raises\s+[^:]+:\s*[^\n]*(?:\n\s+[^\n:]*)*\n*/g, '\n');
             
-            // Add our parameter section and raises section at the end of the docstring
+            // Add our standardized sections at the end
             if (Object.keys(paramDocs).length > 0) {
                 formatted += '\n\n' + paramSection;
             }
@@ -715,23 +1045,21 @@ class CustomBlockHandler {
             }
         }
         
-        // Handle deprecation notices - these often start with ".. deprecated::" or similar text
-        const deprecationRegex = /\.\.?\s*deprecated:?:?|\bdeprecated\b[.:]\s*(.*?)(?=\n\n|\n[^\s]|$)/i;
+        // PHASE 5: Handle special sections and formatting
+        
+        // Handle deprecation notices
+        const deprecationRegex = /\.\.\s*deprecated:?:?|\bdeprecated\b[.:]\s*(.*?)(?=\n\n|\n[^\s]|$)/i;
         const deprecationMatch = formatted.match(deprecationRegex);
         
         if (deprecationMatch) {
-            // Extract the deprecation message and remove it from the main text
             const deprecationMessage = deprecationMatch[0];
             formatted = formatted.replace(deprecationRegex, '');
-            
-            // Add it back as a styled warning box
             formatted = `<div class="deprecation-warning">⚠️ ${deprecationMessage}</div>${formatted}`;
         }
 
         // Detect installation section
         const installRegex = /Set?up:?\s*Install/i;
         if (installRegex.test(formatted)) {
-            // Wrap the installation section in a themed container
             formatted = formatted.replace(/(Set?up:?\s*Install[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/i, 
                 '<div class="install-section"><h4>Installation</h4>$1</div>');
         }
@@ -739,17 +1067,16 @@ class CustomBlockHandler {
         // Detect usage example sections
         const usageRegex = /(?:Usage|Instantiate|Example|Lazy load):/i;
         if (usageRegex.test(formatted)) {
-            // Wrap usage examples in a themed container
             formatted = formatted.replace(/((?:Usage|Instantiate|Example|Lazy load):[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/gi, 
                 '<div class="usage-section"><h4>$1</div>');
             
-            // Fix the heading format
-            formatted = formatted.replace(/<h4>((?:Usage|Instantiate|Example|Lazy load)):([\s\S]*?)<\/div>/gi, 
+            formatted = formatted.replace(/<h4>((?:Usage|Instantiate|Example|Lazy load)):(\s\S*?)<\/div>/gi, 
                 '<h4>$1</h4>$2</div>');
         }
-
-        // IMPROVED: Format ContentFormat references first
-        // This handles patterns like `ContentFormat.EDITOR`, `ContentFormat.VIEW`, etc.
+        
+        // PHASE 6: Format inline elements
+        
+        // Format ContentFormat references first
         formatted = formatted.replace(
             /`?ContentFormat\.[A-Z_]+`?/g,
             match => {
@@ -764,251 +1091,27 @@ class CustomBlockHandler {
             '<a href="$1" target="_blank" rel="noopener noreferrer" class="url">$1 <span class="external-link-icon">↗</span></a>'
         );
         
-        // Detect and format class references like `langchain_google_community.BigQueryLoader`
+        // Format class references
         formatted = formatted.replace(
             /`?([a-zA-Z0-9_]+\.)*[A-Z][a-zA-Z0-9_]+(Loader|Chain|Model|Store|Splitter|Processor|Parser|Retriever|Embeddings?)`?/g,
             match => {
-                // Remove any backticks that might be present
                 const cleanMatch = match.replace(/`/g, '');
                 return `<span class="class-reference">${cleanMatch}</span>`;
             }
         );
         
-        // IMPROVED: Extract and temporarily store all code blocks to prevent processing inside them
-        const codeBlocks = [];
-        let codeBlockCounter = 0;
-        
-        // Process RST style code-blocks with language indicators
-        formatted = formatted.replace(
-            /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n\S|\n\S\S|\n\.\.|$)/g,
-            (match, language, code) => {
-                // Store the code block
-                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-                codeBlocks.push({
-                    placeholder,
-                    language,
-                    code: code.trim()
-                });
-                codeBlockCounter++;
-                return placeholder;
-            }
-        );
-        
-        // IMPROVED: Handle Python code blocks with triple backticks - improved regex for multi-line examples
-        formatted = formatted.replace(
-            /```(?:(python|bash|javascript|js|html|css|json|yaml|xml))?\n([\s\S]*?)```/g,
-            (match, language, code) => {
-                // Store the code block
-                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-                codeBlocks.push({
-                    placeholder,
-                    language: language || 'python', // Default to python if language not specified
-                    code: code.trim()
-                });
-                codeBlockCounter++;
-                return placeholder;
-            }
-        );
-        
-        // IMPROVED: Detect Python examples marked with >>> and ... continuations
-        // This pattern looks for consecutive lines starting with >>> or ...
-        let pythonConsoleExample = '';
-        let inConsoleExample = false;
-        
-        const lines = formatted.split('\n');
-        const newLines = [];
-        
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const trimmedLine = line.trim();
-            
-            if (trimmedLine.startsWith('>>>') || trimmedLine.startsWith('...')) {
-                if (!inConsoleExample) {
-                    // Start a new console example
-                    inConsoleExample = true;
-                    pythonConsoleExample = line;
-                } else {
-                    // Continue the current example
-                    pythonConsoleExample += '\n' + line;
-                }
-            } else if (inConsoleExample && (trimmedLine === '' || /^\s+\S/.test(line))) {
-                // Empty line or indented line within a code block - keep it part of the example
-                pythonConsoleExample += '\n' + line;
-            } else if (inConsoleExample) {
-                // End of console example
-                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-                codeBlocks.push({
-                    placeholder,
-                    language: 'python',
-                    code: pythonConsoleExample.trim(),
-                    isConsole: true
-                });
-                codeBlockCounter++;
-                
-                inConsoleExample = false;
-                newLines.push(placeholder);
-                newLines.push(line); // Add the current line
-            } else {
-                newLines.push(line);
-            }
-        }
-        
-        // Handle case where console example is at the end of the content
-        if (inConsoleExample) {
-            const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-            codeBlocks.push({
-                placeholder,
-                language: 'python',
-                code: pythonConsoleExample.trim(),
-                isConsole: true
-            });
-            newLines.push(placeholder);
-        }
-        
-        formatted = newLines.join('\n');
-        
-        // IMPROVED: Find and merge trailing closing parentheses, brackets, braces with previous code block
-        // This addresses issues where closing delimiters are separated from their code blocks
-        formatted = formatted.replace(
-            /(__CODE_BLOCK_\d+__)\s*([)}\]]+)/g,
-            (match, placeholder, closingDelimiters) => {
-                // Find the corresponding code block
-                const blockIndex = codeBlocks.findIndex(block => block.placeholder === placeholder);
-                if (blockIndex !== -1) {
-                    // Add the closing delimiters to the code block
-                    codeBlocks[blockIndex].code += closingDelimiters;
-                    return placeholder; // Return just the placeholder, removing the closing delimiters from the text
-                }
-                return match; // No matching code block found, return unchanged
-            }
-        );
-        
-        // NEW: Find and merge trailing comments that appear to be part of code blocks
-        // This looks for comment lines that follow a code block without spacing
-        formatted = formatted.replace(
-            /(__CODE_BLOCK_\d+__)\s*(?:\n\s*)(#[^\n]+)(?:\n|$)/g, 
-            (match, placeholder, comment) => {
-                // Find the corresponding code block
-                const blockIndex = codeBlocks.findIndex(block => block.placeholder === placeholder);
-                if (blockIndex !== -1) {
-                    // Add the comment to the code block
-                    codeBlocks[blockIndex].code += `\n${comment}`;
-                    return `${placeholder}\n`; // Return just the placeholder with a newline
-                }
-                return match; // No matching code block found, return unchanged
-            }
-        );
-        
-        // IMPROVED: Detect and combine import statements with subsequent code
-        // This is a common pattern in LangChain docstrings. The improved regex
-        // now handles multi-line parameters and method calls more effectively.
-        formatted = formatted.replace(
-            /(?:\n|^)((?:from|import)\s+[\w\.]+(?:\s+import\s+[\w\.,\s]+)?(?:\n(?:from|import)\s+[\w\.]+(?:\s+import\s+[\w\.,\s]+)?)*)\n+((?:[^\n]+(?:\n\s+[^\n]+)*\n)+?(?=\n|$))/g,
-            (match, imports, code) => {
-                // Check if this looks like Python code following imports
-                // Improved to detect variable assignments, function calls, and multi-line statements
-                if (/[a-zA-Z_][a-zA-Z0-9_]*\s*=|[a-zA-Z_][a-zA-Z0-9_]*\s*\(/.test(code)) {
-                    const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-                    codeBlocks.push({
-                        placeholder,
-                        language: 'python',
-                        code: `${imports.trim()}\n\n${code.trim()}`
-                    });
-                    codeBlockCounter++;
-                    return placeholder;
-                }
-                return match;
-            }
-        );
-        
-        // NEW: Look for similar patterns where comments about extraction/parsing are separated
-        formatted = formatted.replace(
-            /(#\s*extract_images\s*=.*|#\s*images_parser\s*=.*)/g,
-            (match) => {
-                // Look for a code block placeholder in the previous line
-                const lines = formatted.split('\n');
-                const matchIndex = lines.findIndex(line => line.includes(match));
-                
-                if (matchIndex > 0 && lines[matchIndex - 1].includes('__CODE_BLOCK_')) {
-                    // Find which code block it belongs to
-                    const placeholderMatch = lines[matchIndex - 1].match(/__CODE_BLOCK_\d+__/);
-                    if (placeholderMatch) {
-                        const placeholder = placeholderMatch[0];
-                        const blockIndex = codeBlocks.findIndex(block => block.placeholder === placeholder);
-                        
-                        if (blockIndex !== -1) {
-                            // Add the comment line to the code block
-                            codeBlocks[blockIndex].code += `\n${match}`;
-                            return ''; // Remove from main text
-                        }
-                    }
-                }
-                
-                // If no matching code block found, check if we should create a new code block
-                if (/=\s*[A-Z][a-zA-Z]+/.test(match)) {
-                    // This comment contains a class name (likely a parser reference)
-                    const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-                    codeBlocks.push({
-                        placeholder,
-                        language: 'python',
-                        code: match
-                    });
-                    codeBlockCounter++;
-                    return placeholder;
-                }
-                
-                return match; // No matching criteria, return unchanged
-            }
-        );
-        
-        // IMPROVED: Specifically look for multi-line function calls or object instantiations
-        // that may have been missed by the previous regex
-        formatted = formatted.replace(
-            /(?:\n|^)([a-zA-Z_][a-zA-Z0-9_]*\s*=\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\()([^)]*?)(\))(?=\n|$)/gs,
-            (match, start, params, end) => {
-                // This matches patterns like: loader = PyPDFLoader(...) with multiline parameters
-                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-                codeBlocks.push({
-                    placeholder,
-                    language: 'python',
-                    code: `${start}${params}${end}`.trim()
-                });
-                codeBlockCounter++;
-                return placeholder;
-            }
-        );
-        
-        // Also capture multi-line method calls like loader.load(...)
-        formatted = formatted.replace(
-            /(?:\n|^)([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+\s*\()([^)]*?)(\))(?=\n|$)/gs,
-            (match, start, params, end) => {
-                // This matches patterns like: loader.load(...) with multiline parameters
-                const placeholder = `__CODE_BLOCK_${codeBlockCounter}__`;
-                codeBlocks.push({
-                    placeholder,
-                    language: 'python',
-                    code: `${start}${params}${end}`.trim()
-                });
-                codeBlockCounter++;
-                return placeholder;
-            }
-        );
-        
-        // NEW: Format specific inline code references - BEFORE we process inline code
-        // Format library names, classes and technical terms with more specific pattern recognition
-        // This helps catch specific code references like 'loader', 'langchain', 'unstructured' in text
+        // Format specific inline code references
         const codeReferences = [
             'loader', 'langchain', 'unstructured', 'ContentFormat', 'Document', 
-            'mode', 'elements', 'single', 'strategy'
+            'mode', 'elements', 'single', 'strategy', 'oauth2', 'token'
         ];
         
-        // Use a more sophisticated regex that looks for word boundaries and considers context
         codeReferences.forEach(term => {
             const regex = new RegExp(`\\b(${term})\\b(?![^<]*>|[^<>]*<\/span>|[^<>]*<\/code>)`, 'g');
             formatted = formatted.replace(regex, '<code class="inline-code">$1</code>');
         });
         
-        // Format FormatFormat.XXX references - a common pattern in LangChain docs
+        // Format FormatFormat.XXX references
         formatted = formatted.replace(
             /`?([A-Za-z0-9_]+\.[A-Z_]+)`?/g,
             match => {
@@ -1017,14 +1120,13 @@ class CustomBlockHandler {
             }
         );
         
-        // Format inline code (but not inside our code block placeholders)
+        // Format inline code (but not inside code block placeholders)
         formatted = formatted.replace(
             /`([^`]+)`/g,
             (match, code, offset) => {
-                // Check if we're inside a code block placeholder
                 for (const block of codeBlocks) {
                     if (formatted.substring(0, offset).includes(block.placeholder)) {
-                        return match; // Inside placeholder, leave as is
+                        return match;
                     }
                 }
                 return '<code class="inline-code">' + code + '</code>';
@@ -1038,7 +1140,6 @@ class CustomBlockHandler {
         );
 
         // Format technical terms and file formats as inline code
-        // This captures common technical terms that should be formatted as code
         const technicalTerms = [
             'XML', 'JSON', 'CSV', 'YAML', 'HTML', 'PDF', 'DOCX', 'TXT', 'RTF',
             'unstructured', 'langchain', 'python', 'mode=', 'strategy=',
@@ -1046,26 +1147,24 @@ class CustomBlockHandler {
             'lazy_load', 'docs', 'loader', 'append', 'print', 'None', 'True', 'False'
         ];
         
-        // Create a regex that matches these terms as whole words but not if already in a code element
         const techTermsRegex = new RegExp(`\\b(${technicalTerms.join('|')})\\b(?![^<]*>|[^<>]*<\/span>|[^<>]*<\/code>)`, 'g');
         formatted = formatted.replace(techTermsRegex, '<code class="inline-code">$1</code>');
-
+        
+        // PHASE 7: Format section headers and create structure
+        
         // Create collapsible sections for long examples
         formatted = this.createCollapsibleSections(formatted);
 
-        // Format common sections with headers
+        // Format common section headers
         const commonSections = [
             "Parameters:", "Returns:", "Examples:", "Example:", 
             "Usage:", "Notes:", "Note:", "Args:", "Arguments:",
             "Attributes:", "Raises:", "Exceptions:", "References:"
         ];
         
-        // Process section titles
         for (const section of commonSections) {
-            // Only replace if the section is at the beginning of a line (possibly with whitespace)
             const sectionRegex = new RegExp(`(^|\\n)\\s*(${section})\\s*`, 'g');
             formatted = formatted.replace(sectionRegex, (match, p1, p2) => {
-                // Don't replace if it's already in an h4 tag
                 if (formatted.includes(`<h4>${p2}</h4>`)) {
                     return match;
                 }
@@ -1073,19 +1172,15 @@ class CustomBlockHandler {
             });
         }
 
-        // Format parameter sections (assuming they start with "Parameters:")
+        // Format parameter sections
         if (formatted.includes("<h4>Parameters:</h4>") || formatted.includes("<h4>Args:</h4>")) {
             const paramSectionRegex = /<h4>(Parameters:|Args:)<\/h4>([\s\S]*?)(?=<h4>|$)/;
             const paramMatch = formatted.match(paramSectionRegex);
             
             if (paramMatch) {
-                // Extract the parameter section
                 const paramSection = paramMatch[2];
-                
-                // Format the parameters as a list
                 const formattedParams = this.formatParameterList(paramSection);
                 
-                // Replace the original parameter section with the formatted one
                 formatted = formatted.replace(
                     paramSectionRegex, 
                     `<h4>${paramMatch[1]}</h4>${formattedParams}`
@@ -1093,7 +1188,7 @@ class CustomBlockHandler {
             }
         }
         
-        // Add paragraph breaks (preserve existing structure)
+        // Add paragraph breaks
         formatted = formatted.replace(/\n\s*\n/g, '</p><p>');
         
         // Wrap in paragraph tags if not already wrapped
@@ -1105,9 +1200,11 @@ class CustomBlockHandler {
             formatted = '<p>' + formatted + '</p>';
         }
         
-        // IMPROVED: Now replace all code block placeholders with their formatted HTML
+        // PHASE 8: Replace all code block placeholders with their formatted HTML
         for (const block of codeBlocks) {
-            // Apply syntax highlighting to code
+            // Skip blocks that were merged into other blocks
+            if (block.merged) continue;
+            
             let highlightedCode = this.applySyntaxHighlighting(block.code);
             
             const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
@@ -1119,7 +1216,6 @@ class CustomBlockHandler {
                 formattedBlock = `<pre class="code-block" data-language="${block.language}">${copyButton}<code>${highlightedCode}</code></pre>`;
             }
             
-            // Replace placeholder with actual formatted code block
             formatted = formatted.replace(block.placeholder, formattedBlock);
         }
         
