@@ -6,4 +6,5 @@ faiss-cpu
 numpy
 requests
 langchain
-langchain-community 
+langchain-community
+Werkzeug==2.2.2
