@@ -48,7 +48,7 @@ class_details_cache = SimpleCache(max_size=50)
 
 @app.route("/")
 def serve_static():
-    return app.send_static_file("html/index.html")
+    return app.send_static_file("index.html")
 
 
 @app.route("/api/connect", methods=["POST"])

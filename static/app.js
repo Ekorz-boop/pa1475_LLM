@@ -1,89 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     const menuItems = document.querySelectorAll('.menu-item');
     const subMenus = document.querySelectorAll('.sub-menu');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const themeOptions = document.querySelectorAll('.theme-option');
-    const mainMenu = document.querySelector('.main-menu');
-    const bgColorOptions = document.querySelectorAll('.bg-color-option');
-    const canvas = document.getElementById('canvas');
 
     // Initialize dark mode
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    const savedTheme = localStorage.getItem('theme') || 'system';
     
     // Set initial dark mode state
     if (savedDarkMode || (!localStorage.getItem('darkMode') && prefersDarkMode)) {
         document.body.classList.add('dark-mode');
-        if (themeOptions) {
-            themeOptions.forEach(option => {
-                option.classList.remove('active');
-                if (option.dataset.theme === 'dark') {
-                    option.classList.add('active');
-                }
-            });
-        }
-    } else {
-        if (themeOptions) {
-            themeOptions.forEach(option => {
-                option.classList.remove('active');
-                if (option.dataset.theme === savedTheme) {
-                    option.classList.add('active');
-                }
-            });
-        }
     }
-    
-    // Handle theme option clicks
-    if (themeOptions) {
-        themeOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                const theme = option.dataset.theme;
-                
-                // Remove active class from all options
-                themeOptions.forEach(opt => opt.classList.remove('active'));
-                
-                // Add active class to clicked option
-                option.classList.add('active');
-                
-                // Apply theme
-                if (theme === 'dark') {
-                    document.body.classList.add('dark-mode');
-                    localStorage.setItem('darkMode', 'true');
-                } else if (theme === 'light') {
-                    document.body.classList.remove('dark-mode');
-                    localStorage.setItem('darkMode', 'false');
-                } else if (theme === 'system') {
-                    if (prefersDarkMode) {
-                        document.body.classList.add('dark-mode');
-                    } else {
-                        document.body.classList.remove('dark-mode');
-                    }
-                    localStorage.removeItem('darkMode');
-                }
-                
-                localStorage.setItem('theme', theme);
-            });
-        });
-    }
-    
-    // Initialize sidebar state from localStorage
-    const sidebarExpanded = localStorage.getItem('sidebarExpanded') === 'true';
-    if (sidebarExpanded) {
-        sidebar.classList.add('expanded');
-    }
-    
-    // Handle sidebar toggle
-    sidebarToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('expanded');
-        // Close all sub-menus when collapsing sidebar
-        if (!sidebar.classList.contains('expanded')) {
-            subMenus.forEach(menu => menu.classList.remove('active'));
-            menuItems.forEach(item => item.classList.remove('active'));
-        }
-        // Save sidebar state
-        localStorage.setItem('sidebarExpanded', sidebar.classList.contains('expanded'));
+
+    // Toggle dark mode
+    darkModeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
     });
 
     // Initialize custom block handler
@@ -106,139 +38,46 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Export button not found in the DOM'); // Debug log
     }
 
-    // Handle menu item clicks
     menuItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const menuType = item.dataset.menu;
-            
-            // Hide all content sections
-            document.querySelectorAll('.menu-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // Show the selected content section
-            const selectedContent = document.getElementById(`${menuType}-content`);
-            if (selectedContent) {
-                selectedContent.classList.add('active');
-                
-                // Add submenu-open class to sidebar and main-menu when not on main menu
-                if (menuType !== 'main-menu') {
-                    sidebar.classList.add('submenu-open');
-                    mainMenu.classList.add('submenu-open');
-                } else {
-                    sidebar.classList.remove('submenu-open');
-                    mainMenu.classList.remove('submenu-open');
-                }
-            }
-            
-            // Update active state of menu items
-            menuItems.forEach(i => i.classList.remove('active'));
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // Remove active class from all menu items
+            menuItems.forEach(mi => mi.classList.remove('active'));
+
+            // Add active class to clicked menu item
             item.classList.add('active');
-        });
-    });
 
-    // Handle back button clicks
-    document.querySelectorAll('.back-button').forEach(button => {
-        button.addEventListener('click', () => {
-            // Hide all content sections
-            document.querySelectorAll('.menu-content').forEach(content => {
-                content.classList.remove('active');
+            const menuType = item.dataset.menu;
+            const targetMenu = document.getElementById(`${menuType}-menu`);
+            const sidebar = document.getElementById('sidebar');
+
+            // Close all open sub-menus
+            subMenus.forEach(menu => {
+                if (menu.classList.contains('active')) {
+                    menu.classList.remove('active');
+                    sidebar.classList.remove('menu-active');
+                }
             });
-            
-            // Show main menu content
-            document.getElementById('main-menu-content').classList.add('active');
-            
-            // Remove active state from all menu items
-            menuItems.forEach(item => item.classList.remove('active'));
-            
-            // Remove submenu-open class
-            sidebar.classList.remove('submenu-open');
-            mainMenu.classList.remove('submenu-open');
-        });
-    });
 
-    // Initialize with main menu content visible
-    document.getElementById('main-menu-content').classList.add('active');
-
-    // menuItems.forEach(item => {
-    //     item.addEventListener('click', (e) => {
-    //         e.stopPropagation();
-            
-    //         // Ensure sidebar is expanded when clicking a menu item
-    //         if (!sidebar.classList.contains('expanded')) {
-    //             sidebar.classList.add('expanded');
-    //             localStorage.setItem('sidebarExpanded', 'true');
-    //         }
-
-    //         // Remove active class from all menu items
-    //         menuItems.forEach(mi => mi.classList.remove('active'));
-
-    //         // Add active class to clicked menu item
-    //         item.classList.add('active');
-
-    //         const menuType = item.dataset.menu;
-    //         const targetMenu = document.getElementById(`${menuType}-menu`);
-
-    //         // Close all open sub-menus
-    //         subMenus.forEach(menu => {
-    //             if (menu.classList.contains('active')) {
-    //                 menu.classList.remove('active');
-    //             }
-    //         });
-
-    //         // Open selected sub-menu
-    //         if (targetMenu) {
-    //             targetMenu.classList.add('active');
-                
-    //             // Position the sub-menu properly
-    //             const menuRect = mainMenu.getBoundingClientRect();
-    //             targetMenu.style.top = `${menuRect.top}px`;
-                
-    //             // Adjust left position based on sidebar state
-    //             if (sidebar.classList.contains('expanded')) {
-    //                 targetMenu.style.left = `${menuRect.right + 10}px`;
-    //             } else {
-    //                 targetMenu.style.left = `${menuRect.left}px`;
-    //             }
-    //         }
-    //     });
-    // });
-
-    // Initialize canvas background color from localStorage
-    const savedBgColor = localStorage.getItem('canvasBgColor') || 'default';
-    canvas.setAttribute('data-bg-color', savedBgColor);
-    
-    // Set active class on the saved background color option
-    if (bgColorOptions) {
-        bgColorOptions.forEach(option => {
-            option.classList.remove('active');
-            if (option.dataset.color === savedBgColor) {
-                option.classList.add('active');
+            // Open selected sub-menu
+            if (targetMenu) {
+                targetMenu.classList.add('active');
+                sidebar.classList.add('menu-active');
             }
         });
-    }
-    
-    // Handle background color option clicks
-    if (bgColorOptions) {
-        bgColorOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                const color = option.dataset.color;
-                
-                // Remove active class from all options
-                bgColorOptions.forEach(opt => opt.classList.remove('active'));
-                
-                // Add active class to clicked option
-                option.classList.add('active');
-                
-                // Apply color to canvas
-                canvas.setAttribute('data-bg-color', color);
-                
-                // Save color preference
-                localStorage.setItem('canvasBgColor', color);
-            });
-        });
-    }
+    });
 
+    // Close sub-menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.sub-menu') && !e.target.closest('.menu-item')) {
+            subMenus.forEach(menu => menu.classList.remove('active'));
+            menuItems.forEach(item => item.classList.remove('active'));
+            document.getElementById('sidebar').classList.remove('menu-active');
+        }
+    });
+
+    const canvas = document.getElementById('canvas');
     const connectionsContainer = document.getElementById('connections');
     const blockTemplates = document.querySelectorAll('.block-template');
     const runAllButton = document.getElementById('run-all');
@@ -747,11 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blockType = e.dataTransfer.getData('text/plain');
 
         if (blockType) {
-            // Get the canvas rectangle
             const rect = canvas.getBoundingClientRect();
-            
-            // Calculate position in canvas coordinates, accounting for zoom and transform
-            // This is the key calculation that ensures accuracy at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom;
 
@@ -812,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Canvas pan functionality
     canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 0) { // Left mouse button only
+        if (e.button === 1 || (e.button === 0 && e.altKey)) {
             isPanning = true;
             canvas.classList.add('grabbing');
             startPoint = {
@@ -843,14 +678,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
-            
-            // Calculate position relative to canvas, correctly accounting for zoom and pan
-            // This calculation ensures the block stays under the cursor at any zoom level
+            // Calculate position relative to canvas, accounting for zoom and pan
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
             draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             updateConnections();
+
             e.preventDefault();
         }
 
@@ -1068,85 +902,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add connection handling for input and output nodes
         setupNodeConnections(block);
-
-        //         // Calculate offset from the mouse to the block's top-left corner
-        //         // This is critical for the block to stay at the correct position relative to cursor
-        //         const rect = block.getBoundingClientRect();
-        //         const canvasRect = canvas.getBoundingClientRect();
-                
-        //         // Get the block's transform to find its real position
-        //         const transform = window.getComputedStyle(block).transform;
-        //         const matrix = new DOMMatrixReadOnly(transform);
-        //         const blockX = matrix.m41;
-        //         const blockY = matrix.m42;
-                
-        //         // Get mouse position in canvas coordinates
-        //         const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
-        //         const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
-                
-        //         // Calculate offset between mouse and block origin
-        //         dragOffset.x = mouseX - blockX;
-        //         dragOffset.y = mouseY - blockY;
-
-        //         block.style.zIndex = '1000';
-        //         e.preventDefault();
-        //         e.stopPropagation();
-        //     });
-        // }
-
-        // // Add connection handling
-        // const outputNode = block.querySelector('.output-node');
-        // const inputNodes = block.querySelectorAll('.input-node');
-
-        // if (outputNode) {
-        //     outputNode.addEventListener('mousedown', (e) => {
-        //         e.stopPropagation();
-        //         e.preventDefault();
-        //         draggingConnection = true;
-        //         sourceNode = outputNode;
-
-        //         const rect = outputNode.getBoundingClientRect();
-        //         const canvasRect = canvas.getBoundingClientRect();
-
-        //         tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        //         const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
-        //         const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
-
-        //         tempConnection.setAttribute('x1', x1);
-        //         tempConnection.setAttribute('y1', y1);
-        //         tempConnection.setAttribute('x2', x1);
-        //         tempConnection.setAttribute('y2', y1);
-        //         tempConnection.setAttribute('class', 'connection-line dragging');
-        //         connectionsContainer.appendChild(tempConnection);
-        //     });
-        // }
-
-        // inputNodes.forEach(inputNode => {
-        //     inputNode.addEventListener('mousedown', (e) => {
-        //         e.stopPropagation();
-        //     });
-
-        //     inputNode.addEventListener('mouseover', (e) => {
-        //         if (draggingConnection && sourceNode) {
-        //             const sourceBlock = sourceNode.closest('.block');
-        //             const targetBlock = inputNode.closest('.block');
-        //             if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
-        //                 hoveredInputNode = inputNode;
-        //                 inputNode.classList.add('input-node-hover');
-        //                 e.stopPropagation();
-        //             }
-        //         }
-        //     });
-
-        //     inputNode.addEventListener('mouseout', (e) => {
-        //         if (hoveredInputNode === inputNode) {
-        //             hoveredInputNode = null;
-        //             inputNode.classList.remove('input-node-hover');
-        //             e.stopPropagation();
-        //         }
-        //     });
-        // });
-
 
         // Handle file input changes
         const fileInput = block.querySelector('.file-input');
@@ -1427,8 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update miniature map viewport
         const miniMap = document.querySelector('.mini-map');
         const miniMapViewport = document.querySelector('.mini-map-viewport');
-        const miniMapSVG = document.querySelector('.mini-map-svg');
-        if (miniMap && miniMapViewport && miniMapSVG) {
+        if (miniMap && miniMapViewport) {
             const canvasWidth = 10000; // Total canvas width
             const canvasHeight = 10000; // Total canvas height
             const viewportWidth = window.innerWidth;
@@ -1439,96 +1193,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const scaleY = miniMap.offsetHeight / canvasHeight;
             
             // Calculate the viewport position and size in the miniature map
-            let viewportX = (-currentTranslate.x / zoom) * scaleX;
-            let viewportY = (-currentTranslate.y / zoom) * scaleY;
-            let viewportWidthScaled = (viewportWidth / zoom) * scaleX;
-            let viewportHeightScaled = (viewportHeight / zoom) * scaleY;
-
-            // Clamp the viewport rectangle so it always stays visible in the mini-map
-            if (viewportX < 0) viewportX = 0;
-            if (viewportY < 0) viewportY = 0;
-            if (viewportX + viewportWidthScaled > miniMap.offsetWidth) viewportX = miniMap.offsetWidth - viewportWidthScaled;
-            if (viewportY + viewportHeightScaled > miniMap.offsetHeight) viewportY = miniMap.offsetHeight - viewportHeightScaled;
-            // Prevent negative width/height
-            if (viewportWidthScaled > miniMap.offsetWidth) {
-                viewportX = 0;
-                viewportWidthScaled = miniMap.offsetWidth;
-            }
-            if (viewportHeightScaled > miniMap.offsetHeight) {
-                viewportY = 0;
-                viewportHeightScaled = miniMap.offsetHeight;
-            }
-            // Clamp again in case of overflows
-            if (viewportX < 0) viewportX = 0;
-            if (viewportY < 0) viewportY = 0;
-
+            const viewportX = (-currentTranslate.x / zoom) * scaleX;
+            const viewportY = (-currentTranslate.y / zoom) * scaleY;
+            const viewportWidthScaled = (viewportWidth / zoom) * scaleX;
+            const viewportHeightScaled = (viewportHeight / zoom) * scaleY;
+            
             // Update the viewport rectangle
             miniMapViewport.style.left = `${viewportX}px`;
             miniMapViewport.style.top = `${viewportY}px`;
             miniMapViewport.style.width = `${viewportWidthScaled}px`;
             miniMapViewport.style.height = `${viewportHeightScaled}px`;
-
-            // Render live SVG preview of blocks and connections
-            miniMapSVG.innerHTML = '';
-            // Draw connections
-            connections.forEach(conn => {
-                const sourceBlock = document.getElementById(conn.source);
-                const targetBlock = document.getElementById(conn.target);
-                if (!sourceBlock || !targetBlock) return;
-                // Get block positions
-                const getBlockCenter = block => {
-                    const transform = block.style.transform;
-                    const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
-                    if (match) {
-                        const blockX = parseFloat(match[1]);
-                        const blockY = parseFloat(match[2]);
-                        // Center of block (approximate)
-                        return {
-                            x: (blockX + block.offsetWidth / 2) * scaleX,
-                            y: (blockY + block.offsetHeight / 2) * scaleY
-                        };
-                    }
-                    return null;
-                };
-                const src = getBlockCenter(sourceBlock);
-                const tgt = getBlockCenter(targetBlock);
-                if (src && tgt) {
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', src.x);
-                    line.setAttribute('y1', src.y);
-                    line.setAttribute('x2', tgt.x);
-                    line.setAttribute('y2', tgt.y);
-                    line.setAttribute('stroke', '#888');
-                    line.setAttribute('stroke-width', '1.5');
-                    line.setAttribute('opacity', '0.7');
-                    miniMapSVG.appendChild(line);
-                }
-            });
-            // Draw blocks
-            const blocks = blockContainer.querySelectorAll('.block');
-            blocks.forEach(block => {
-                const transform = block.style.transform;
-                const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
-                if (match) {
-                    const blockX = parseFloat(match[1]);
-                    const blockY = parseFloat(match[2]);
-                    const miniX = blockX * scaleX;
-                    const miniY = blockY * scaleY;
-                    const w = Math.max(8, block.offsetWidth * scaleX);
-                    const h = Math.max(8, block.offsetHeight * scaleY);
-                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    rect.setAttribute('x', miniX);
-                    rect.setAttribute('y', miniY);
-                    rect.setAttribute('width', w);
-                    rect.setAttribute('height', h);
-                    rect.setAttribute('rx', 2);
-                    rect.setAttribute('fill', '#00a67e');
-                    rect.setAttribute('stroke', '#fff');
-                    rect.setAttribute('stroke-width', '1');
-                    rect.setAttribute('opacity', '0.85');
-                    miniMapSVG.appendChild(rect);
-                }
-            });
         }
     }
 
@@ -2003,23 +1677,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggedBlock = block;
 
                 // Calculate offset from the mouse to the block's top-left corner
-                // This is critical for the block to stay at the correct position relative to cursor
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                
-                // Get the block's transform to find its real position
-                const transform = window.getComputedStyle(block).transform;
-                const matrix = new DOMMatrixReadOnly(transform);
-                const blockX = matrix.m41;
-                const blockY = matrix.m42;
-                
-                // Get mouse position in canvas coordinates
-                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
-                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
-                
-                // Calculate offset between mouse and block origin
-                dragOffset.x = mouseX - blockX;
-                dragOffset.y = mouseY - blockY;
+                dragOffset.x = (e.clientX - rect.left) / zoom;
+                dragOffset.y = (e.clientY - rect.top) / zoom;
 
                 block.style.zIndex = '1000';
                 e.preventDefault();
@@ -2096,7 +1757,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateConnections();
     }
 
-
     // Function to ensure custom blocks have proper node setup
     function setupCustomBlock(block) {
         console.log('Setting up custom block:', block.id);
@@ -2119,239 +1779,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return block;
-    }
-
-    // Mini-map interactive navigation
-    const miniMap = document.querySelector('.mini-map');
-    const miniMapViewport = document.querySelector('.mini-map-viewport');
-    let isDraggingMiniMapViewport = false;
-    let miniMapDragOffset = { x: 0, y: 0 };
-
-    if (miniMap && miniMapViewport) {
-        // Helper to get scale factors
-        function getMiniMapScale() {
-            const canvasWidth = 10000;
-            const canvasHeight = 10000;
-            return {
-                scaleX: miniMap.offsetWidth / canvasWidth,
-                scaleY: miniMap.offsetHeight / canvasHeight
-            };
-        }
-
-        // Click to pan
-        miniMap.addEventListener('mousedown', (e) => {
-            // Only left mouse button
-            if (e.button !== 0) return;
-            // If clicking on the viewport, start drag
-            if (e.target === miniMapViewport) {
-                isDraggingMiniMapViewport = true;
-                miniMapDragOffset.x = e.offsetX;
-                miniMapDragOffset.y = e.offsetY;
-                document.body.style.userSelect = 'none';
-            } else {
-                // Only pan if not clicking on the viewport rectangle
-                if (!isDraggingMiniMapViewport) {
-                    const rect = miniMap.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    const { scaleX, scaleY } = getMiniMapScale();
-                    // Center the main canvas on the clicked point
-                    currentTranslate.x = -((x / scaleX) - (window.innerWidth / (2 * zoom)));
-                    currentTranslate.y = -((y / scaleY) - (window.innerHeight / (2 * zoom)));
-                    updateCanvasTransform();
-                }
-            }
-        });
-
-        // Drag the viewport rectangle
-        document.addEventListener('mousemove', (e) => {
-            if (isDraggingMiniMapViewport) {
-                const rect = miniMap.getBoundingClientRect();
-                const { scaleX, scaleY } = getMiniMapScale();
-                let x = e.clientX - rect.left - miniMapDragOffset.x + miniMapViewport.offsetWidth / 2;
-                let y = e.clientY - rect.top - miniMapDragOffset.y + miniMapViewport.offsetHeight / 2;
-                // Clamp to mini-map bounds
-                x = Math.max(0, Math.min(x, miniMap.offsetWidth));
-                y = Math.max(0, Math.min(y, miniMap.offsetHeight));
-                // Pan the main canvas so the viewport is centered at (x, y)
-                currentTranslate.x = -((x / scaleX) - (window.innerWidth / (2 * zoom)));
-                currentTranslate.y = -((y / scaleY) - (window.innerHeight / (2 * zoom)));
-                updateCanvasTransform();
-            }
-        });
-        document.addEventListener('mouseup', () => {
-            isDraggingMiniMapViewport = false;
-            document.body.style.userSelect = '';
-        });
-    }
-
-    // Add global event listener for the fit-to-view button
-    document.addEventListener('click', function(e) {
-        const target = e.target.closest('#fit-to-view, .fit-to-view-button');
-        if (target) {
-            fitAllBlocksToView();
-        }
-    });
-
-    // Function to fit all blocks to view
-    function fitAllBlocksToView() {
-        console.log("Fitting all blocks to view");
-        const blocks = document.querySelectorAll('.block');
-        if (blocks.length === 0) {
-            showToast("No blocks to fit", "info");
-            return;
-        }
-
-        try {
-            // Calculate the bounds of all blocks in their current positions
-            let minX = Infinity, minY = Infinity;
-            let maxX = -Infinity, maxY = -Infinity;
-            
-            blocks.forEach(block => {
-                // Get block position from transform
-                const transform = block.style.transform;
-                const match = /translate\(([-\d.]+)px,\s*([\-\d.]+)px\)/.exec(transform);
-                if (match) {
-                    const x = parseFloat(match[1]);
-                    const y = parseFloat(match[2]);
-                    const width = block.offsetWidth;
-                    const height = block.offsetHeight;
-                    
-                    minX = Math.min(minX, x);
-                    minY = Math.min(minY, y);
-                    maxX = Math.max(maxX, x + width);
-                    maxY = Math.max(maxY, y + height);
-                }
-            });
-            
-            if (minX === Infinity) {
-                console.log("Could not determine block bounds");
-                return;
-            }
-            
-            // Add padding
-            const padding = 50;
-            minX -= padding;
-            minY -= padding;
-            maxX += padding;
-            maxY += padding;
-            
-            // Calculate dimensions
-            const width = maxX - minX;
-            const height = maxY - minY;
-            const centerX = minX + (width / 2);
-            const centerY = minY + (height / 2);
-            
-            // Calculate scale to fit
-            const canvasWidth = canvas.offsetWidth;
-            const canvasHeight = canvas.offsetHeight;
-            const scaleX = canvasWidth / width;
-            const scaleY = canvasHeight / height;
-            const newZoom = Math.min(scaleX, scaleY, 1.5);
-            
-            // Important: Just like the zoom buttons, ONLY update these two variables
-            // and let updateCanvasTransform do all the work
-            zoom = newZoom;
-            currentTranslate.x = (canvasWidth / 2) - (centerX * zoom);
-            currentTranslate.y = (canvasHeight / 2) - (centerY * zoom);
-            
-            // Do NOT set any global flags or variables that might interfere with the
-            // well-functioning drag and drop functionality
-            
-            // Use the same function that the zoom buttons use
-            updateCanvasTransform();
-            
-            showToast("Adjusted view to fit all blocks", "success");
-        } catch (e) {
-            console.error("Error in fitAllBlocksToView:", e);
-            showToast("Could not fit blocks to view", "error");
-        }
-    }
-
-    // Handle block dragging with zoom compensation
-    function initBlockDragging() {
-        let isDragging = false;
-        let currentBlock = null;
-        let startX, startY;
-        let blockStartX, blockStartY;
-        
-        // Function to handle block mousedown event
-        document.addEventListener('mousedown', function(e) {
-            // Check if target is a block drag handle
-            const dragHandle = e.target.closest('.block-drag-handle');
-            if (!dragHandle) return;
-            
-            const block = dragHandle.closest('.block');
-            if (!block) return;
-            
-            // Start dragging
-            isDragging = true;
-            currentBlock = block;
-            
-            // Get current block position from its transform style
-            const transform = window.getComputedStyle(block).transform;
-            const matrix = new DOMMatrixReadOnly(transform);
-            blockStartX = matrix.m41;
-            blockStartY = matrix.m42;
-            
-            // Get mouse position in screen coordinates
-            startX = e.clientX;
-            startY = e.clientY;
-            
-            // Set cursor and add dragging class
-            document.body.style.cursor = 'grabbing';
-            block.classList.add('dragging');
-            block.style.zIndex = '1000';
-            
-            // Prevent default to avoid text selection
-            e.preventDefault();
-        });
-        
-        // Function to handle block mousemove event
-        document.addEventListener('mousemove', function(e) {
-            if (!isDragging || !currentBlock) return;
-
-            // Calculate the mouse movement delta in screen coordinates
-            const deltaX = e.clientX - startX;
-            const deltaY = e.clientY - startY;
-            
-            // Apply the delta, adjusted for zoom level to maintain proper scaling
-            const newX = blockStartX + (deltaX / zoom);
-            const newY = blockStartY + (deltaY / zoom);
-            
-            // Apply the new position
-            currentBlock.style.transform = `translate(${newX}px, ${newY}px)`;
-            
-            // Update connections
-            updateConnections();
-        });
-
-        // Function to handle block mouseup event
-        document.addEventListener('mouseup', function() {
-            if (!isDragging) return;
-            
-            isDragging = false;
-            if (currentBlock) {
-                currentBlock.classList.remove('dragging');
-                currentBlock.style.zIndex = '1';
-                currentBlock = null;
-            }
-            document.body.style.cursor = '';
-        });
-    }
-
-    // Initialize block dragging
-    initBlockDragging();
-
-    // Simple welcome message handler
-    const welcomeMessage = document.getElementById('welcome-message');
-    if (welcomeMessage) {
-        // Hide message when a block is created
-        document.addEventListener('DOMNodeInserted', function(e) {
-            if (e.target && e.target.classList && e.target.classList.contains('block')) {
-                welcomeMessage.style.display = 'none';
-            }
-        }, true);
     }
 });
 
