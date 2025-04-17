@@ -63,18 +63,16 @@ body.dark-mode {
 /* Canvas specific dark mode styles */
 .dark-mode #canvas {
     background-color: var(--primary-bg);
+}
+
+.dark-mode .canvas-grid {
     background-image: 
-        radial-gradient(rgba(0, 166, 126, 0.2) 1px, transparent 1px),
-        radial-gradient(rgba(0, 166, 126, 0.1) 1px, transparent 1px);
-    background-size: 30px 30px, 15px 15px;
-    background-position: 0 0, 15px 15px;
+        radial-gradient(circle at 1px 1px, rgba(0, 166, 126, 0.5) 2px, transparent 0);
 }
 
 /* Sidebar specific dark mode styles */
 .dark-mode #sidebar {
-    background-color: var(--primary-bg);
-    border-right: 1px solid var(--border-color);
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    background-color: transparent;
 }
 
 .dark-mode .connection-line {
@@ -102,6 +100,7 @@ body.dark-mode {
 }
 
 .dark-mode .menu-item {
+    background-color: transparent;
     color: var(--text-color);
 }
 
@@ -126,12 +125,17 @@ body.dark-mode {
 }
 
 .dark-mode .bottom-menu {
-    border-top: 1px solid var(--border-color);
+    background-color: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark-mode .sub-menu {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 1);
     border-right: 1px solid var(--border-color);
+}
+
+.dark-mode .sub-menu-header {
+    background-color: transparent;
 }
 
 .dark-mode .sub-menu-header h3 {
@@ -156,8 +160,13 @@ body.dark-mode {
     color: var(--secondary-bg);
 }
 
-.dark-mode .custom-blocks-container {
-    background-color: var(--primary-bg);
+/* Custom blocks section header in dark mode */
+.dark-mode .custom-blocks-section-header {
+    color: var(--text-color);
+}
+
+.dark-mode .custom-blocks-divider {
+    background: linear-gradient(to right, var(--langchain-primary) 0%, rgba(255, 255, 255, 0.2) 100%);
 }
 
 .dark-mode .block-template {
@@ -175,13 +184,14 @@ body.dark-mode {
 }
 
 .dark-mode #create-custom-block-btn {
-    background-color: var(--secondary-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    background-color: var(--langchain-primary);
+    color: var(--langchain-white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dark-mode #create-custom-block-btn:hover {
-    background-color: var(--border-color);
+    background-color: var(--langchain-primary-hover);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Custom block modal dark mode styles */
@@ -329,11 +339,56 @@ body.dark-mode {
 }
 
 .dark-mode #custom-block-modal.modal .class-description {
-    color: var(--text-color) !important;
     background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border-left: 3px solid var(--langchain-primary);
+    border-top: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description h3 {
+    color: var(--langchain-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description h4 {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description a {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal.modal .class-description code.inline-code {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description pre.code-block,
+.dark-mode #custom-block-modal.modal .class-description pre.python-example {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description .parameter-list {
     border: 1px solid var(--border-color);
-    padding: 10px;
-    margin: 10px 0;
+}
+
+.dark-mode #custom-block-modal.modal .class-description .parameter-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal.modal .class-description .param-name {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal.modal .class-description .param-type {
+    color: #aaa;
+}
+
+.dark-mode #custom-block-modal.modal .class-description .param-desc {
+    color: var(--text-color);
 }
 
 .dark-mode #custom-block-modal.modal div.node-item {
@@ -423,7 +478,54 @@ body.dark-mode {
 .dark-mode #custom-block-modal .class-description {
     background-color: var(--secondary-bg);
     color: var(--text-color);
+    border-left: 3px solid var(--langchain-primary);
+    border-top: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description h3 {
+    color: var(--langchain-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description h4 {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description a {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal .class-description code.inline-code {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description pre.code-block,
+.dark-mode #custom-block-modal .class-description pre.python-example {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-list {
     border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .param-name {
+    color: var(--langchain-primary);
+}
+
+.dark-mode #custom-block-modal .class-description .param-type {
+    color: #aaa;
+}
+
+.dark-mode #custom-block-modal .class-description .param-desc {
+    color: var(--text-color);
 }
 
 .dark-mode #custom-block-modal #methods-container {
@@ -542,10 +644,6 @@ body.dark-mode {
     background-color: var(--langchain-primary-hover);
 }
 
-.dark-mode #custom-blocks-container {
-    background-color: var(--primary-bg);
-}
-
 .dark-mode .custom-block {
     background-color: var(--secondary-bg);
     border: 1px solid var(--border-color);
@@ -650,8 +748,7 @@ body.dark-mode {
 
 /* Sidebar Dark Mode */
 .dark-mode #sidebar {
-    background-color: var(--primary-bg);
-    border-right: 1px solid var(--border-color);
+    background-color: transparent;
 }
 
 .dark-mode #sidebar h3 {
@@ -659,13 +756,27 @@ body.dark-mode {
 }
 
 .dark-mode .search-container {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
+}
+
+.dark-mode .search-icon {
+    color: #777;
 }
 
 .dark-mode #block-search {
     background-color: var(--secondary-bg);
     color: var(--text-color);
     border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.dark-mode #block-search:focus {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 2px rgba(0, 166, 126, 0.15);
+}
+
+.dark-mode #block-search::placeholder {
+    color: #777;
 }
 
 .dark-mode .block-template {
@@ -678,11 +789,12 @@ body.dark-mode {
 }
 
 .dark-mode .main-menu {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 1);
+    border: 1px solid var(--border-color);
 }
 
 .dark-mode .menu-item {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
     color: var(--text-color);
 }
 
@@ -695,16 +807,17 @@ body.dark-mode {
 }
 
 .dark-mode .sub-menu {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 1);
     border-right: 1px solid var(--border-color);
 }
 
 .dark-mode .sub-menu.active {
-    background-color: var(--primary-bg);
+    background-color: rgba(30, 30, 30, 0.85);
+    display: block;
 }
 
 .dark-mode .sub-menu-header {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
 }
 
 .dark-mode .sub-menu-header h3 {
@@ -712,12 +825,12 @@ body.dark-mode {
 }
 
 .dark-mode .bottom-menu {
-    background-color: var(--primary-bg);
-    border-top: 1px solid var(--border-color);
+    background-color: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark-mode .bottom-menu .menu-item {
-    background-color: var(--secondary-bg);
+    background-color: transparent;
     color: var(--text-color);
 }
 
@@ -877,6 +990,122 @@ body.dark-mode {
 .dark-mode div.toast.error {
     background-color: var(--secondary-bg);
     color: var(--langchain-white);
+}
+
+/* Sidebar toggle dark mode */
+.dark-mode #sidebar-toggle {
+    background-color: var(--primary-bg);
+    border-color: var(--border-color);
+}
+
+.dark-mode #sidebar-toggle img {
+    filter: brightness(0) invert(1);
+}
+
+/* Canvas Background Color Preview in Dark Mode */
+.dark-mode .color-preview.default-bg {
+    background-color: var(--bg-dark-default);
+}
+
+.dark-mode .color-preview.white-bg {
+    background-color: var(--bg-dark-gray);
+    border: 1px solid #555;
+}
+
+.dark-mode .color-preview.light-blue-bg {
+    background-color: var(--bg-dark-blue);
+}
+
+.dark-mode .color-preview.light-yellow-bg {
+    background-color: var(--bg-dark-brown);
+}
+
+.dark-mode .color-preview.light-green-bg {
+    background-color: var(--bg-dark-green);
+}
+
+.dark-mode .color-preview.light-purple-bg {
+    background-color: var(--bg-dark-purple);
+}
+
+.dark-mode #custom-block-modal .class-name-header h3 {
+    color: var(--langchain-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Syntax highlighting in dark mode */
+.dark-mode #custom-block-modal .class-description .code-keyword {
+    color: #569CD6;
+    font-weight: bold;
+}
+
+.dark-mode #custom-block-modal .class-description .code-builtin {
+    color: #4EC9B0;
+}
+
+.dark-mode #custom-block-modal .class-description .code-string {
+    color: #CE9178;
+}
+
+.dark-mode #custom-block-modal .class-description .code-number {
+    color: #B5CEA8;
+}
+
+.dark-mode #custom-block-modal .class-description .code-comment {
+    color: #6A9955;
+    font-style: italic;
+}
+
+/* Parameter table styling in dark mode */
+.dark-mode #custom-block-modal .class-description .parameter-table {
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-table-header {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .param-name-header,
+.dark-mode #custom-block-modal .class-description .param-type-header,
+.dark-mode #custom-block-modal .class-description .param-desc-header {
+    color: var(--text-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item.even-row {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.dark-mode #custom-block-modal .class-description .parameter-item.odd-row {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Make back button arrow white in dark mode */
+.dark-mode .back-button {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.dark-mode .back-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .back-button svg {
+    fill: var(--text-color) !important;
+}
+
+.dark-mode .back-button svg path {
+    fill: var(--text-color) !important;
+}
+
+.dark-mode .zoom-controls {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
 }
 
 .dark-mode .file-selection-modal {

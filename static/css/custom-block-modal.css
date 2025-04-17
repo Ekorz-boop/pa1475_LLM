@@ -99,12 +99,475 @@
     font-size: 16px;
 }
 
+/* Enhanced docstring formatting */
 #custom-block-modal .class-description {
     margin-top: 15px;
     padding: 15px;
     background-color: var(--langchain-light);
     border-radius: 4px;
     border-left: 3px solid var(--langchain-primary);
+    max-height: 300px;
+    overflow-y: auto;
+    line-height: 1.5;
+    text-align: left;
+    font-size: 0.95em;
+}
+
+/* Improved heading styles */
+#custom-block-modal .class-description h4 {
+    margin: 18px 0 10px;
+    color: var(--langchain-primary);
+    font-size: 1.1em;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Deprecation warning */
+#custom-block-modal .class-description .deprecation-warning {
+    background-color: rgba(255, 152, 0, 0.1);
+    border-left: 3px solid #ff9800;
+    padding: 10px 12px;
+    margin: 8px 0 12px 0;
+    border-radius: 4px;
+    color: #e65100;
+}
+
+/* Class reference styling */
+#custom-block-modal .class-description .class-reference {
+    font-family: monospace;
+    background-color: rgba(33, 150, 243, 0.1);
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: #0277bd;
+}
+
+/* Improved parameter table */
+#custom-block-modal .class-description .parameter-table {
+    margin: 12px 0;
+    border: 1px solid var(--langchain-border);
+    border-radius: 4px;
+    overflow: hidden;
+    width: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+#custom-block-modal .class-description .parameter-table-header {
+    background-color: #f1f3f5;
+    padding: 10px 12px;
+    font-weight: bold;
+    border-bottom: 2px solid var(--langchain-border);
+    display: grid;
+    grid-template-columns: 1fr 1fr 3fr;
+    gap: 10px;
+}
+
+/* Parameter row styling */
+#custom-block-modal .class-description .parameter-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--langchain-border);
+    display: grid;
+    grid-template-columns: 1fr 1fr 3fr;
+    gap: 10px;
+    align-items: start;
+    transition: background-color 0.15s ease;
+}
+
+#custom-block-modal .class-description .parameter-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+#custom-block-modal .class-description .parameter-item.even-row {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Parameter name/type styling */
+#custom-block-modal .class-description .param-name {
+    font-family: monospace;
+    font-weight: 600;
+    color: #333;
+    padding: 5px;
+}
+
+#custom-block-modal .class-description .param-type {
+    font-family: monospace;
+    color: #0277bd;
+    padding: 5px;
+    font-style: italic;
+}
+
+/* Improved code blocks */
+#custom-block-modal .class-description pre.code-block,
+#custom-block-modal .class-description pre.python-example {
+    background-color: #f8f9fa;
+    padding: 12px 15px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    white-space: pre-wrap;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+/* Language indicator for code blocks */
+#custom-block-modal .class-description pre.code-block::before,
+#custom-block-modal .class-description pre.python-example::before {
+    content: attr(data-language);
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 8px;
+    font-size: 0.75em;
+    border-radius: 0 6px 0 6px;
+    color: #666;
+    font-family: sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Improved usage section styling */
+#custom-block-modal .class-description .usage-section {
+    background: #f0f7ff;
+    border-radius: 6px;
+    padding: 12px 15px;
+    margin: 15px 0;
+    border-left: 3px solid #1976d2;
+}
+
+#custom-block-modal .class-description .usage-section h4 {
+    margin-top: 0;
+    color: #1976d2;
+    border-bottom-color: rgba(25, 118, 210, 0.2);
+}
+
+/* Installation section styling */
+#custom-block-modal .class-description .install-section {
+    background: #f0fff0;
+    border-radius: 6px;
+    padding: 12px 15px;
+    margin: 15px 0;
+    border-left: 3px solid #43a047;
+}
+
+#custom-block-modal .class-description .install-section h4 {
+    margin-top: 0;
+    color: #43a047;
+    border-bottom-color: rgba(67, 160, 71, 0.2);
+}
+
+/* Copy button for code blocks */
+#custom-block-modal .class-description .copy-button {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    color: #333;
+    cursor: pointer;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+#custom-block-modal .class-description pre.code-block:hover .copy-button,
+#custom-block-modal .class-description pre.python-example:hover .copy-button {
+    opacity: 1;
+}
+
+/* Better syntax highlighting with more specific colors */
+#custom-block-modal .class-description .code-keyword {
+    color: #0033b3;
+    font-weight: bold;
+}
+
+#custom-block-modal .class-description .code-builtin {
+    color: #0033b3;
+}
+
+#custom-block-modal .class-description .code-string {
+    color: #067d17;
+}
+
+#custom-block-modal .class-description .code-number {
+    color: #1750eb;
+}
+
+#custom-block-modal .class-description .code-comment {
+    color: #8c8c8c;
+    font-style: italic;
+}
+
+#custom-block-modal .class-description .code-function {
+    color: #6f42c1;
+}
+
+#custom-block-modal .class-description .code-class {
+    color: #e36209;
+    font-weight: bold;
+}
+
+#custom-block-modal .class-description .code-variable {
+    color: #005cc5;
+}
+
+/* Collapsible sections */
+#custom-block-modal .class-description .collapsible-section {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin: 12px 0;
+    overflow: hidden;
+}
+
+#custom-block-modal .class-description .collapsible-header {
+    background: #f5f5f5;
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+}
+
+#custom-block-modal .class-description .collapsible-header:hover {
+    background: #eeeeee;
+}
+
+#custom-block-modal .class-description .collapsible-content {
+    padding: 0 15px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+#custom-block-modal .class-description .collapsible-section.expanded .collapsible-content {
+    padding: 15px;
+    max-height: 1000px;
+}
+
+#custom-block-modal .class-description .collapsible-header::after {
+    content: '↓';
+    font-size: 16px;
+    transition: transform 0.3s ease;
+}
+
+#custom-block-modal .class-description .collapsible-section.expanded .collapsible-header::after {
+    transform: rotate(180deg);
+}
+
+/* Better inline formatting for important code elements */
+#custom-block-modal .class-description .parameter-name {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-weight: 600;
+    color: #e36209;
+}
+
+#custom-block-modal .class-description .url {
+    word-break: break-all;
+    color: #0366d6;
+    text-decoration: underline;
+}
+
+/* Make scrollbar more visible in docstring content */
+#custom-block-modal .docstring-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+#custom-block-modal .docstring-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+#custom-block-modal .docstring-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+#custom-block-modal .docstring-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+#custom-block-modal .class-name-header {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+#custom-block-modal .class-name-header h3 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    color: var(--langchain-primary);
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--langchain-border);
+    display: inline-block;
+}
+
+#custom-block-modal .class-path {
+    font-family: monospace;
+    color: #666;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+    background-color: rgba(0,0,0,0.03);
+    padding: 5px 10px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+#custom-block-modal .docstring-content {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+#custom-block-modal .class-description h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--langchain-primary);
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--langchain-border);
+}
+
+#custom-block-modal .class-description h4 {
+    margin: 15px 0 8px;
+    color: var(--langchain-text);
+    font-size: 1.1em;
+}
+
+#custom-block-modal .class-description p {
+    margin: 8px 0;
+}
+
+#custom-block-modal .class-description a {
+    color: var(--langchain-primary);
+    text-decoration: none;
+    word-break: break-word;
+}
+
+#custom-block-modal .class-description a:hover {
+    text-decoration: underline;
+}
+
+#custom-block-modal .class-description code.inline-code {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+#custom-block-modal .class-description pre.code-block,
+#custom-block-modal .class-description pre.python-example {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 10px 0;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+/* Syntax highlighting */
+#custom-block-modal .class-description .code-keyword {
+    color: #0000ff;
+    font-weight: bold;
+}
+
+#custom-block-modal .class-description .code-builtin {
+    color: #0086b3;
+}
+
+#custom-block-modal .class-description .code-string {
+    color: #a31515;
+}
+
+#custom-block-modal .class-description .code-number {
+    color: #098658;
+}
+
+#custom-block-modal .class-description .code-comment {
+    color: #008000;
+    font-style: italic;
+}
+
+/* External link icon */
+#custom-block-modal .class-description .external-link-icon {
+    font-size: 0.8em;
+    vertical-align: super;
+    margin-left: 2px;
+    opacity: 0.7;
+}
+
+/* Parameter table styling */
+#custom-block-modal .class-description .parameter-table {
+    margin: 10px 0;
+    border: 1px solid var(--langchain-border);
+    border-radius: 4px;
+    overflow: hidden;
+    width: 100%;
+}
+
+#custom-block-modal .class-description .parameter-table-header {
+    background-color: #f5f5f5;
+    padding: 8px 10px;
+    font-weight: bold;
+    border-bottom: 2px solid var(--langchain-border);
+    display: grid;
+    grid-template-columns: 1fr 1fr 3fr;
+    gap: 10px;
+}
+
+#custom-block-modal .class-description .param-name-header,
+#custom-block-modal .class-description .param-type-header,
+#custom-block-modal .class-description .param-desc-header {
+    padding: 5px;
+    text-align: left;
+    color: #333;
+}
+
+#custom-block-modal .class-description .parameter-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--langchain-border);
+    display: grid;
+    grid-template-columns: 1fr 1fr 3fr;
+    gap: 10px;
+    align-items: start;
+}
+
+#custom-block-modal .class-description .parameter-item:last-child {
+    border-bottom: none;
+}
+
+#custom-block-modal .class-description .parameter-item.even-row {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+#custom-block-modal .class-description .parameter-item.odd-row {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+#custom-block-modal .class-description .param-name {
+    font-weight: bold;
+    color: var(--langchain-primary);
+    font-family: monospace;
+}
+
+#custom-block-modal .class-description .param-type {
+    color: #666;
+    font-family: monospace;
+    font-style: italic;
+}
+
+#custom-block-modal .class-description .param-desc {
+    color: var(--langchain-text);
 }
 
 /* Methods selection */
