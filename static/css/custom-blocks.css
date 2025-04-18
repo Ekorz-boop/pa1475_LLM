@@ -135,6 +135,11 @@
     background-color: #219a52;
 }
 
+/* .custom-block .block-drag-handle {
+    font-weight: bold !important;
+    font-size: 14px !important;
+} */
+
 .custom-block .method-selectors {
     display: flex;
     gap: 8px;
@@ -169,11 +174,26 @@
 }
 
 .custom-block .param-name,
-.custom-block .param-value {
+.custom-block .param-value,
+.custom-block .param-name-select {
     flex: 1;
     padding: 6px;
     border: 1px solid var(--langchain-border);
     border-radius: 4px;
+    font-size: 12px;
+}
+
+.custom-block .param-name-select {
+    background-color: #f5f5f5;
+    cursor: pointer;
+}
+
+.custom-block .loading-parameters {
+    padding: 10px;
+    font-style: italic;
+    color: #777;
+    text-align: center;
+    font-size: 12px;
 }
 
 .custom-block .remove-param-btn {
@@ -188,6 +208,7 @@
     align-items: center;
     justify-content: center;
 }
+
 
 /* Block content wrapper - establish base stacking context */
 .block-content-wrapper {
@@ -274,6 +295,29 @@
     border-color: #333 transparent transparent transparent;
 }
 
+
+.block-template[data-block-type="custom"] .edit-parameters-btn {
+    top: -8px;
+    right: -8px;
+}
+
+.block-template[data-block-type="custom"] .block-content {
+    display: none;  /* Simplified view in sidebar */
+}
+    
+.block-template[data-block-type="custom"]:hover .edit-parameters-btn {
+    opacity: 1;
+}
+
+.block-template[data-block-type="custom"] .block-actions {
+    position: absolute;
+    right: 5px;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
 /* Style the custom blocks section */
 .custom-blocks-section {
     margin-top: 15px;
@@ -286,6 +330,351 @@
     padding-bottom: 5px;
     border-bottom: 1px solid var(--langchain-border);
 }
+
+/* Add a nice hover effect for custom blocks in sidebar */
+.block-template[data-block-type="custom"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+
+/* Hover state for the input nodes */
+.custom-block .input-node.input-node-hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 5px rgba(0,255,0,0.8);
+    background-color: #00ff00;
+}
+
+/* Hover state for output nodes */
+.custom-block .output-node:hover {
+    transform: translateY(-50%) scale(1.2);
+    box-shadow: 0 0 5px rgba(255,0,0,0.8);
+}
+
+/* Node group positioning */
+.custom-block .input-node-group,
+.custom-block .output-node-group {
+    position: absolute;
+    height: 100%;
+    width: 20px;
+    top: 0;
+    pointer-events: none;
+}
+
+.custom-block .input-node-group {
+    left: 0;
+}
+
+.custom-block .output-node-group {
+    right: 0;
+}
+
+/* Parameter styles */
+.parameter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.param-name, .param-value, .param-name-select {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    flex: 1;
+}
+
+.param-name-select {
+    background-color: #f5f5f5;
+    cursor: pointer;
+}
+
+.param-name-label {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.loading-parameters {
+    padding: 10px;
+    color: #666;
+    font-style: italic;
+    text-align: center;
+}
+
+.remove-param-btn {
+    background-color: #ff4757;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.remove-param-btn:hover {
+    background-color: #ff6b81;
+}
+
+/* New parameter selection UI */
+.parameter-select-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+}
+
+.param-select-label {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.param-select-dropdown {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.param-select-dropdown.highlight {
+    border-color: #2979ff;
+    box-shadow: 0 0 5px rgba(41, 121, 255, 0.5);
+    animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+    0% { border-color: #ccc; }
+    50% { border-color: #2979ff; }
+    100% { border-color: #ccc; }
+}
+
+.params-divider {
+    height: 1px;
+    background-color: #e0e0e0;
+    margin: 10px 0 15px 0;
+    width: 100%;
+}
+
+.active-parameters {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
+    border-top: 1px dashed #eee;
+    padding-top: 8px;
+}
+
+/* Highlight animation for existing parameters */
+@keyframes highlight-param {
+    0% { background-color: transparent; }
+    50% { background-color: #fff4e0; }
+    100% { background-color: transparent; }
+}
+
+.parameter-row.highlight {
+    animation: highlight-param 1s ease;
+}
+
+/* Add parameter button styles */
+.add-param-btn {
+    background-color: #2979ff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.add-param-btn:hover {
+    background-color: #448aff;
+}
+
+/* Make the parameters section more visually organized */
+.active-parameters {
+    border-top: 1px dashed #eee;
+    padding-top: 8px;
+}
+
+/* Fix spacing in parameter rows */
+.parameter-row {
+    padding: 4px 0;
+}
+
+/* File path parameter styles */
+.file-param-row .input-container {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.file-param-row .param-input {
+    flex: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.file-upload-btn {
+    padding: 6px 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-upload-btn:hover {
+    background-color: #e0e0e0;
+}
+
+/* File selection modal */
+.file-selection-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.file-selection-content {
+    background-color: white;
+    border-radius: 8px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.file-selection-header {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+}
+
+.file-selection-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.file-selection-body {
+    padding: 15px;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+.file-selection-footer {
+    padding: 15px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #eee;
+}
+
+.file-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.remove-file {
+    background: none;
+    border: none;
+    color: #f44336;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+}
+
+.file-upload-area {
+    border: 2px dashed #ccc;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: #3498db;
+    background-color: #f8f9fa;
+}
+
+.file-upload-area.drag-over {
+    border-color: #27ae60;
+    background-color: #e8f5e9;
+    box-shadow: 0 0 10px rgba(39, 174, 96, 0.3);
+}
+
+.file-selection-modal button.secondary {
+    background-color: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+.file-selection-modal button.primary {
+    background-color: #3498db;
+    color: white;
+    border: none;
+}
+
+.file-selection-modal button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.file-selection-modal button:hover {
+    opacity: 0.9;
+}
+
 
 /* Block content */
 .block-content {
