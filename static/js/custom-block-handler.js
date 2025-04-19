@@ -461,8 +461,8 @@ class CustomBlockHandler {
      * Handle class selection change
      */
     async onClassChange() {
-        const selectedLibrary = this.librarySelect.value;
-        const selectedModule = this.moduleSelect.value;
+        const library = this.librarySelect.value;
+        const module = this.moduleSelect.value;
         const selectedClass = this.classSelect.value;
 
         console.log(`Class selected: ${selectedClass}`);
@@ -491,10 +491,10 @@ class CustomBlockHandler {
             this.outputNodes = [];
 
             // Perform the fetch
-            const response = await fetch(`/api/langchain/class_details?library=${selectedLibrary}&module=${selectedModule}&class_name=${selectedClass}`);
+            const response = await fetch(`/api/langchain/class_details?library=${library}&module=${module}&class_name=${selectedClass}`);
 
             if (!response.ok) {
-                throw new Error(`Failed to load class details: ${response.statusText}`);
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
 
             const data = await response.json();
@@ -503,9 +503,17 @@ class CustomBlockHandler {
             // Update class description
             const description = this.modal.querySelector('.class-description');
             description.innerHTML = `
-                <h3>${selectedClass}</h3>
-                <p>${data.doc || 'No description available.'}</p>
+                <div class="class-name-header">
+                    <h3>${selectedClass}</h3>
+                    <div class="class-path">${library}.${module}.${selectedClass}</div>
+                </div>
+                <div class="docstring-content">
+                    ${this.formatDocstring(data.doc || 'No description available.')}
+                </div>
             `;
+
+            // Initialize collapsible sections
+            this.initCollapsibleSections();
 
             // Add common input/output nodes based on the component type
             if (data.component_type) {
@@ -525,6 +533,437 @@ class CustomBlockHandler {
             this.methodsContainer.innerHTML = `<p class="error">Failed to load methods: ${error.message}</p>`;
         }
     }
+
+
+
+    // Initialize collapsible sections
+    initCollapsibleSections() {
+
+        // Find all collapsible sections
+        const collapsibleSections = this.modal.querySelectorAll('.collapsible-section');
+
+        // Add click event listeners to each collapsible header
+        collapsibleSections.forEach(section => {
+            const header = section.querySelector('.collapsible-header');
+            header.addEventListener('click', () => {
+                // Toggle the expanded class
+                section.classList.toggle('expanded');
+            });
+        });
+    }
+
+    /**
+     * Format a docstring with proper HTML formatting
+     * @param {string} docstring - The raw docstring text
+     * @returns {string} - Formatted HTML
+     */
+    formatDocstring(docstring) {
+        if (!docstring || typeof docstring !== 'string') {
+            return '<p>No description available.</p>';
+        }
+
+        let formatted = docstring;
+
+        // Handle deprecation notices - these often start with ".. deprecated::" or similar text
+        const deprecationRegex = /\.\.?\s*deprecated:?:?|\bdeprecated\b[.:]\s*(.*?)(?=\n\n|\n[^\s]|$)/i;
+        const deprecationMatch = formatted.match(deprecationRegex);
+
+        if (deprecationMatch) {
+            // Extract the deprecation message and remove it from the main text
+            const deprecationMessage = deprecationMatch[0];
+            formatted = formatted.replace(deprecationRegex, '');
+
+            // Add it back as a styled warning box
+            formatted = `<div class="deprecation-warning">⚠️ ${deprecationMessage}</div>${formatted}`;
+        }
+
+        // Detect installation section
+        const installRegex = /Set?up:?\s*Install/i;
+        if (installRegex.test(formatted)) {
+            // Wrap the installation section in a themed container
+            formatted = formatted.replace(/(Set?up:?\s*Install[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/i,
+                '<div class="install-section"><h4>Installation</h4>$1</div>');
+        }
+
+        // Detect usage example sections
+        const usageRegex = /(?:Usage|Instantiate|Example|Lazy load):/i;
+        if (usageRegex.test(formatted)) {
+            // Wrap usage examples in a themed container
+            formatted = formatted.replace(/((?:Usage|Instantiate|Example|Lazy load):[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/gi,
+                '<div class="usage-section"><h4>$1</div>');
+
+            // Fix the heading format
+            formatted = formatted.replace(/<h4>((?:Usage|Instantiate|Example|Lazy load)):([\s\S]*?)<\/div>/gi,
+                '<h4>$1</h4>$2</div>');
+        }
+
+        // Convert URLs to clickable links
+        formatted = formatted.replace(
+            /(https?:\/\/[^\s\)]+)/g,
+            '<a href="$1" target="_blank" rel="noopener noreferrer" class="url">$1 <span class="external-link-icon">↗</span></a>'
+        );
+
+        // Detect and format class references like `langchain_google_community.BigQueryLoader`
+        formatted = formatted.replace(
+            /`?([a-zA-Z0-9_]+\.)*[A-Z][a-zA-Z0-9_]+(Loader|Chain|Model|Store|Splitter|Processor|Parser|Retriever|Embeddings?)`?/g,
+            match => {
+                // Remove any backticks that might be present
+                const cleanMatch = match.replace(/`/g, '');
+                return `<span class="class-reference">${cleanMatch}</span>`;
+            }
+        );
+
+        // Format code blocks with proper language indicators and copy buttons
+        formatted = formatted.replace(
+            /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n|\n\s*\.\.|$)/g,
+            (match, language, code) => {
+                // Apply syntax highlighting to code
+                let highlightedCode = this.applySyntaxHighlighting(code);
+                const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
+                return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
+            }
+        );
+
+        // Handle Python code blocks specifically (triple backticks)
+        formatted = formatted.replace(
+            /```(?:(python|bash|javascript|js|html|css|json|yaml|xml))?\n([\s\S]*?)```/g,
+            (match, language, code) => {
+                // Apply syntax highlighting to code
+                let highlightedCode = this.applySyntaxHighlighting(code);
+                language = language || 'python'; // Default to python if language not specified
+                const copyButton = `<button class="copy-button" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/.*Copy.*/,''))">Copy</button>`;
+                return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
+            }
+        );
+
+        // Format inline code
+        formatted = formatted.replace(
+            /`([^`]+)`/g,
+            '<code class="inline-code">$1</code>'
+        );
+
+        // Format parameter names specifically
+        formatted = formatted.replace(
+            /\b(web_path|header_template|verify_ssl)\b/g,
+            '<span class="parameter-name">$1</span>'
+        );
+
+        // Format technical terms and file formats as inline code
+        // This captures common technical terms that should be formatted as code
+        const technicalTerms = [
+            'XML', 'JSON', 'CSV', 'YAML', 'HTML', 'PDF', 'DOCX', 'TXT',
+            'unstructured', 'langchain', 'python', 'mode=', 'strategy=',
+            'BigQuery', 'Google Cloud Platform', 'metadata_columns', 'page_content_columns',
+            'lazy_load', 'docs', 'loader', 'append', 'print', 'None', 'True', 'False'
+        ];
+
+        // Create a regex that matches these terms as whole words
+        const techTermsRegex = new RegExp(`\\b(${technicalTerms.join('|')})\\b`, 'g');
+        formatted = formatted.replace(techTermsRegex, (match) => {
+            // Don't reformat if already in a code element
+            if (formatted.includes(`<code class="inline-code">${match}</code>`) ||
+                formatted.includes(`<span class="parameter-name">${match}</span>`)) {
+                return match;
+            }
+            return `<code class="inline-code">${match}</code>`;
+        });
+
+        // Format Python code examples (commonly used in docstrings)
+        formatted = formatted.replace(
+            />>>([^\n]+)/g,
+            (match, code) => {
+                // Apply syntax highlighting to Python code
+                let highlightedCode = this.applySyntaxHighlighting(code);
+                return `<pre class="python-example" data-language="python"><code>>>> ${highlightedCode}</code></pre>`;
+            }
+        );
+
+        // Create collapsible sections for long examples
+        formatted = this.createCollapsibleSections(formatted);
+
+        // Format common sections with headers
+        const commonSections = [
+            "Parameters:", "Returns:", "Examples:", "Example:",
+            "Usage:", "Notes:", "Note:", "Args:", "Arguments:",
+            "Attributes:", "Raises:", "Exceptions:", "References:"
+        ];
+
+        // Process section titles
+        for (const section of commonSections) {
+            // Only replace if the section is at the beginning of a line (possibly with whitespace)
+            const sectionRegex = new RegExp(`(^|\\n)\\s*(${section})\\s*`, 'g');
+            formatted = formatted.replace(sectionRegex, (match, p1, p2) => {
+                // Don't replace if it's already in an h4 tag
+                if (formatted.includes(`<h4>${p2}</h4>`)) {
+                    return match;
+                }
+                return `${p1}<h4>${p2}</h4>`;
+            });
+        }
+
+        // Format parameter sections (assuming they start with "Parameters:")
+        if (formatted.includes("<h4>Parameters:</h4>") || formatted.includes("<h4>Args:</h4>")) {
+            const paramSectionRegex = /<h4>(Parameters:|Args:)<\/h4>([\s\S]*?)(?=<h4>|$)/;
+            const paramMatch = formatted.match(paramSectionRegex);
+
+            if (paramMatch) {
+                // Extract the parameter section
+                const paramSection = paramMatch[2];
+
+                // Format the parameters as a list
+                const formattedParams = this.formatParameterList(paramSection);
+
+                // Replace the original parameter section with the formatted one
+                formatted = formatted.replace(
+                    paramSectionRegex,
+                    `<h4>${paramMatch[1]}</h4>${formattedParams}`
+                );
+            }
+        }
+
+        // Add paragraph breaks (preserve existing structure)
+        formatted = formatted.replace(/\n\s*\n/g, '</p><p>');
+
+        // Wrap in paragraph tags if not already wrapped
+        if (!formatted.startsWith('<p>') && !formatted.startsWith('<h4>') &&
+            !formatted.startsWith('<div class="deprecation-warning">') &&
+            !formatted.startsWith('<div class="install-section">') &&
+            !formatted.startsWith('<div class="usage-section">') &&
+            !formatted.startsWith('<div class="collapsible-section">')) {
+            formatted = '<p>' + formatted + '</p>';
+        }
+
+        return formatted;
+    }
+
+    /**
+     * Create collapsible sections for long content blocks
+     * @param {string} formatted - The formatted HTML content
+     * @returns {string} - HTML with collapsible sections
+     */
+    createCollapsibleSections(formatted) {
+        // Find sections that might benefit from being collapsible
+
+        // Create collapsible section for long parameter tables
+        if (formatted.includes('<div class="parameter-table">') &&
+            (formatted.match(/<div class="parameter-item/g) || []).length > 5) {
+            // Count parameter items
+            formatted = formatted.replace(
+                /(<h4>(Parameters:|Args:)<\/h4>)([\s\S]*?)(<div class="parameter-table">[\s\S]*?<\/div>)/g,
+                (match, h4Start, title, spacer, table) => {
+                    return `${h4Start}${spacer}<div class="collapsible-section">
+                        <div class="collapsible-header">${title} Table</div>
+                        <div class="collapsible-content">${table}</div>
+                    </div>`;
+                }
+            );
+        }
+
+        // Create collapsible sections for long code examples
+        // This regex looks for code blocks that are more than 10 lines long
+        formatted = formatted.replace(
+            /(<pre class="code-block" data-language="[^"]*">[\s\S]*?<\/pre>)/g,
+            (match) => {
+                // Count the number of lines
+                const lineCount = (match.match(/\n/g) || []).length;
+
+                // If the code block is long, make it collapsible
+                if (lineCount > 10) {
+                    const language = match.match(/data-language="([^"]*)"/)[1];
+                    return `<div class="collapsible-section">
+                        <div class="collapsible-header">${language.charAt(0).toUpperCase() + language.slice(1)} Example</div>
+                        <div class="collapsible-content">${match}</div>
+                    </div>`;
+                }
+
+                return match;
+            }
+        );
+
+        return formatted;
+    }
+
+    /**
+     * Apply basic syntax highlighting to Python code
+     * @param {string} code - The code to highlight
+     * @returns {string} - Highlighted HTML
+     */
+    applySyntaxHighlighting(code) {
+        if (!code) return '';
+
+        // Python keywords
+        const keywords = [
+            'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue',
+            'def', 'del', 'elif', 'else', 'except', 'False', 'finally', 'for',
+            'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'None',
+            'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True', 'try',
+            'while', 'with', 'yield'
+        ];
+
+        // Built-in functions
+        const builtins = [
+            'abs', 'all', 'any', 'bin', 'bool', 'bytes', 'callable', 'chr',
+            'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod',
+            'enumerate', 'eval', 'exec', 'filter', 'float', 'format', 'frozenset',
+            'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input',
+            'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals', 'map',
+            'max', 'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow',
+            'print', 'property', 'range', 'repr', 'reversed', 'round', 'set', 'setattr',
+            'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type',
+            'vars', 'zip'
+        ];
+
+        // Common method and function patterns
+        const functionPattern = /(\w+)\s*\(/g;
+
+        // Class pattern
+        const classPattern = /\b([A-Z]\w*)\b/g;
+
+        // Variable assignment pattern
+        const variablePattern = /\b(\w+)\s*=/g;
+
+        let highlightedCode = code;
+
+        // Escape HTML to prevent XSS
+        highlightedCode = highlightedCode
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // Highlight strings
+        highlightedCode = highlightedCode.replace(
+            /(["'])(.*?)\1/g,
+            '<span class="code-string">$&</span>'
+        );
+
+        // Highlight functions
+        highlightedCode = highlightedCode.replace(
+            functionPattern,
+            (match, funcName) => {
+                if (keywords.includes(funcName) || builtins.includes(funcName)) {
+                    return match; // Let the keyword/builtin rules handle this
+                }
+                return match.replace(funcName, `<span class="code-function">${funcName}</span>`);
+            }
+        );
+
+        // Highlight classes (capitalized words)
+        highlightedCode = highlightedCode.replace(
+            classPattern,
+            (match, className) => {
+                if (keywords.includes(className) || builtins.includes(className)) {
+                    return match; // Let the keyword/builtin rules handle this
+                }
+                return `<span class="code-class">${className}</span>`;
+            }
+        );
+
+        // Highlight variable assignments
+        highlightedCode = highlightedCode.replace(
+            variablePattern,
+            (match, varName) => {
+                if (keywords.includes(varName) || builtins.includes(varName)) {
+                    return match; // Let the keyword/builtin rules handle this
+                }
+                return match.replace(varName, `<span class="code-variable">${varName}</span>`);
+            }
+        );
+
+        // Highlight keywords
+        for (const keyword of keywords) {
+            const keywordRegex = new RegExp(`\\b(${keyword})\\b`, 'g');
+            highlightedCode = highlightedCode.replace(
+                keywordRegex,
+                '<span class="code-keyword">$1</span>'
+            );
+        }
+
+        // Highlight built-in functions
+        for (const builtin of builtins) {
+            const builtinRegex = new RegExp(`\\b(${builtin})\\b`, 'g');
+            highlightedCode = highlightedCode.replace(
+                builtinRegex,
+                '<span class="code-builtin">$1</span>'
+            );
+        }
+
+        // Highlight numbers
+        highlightedCode = highlightedCode.replace(
+            /\b(\d+(\.\d+)?)\b/g,
+            '<span class="code-number">$1</span>'
+        );
+
+        // Highlight comments
+        highlightedCode = highlightedCode.replace(
+            /(#.*?)($|\n)/g,
+            '<span class="code-comment">$1</span>$2'
+        );
+
+        return highlightedCode;
+    }
+
+    /**
+     * Format parameter list from docstring
+     * @param {string} paramText - Parameter section text
+     * @returns {string} - Formatted HTML for parameters
+     */
+    formatParameterList(paramText) {
+        if (!paramText) return '';
+
+        // Split by parameter (assuming each is indented or has a name: description format)
+        const lines = paramText.trim().split('\n');
+        let html = '<div class="parameter-table">';
+        html += '<div class="parameter-table-header">';
+        html += '<div class="param-name-header">Parameter</div>';
+        html += '<div class="param-type-header">Type</div>';
+        html += '<div class="param-desc-header">Description</div>';
+        html += '</div>';
+
+        let rowIndex = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line === '') continue;
+
+            // Check if this is a parameter name line
+            // This regex matches patterns like:
+            // param_name (type): description
+            // param_name: description
+            // param_name (type) -- description
+            const paramMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]+)\))?\s*(?:--|:)\s*(.*)/);
+
+            if (paramMatch) {
+                const name = paramMatch[1];
+                const type = paramMatch[2] || '';
+                let desc = paramMatch[3];
+
+                // Look ahead for additional description lines (indented)
+                let j = i + 1;
+                while (j < lines.length && (lines[j].trim() === '' || lines[j].match(/^\s{2,}/))) {
+                    if (lines[j].trim() !== '') {
+                        desc += ' ' + lines[j].trim();
+                    }
+                    j++;
+                }
+                i = j - 1; // Skip the lines we've processed
+
+                const rowClass = rowIndex % 2 === 0 ? 'even-row' : 'odd-row';
+                rowIndex++;
+
+                html += `
+                    <div class="parameter-item ${rowClass}">
+                        <div class="param-name">${name}</div>
+                        ${type ? `<div class="param-type">${type}</div>` : '<div class="param-type">—</div>'}
+                        <div class="param-desc">${desc}</div>
+                    </div>
+                `;
+            }
+        }
+
+        html += '</div>';
+        return html;
+    }
+
 
     /**
      * Suggest default input/output nodes based on component type from API
@@ -753,6 +1192,7 @@ class CustomBlockHandler {
 
                 // Immediately save this selection to ensure it's not lost
                 if (this.editingBlockId && this.selectedClass) {
+                    console.log('Attempt save');
                     saveMethods(this.selectedClass, this.selectedMethods, this.editingBlockId);
                     console.log('Saved methods during editing:', this.selectedMethods);
                 }
@@ -1176,6 +1616,7 @@ class CustomBlockHandler {
         this.outputNodes = [];
         this.parameters = {};
         this.editingBlockId = null;
+        console.log('selections reset');
 
         // Reset UI
         const methodCheckboxes = this.methodsContainer.querySelectorAll('input[type="checkbox"]');
@@ -1224,21 +1665,22 @@ function showToast(message, type = 'info') {
 
 // Function to add the custom block to the blocks menu
 function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
-    // Find the blocks menu container
-    const blocksMenu = document.getElementById('blocks-menu');
-    if (!blocksMenu) return;
+    // Find the blocks content container
+    const blocksContent = document.getElementById('blocks-content');
+    if (!blocksContent) return;
 
-    // Find or create custom blocks section
-    let customBlocksSection = blocksMenu.querySelector('.custom-blocks-section');
-    if (!customBlocksSection) {
-        customBlocksSection = document.createElement('div');
-        customBlocksSection.className = 'custom-blocks-section';
-        customBlocksSection.innerHTML = '<div class="section-header">Custom Blocks</div>';
-        blocksMenu.appendChild(customBlocksSection);
+    // Find the custom blocks container
+    const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
+    if (!customBlocksContainer) return;
+
+    // Show the section header if not already visible
+    const sectionHeader = blocksContent.querySelector('#custom-blocks-section-header');
+    if (sectionHeader) {
+        sectionHeader.style.display = '';
     }
 
     // Check if this block already exists in the menu
-    if (customBlocksSection.querySelector(`[data-block-id="${blockId}"]`)) {
+    if (customBlocksContainer.querySelector(`[data-block-id="${blockId}"]`)) {
         console.log(`Block ${blockId} already exists in menu, skipping`);
         return;
     }
@@ -1316,8 +1758,8 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
         });
     }
 
-    // Add to custom blocks section
-    customBlocksSection.appendChild(blockTemplate);
+    // Add to custom blocks container
+    customBlocksContainer.appendChild(blockTemplate);
 
     // Save to sessionStorage for persistence
     saveCustomBlockToStorage(className, blockId, inputNodes, outputNodes);
@@ -1394,8 +1836,9 @@ let customBlockHandler = null;
 
 // Initialize custom blocks when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Load saved custom blocks
-    loadCustomBlocks();
+    // Load saved custom blocks (commented out atm)
+    // loadCustomBlocks();
+    // updateCustomBlocksSectionHeaderVisibility();
 
     // Add event listener to clear sessionStorage on page unload
     window.addEventListener('beforeunload', () => {
@@ -1479,25 +1922,26 @@ function saveModuleInfo(className, library, module, blockId = null) {
     // Find the block with matching class name
     const blockIndex = existingBlocks.findIndex(block => block.className === className);
 
-    const moduleInfo = {
+    if (blockIndex >= 0) {
+        // Update existing block's module info
+        existingBlocks[blockIndex].moduleInfo = {
             library: library,
             module: module
         };
-
-    if (blockIndex >= 0) {
-        // Update existing block's module info
-        existingBlocks[blockIndex].moduleInfo = moduleInfo;
-
         // If a block ID was provided, update it
         if (blockId && existingBlocks[blockIndex].id !== blockId) {
             existingBlocks[blockIndex].id = blockId;
         }
+
     } else {
         // Create a new entry if block not found
         existingBlocks.push({
             className: className,
             id: blockId || `class-${Date.now()}`, // Use provided ID or generate one
-            moduleInfo: moduleInfo
+            moduleInfo: {
+                library: library,
+                module: module
+            }
         });
     }
 
@@ -1550,20 +1994,25 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                 ${inputNodes && inputNodes.length > 0 ?
                     `<div class="input-node-group">
 
-                        ${inputNodes.map(node => {
-                            const nodeName = typeof node === 'string' ? node : node.name;
-                            return `<div class="input-node" data-input="${nodeName}"></div>`;
-                        }).join('')}
-
+                        ${inputNodes.map(node =>
+                            `<div class="input-node" data-input="${typeof node === 'string' ? node : node.name}">
+                                <div class="tooltip-container">
+                                    <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
+                                </div>
+                            </div>`
+                        ).join('')}
                     </div>`
                     : ''
                 }
                 ${outputNodes && outputNodes.length > 0 ?
                     `<div class="output-node-group">
-                        ${outputNodes.map(node => {
-                            const nodeName = typeof node === 'string' ? node : node.name;
-                            return `<div class="output-node" data-output="${nodeName}"></div>`;
-                        }).join('')}
+                        ${outputNodes.map(node =>
+                            `<div class="output-node" data-output="${typeof node === 'string' ? node : node.name}">
+                                <div class="tooltip-container">
+                                    <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
+                                </div>
+                            </div>`
+                        ).join('')}
                     </div>`
                     : ''
                 }
@@ -1655,7 +2104,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
 
         // Handle method selection change
     const methodSelect = block.querySelector('.method-select');
+    console.log('try method select');
     if (methodSelect) {
+        console.log('method select found');
         methodSelect.addEventListener('change', () => {
             const selectedMethod = methodSelect.value;
             console.log(`Method selected: ${selectedMethod}`);
@@ -2213,11 +2664,12 @@ function updateBlockParameters(block, methodName) {
                 paramsContainer.innerHTML = '';
 
                 // Add a default parameter row as fallback
-                addEmptyParameterRow(paramsContainer);
+                // addEmptyParameterRow(paramsContainer);
             });
     } else {
+        console.log('no module info');
         // If no module info, just add a default parameter row
-        addEmptyParameterRow(paramsContainer);
+        // addEmptyParameterRow(paramsContainer);
     }
 }
 
@@ -2340,12 +2792,12 @@ function saveParameterValue(blockId, paramName, value) {
     }
 }
 
-// Helper function to add an empty parameter row with text input
+// // Helper function to add an empty parameter row with text input
 function addEmptyParameterRow(container) {
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
     paramRow.innerHTML = `
-        <input type="text" class="param-name" placeholder="Parameter name">
+        <input type="text" class="param-name" placeholder="wrong">
         <input type="text" class="param-value" placeholder="Value">
         <button class="remove-param-btn">×</button>
     `;
@@ -2366,8 +2818,11 @@ function addCustomParameter(block) {
     const paramsContainer = block.querySelector('.block-parameters');
     if (!paramsContainer) return;
 
+    console.log('params container', paramsContainer);
+
     // Get the parameter select dropdown
     const paramSelect = paramsContainer.querySelector('.param-select-dropdown');
+    console.log('param select', paramSelect);
     if (paramSelect) {
         // Show a visual indicator that user should use the dropdown
         paramSelect.classList.add('highlight');
@@ -2382,7 +2837,7 @@ function addCustomParameter(block) {
         try {
             paramSelect.click();
         } catch (e) {
-            console.warn('Could not automatically open dropdown:', e);
+            console.warn('Could not automatically open dropdownwtf:', e);
         }
 
         return;
