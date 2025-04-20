@@ -781,11 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     newBlock.classList.add('custom-block');
                 }
 
-                // Make block draggable
-                makeBlockDraggable(newBlock);
-
-                // Setup node connections
-                setupNodeConnections(newBlock);
+                setupCustomBlock(newBlock)
 
                 // Add to canvas
                 blockContainer.appendChild(newBlock);
@@ -810,19 +806,19 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Canvas pan functionality
-    canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 0) { // Left mouse button only
-            isPanning = true;
-            canvas.classList.add('grabbing');
-            startPoint = {
-                x: e.clientX - currentTranslate.x,
-                y: e.clientY - currentTranslate.y
-            };
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    // Canvas pan functionality  ---------------!!!THIS BREAKS THE METHOD DROPDOWN ON BLOCKS!!!---------------
+    // canvas.addEventListener('mousedown', (e) => {
+    //     if (e.button === 0) { // Left mouse button only
+    //         isPanning = true;
+    //         canvas.classList.add('grabbing');
+    //         startPoint = {
+    //             x: e.clientX - currentTranslate.x,
+    //             y: e.clientY - currentTranslate.y
+    //         };
+    //         e.preventDefault();
+    //         e.stopPropagation();
+    //     }
+    // });
 
     // Add grid snapping function
     function snapToGrid(value) {
@@ -1515,7 +1511,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     managementButton.addEventListener('click', () => {
         managementPanel.classList.add('visible');
-        updateSystemStatus();
+        // updateSystemStatus();
     });
 
     managementPanel.querySelector('.close-button').addEventListener('click', () => {
@@ -1526,8 +1522,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionButtons = {
         'install-ollama': installOllama,
         'ollama-guide': showOllamaGuide,
-        'clear-temp': clearTemp,
-        'remove-models': removeModels
+        // 'clear-temp': clearTemp,
+        // 'remove-models': removeModels
     };
 
     Object.entries(actionButtons).forEach(([id, handler]) => {
@@ -1538,8 +1534,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Check Ollama status periodically
-    checkOllamaStatus();
-    setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
+    // checkOllamaStatus();
+    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 
     function showOllamaGuide() {
         const system = navigator.platform.toLowerCase();
@@ -1568,26 +1564,26 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('How to Start Ollama:\n\n' + instructions);
     }
 
-    async function updateSystemStatus() {
-        try {
-            const response = await fetch('/api/system/status');
-            const data = await response.json();
-            const ollamaStatus = document.getElementById('ollama-status');
+    // async function updateSystemStatus() {
+    //     try {
+    //         const response = await fetch('/api/system/status');
+    //         const data = await response.json();
+    //         const ollamaStatus = document.getElementById('ollama-status');
 
-            if (data.ollama_status === 'running') {
-                ollamaStatus.textContent = 'Running';
-                ollamaStatus.className = 'status-value running';
-                // Update both models list and model selectors
-                await Promise.all([updateModelsList(), updateModelSelectors()]);
-            } else {
-                ollamaStatus.textContent = 'Not Running';
-                ollamaStatus.className = 'status-value not-running';
-                document.getElementById('ollama-models').innerHTML = 'Ollama must be running to view models';
-            }
-        } catch (error) {
-            console.error('Failed to check Ollama status:', error);
-        }
-    }
+    //         if (data.ollama_status === 'running') {
+    //             ollamaStatus.textContent = 'Running';
+    //             ollamaStatus.className = 'status-value running';
+    //             // Update both models list and model selectors
+    //             await Promise.all([updateModelsList(), updateModelSelectors()]);
+    //         } else {
+    //             ollamaStatus.textContent = 'Not Running';
+    //             ollamaStatus.className = 'status-value not-running';
+    //             document.getElementById('ollama-models').innerHTML = 'Ollama must be running to view models';
+    //         }
+    //     } catch (error) {
+    //         console.error('Failed to check Ollama status:', error);
+    //     }
+    // }
 
     function updateStatusDisplay(elementId, status) {
         const element = document.getElementById(elementId);
@@ -1647,7 +1643,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Failed to install Ollama: ' + error.message);
         } finally {
             button.disabled = false;
-            updateSystemStatus();
+            // updateSystemStatus();
         }
     }
 
@@ -1657,24 +1653,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const openManagementBtn = document.getElementById('open-management');
     const closeNotificationBtn = document.querySelector('.close-notification');
 
-    function checkOllamaStatus() {
-        fetch('/api/system/status')
-            .then(response => response.json())
-            .then(data => {
-                if (data.ollama_status === 'not_running') {
-                    notificationBanner.classList.remove('notification-hidden');
-                    topBar.classList.add('with-notification');
-                } else {
-                    notificationBanner.classList.add('notification-hidden');
-                    topBar.classList.remove('with-notification');
-                }
-            });
-    }
+    // function checkOllamaStatus() {
+    //     fetch('/api/system/status')
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             if (data.ollama_status === 'not_running') {
+    //                 notificationBanner.classList.remove('notification-hidden');
+    //                 topBar.classList.add('with-notification');
+    //             } else {
+    //                 notificationBanner.classList.add('notification-hidden');
+    //                 topBar.classList.remove('with-notification');
+    //             }
+    //         });
+    // }
 
     openManagementBtn.addEventListener('click', () => {
         const managementPanel = document.getElementById('system-management');
         managementPanel.classList.add('visible');
-        updateSystemStatus();
+        // updateSystemStatus();
     });
 
     closeNotificationBtn.addEventListener('click', () => {
@@ -1683,8 +1679,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Check Ollama status periodically
-    checkOllamaStatus();
-    setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
+    // checkOllamaStatus();
+    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 
     async function updateModelsList() {
         try {
@@ -2222,36 +2218,36 @@ document.addEventListener('DOMContentLoaded', () => {
         let blockStartX, blockStartY;
 
         // Function to handle block mousedown event
-        document.addEventListener('mousedown', function(e) {
-            // Check if target is a block drag handle
-            const dragHandle = e.target.closest('.block-drag-handle');
-            if (!dragHandle) return;
+        // document.addEventListener('mousedown', function(e) {
+        //     // Check if target is a block drag handle
+        //     const dragHandle = e.target.closest('.block-drag-handle');
+        //     if (!dragHandle) return;
 
-            const block = dragHandle.closest('.block');
-            if (!block) return;
+        //     const block = dragHandle.closest('.block');
+        //     if (!block) return;
 
-            // Start dragging
-            isDragging = true;
-            currentBlock = block;
+        //     // Start dragging
+        //     isDragging = true;
+        //     currentBlock = block;
 
-            // Get current block position from its transform style
-            const transform = window.getComputedStyle(block).transform;
-            const matrix = new DOMMatrixReadOnly(transform);
-            blockStartX = matrix.m41;
-            blockStartY = matrix.m42;
+        //     // Get current block position from its transform style
+        //     const transform = window.getComputedStyle(block).transform;
+        //     const matrix = new DOMMatrixReadOnly(transform);
+        //     blockStartX = matrix.m41;
+        //     blockStartY = matrix.m42;
 
-            // Get mouse position in screen coordinates
-            startX = e.clientX;
-            startY = e.clientY;
+        //     // Get mouse position in screen coordinates
+        //     startX = e.clientX;
+        //     startY = e.clientY;
 
-            // Set cursor and add dragging class
-            document.body.style.cursor = 'grabbing';
-            block.classList.add('dragging');
-            block.style.zIndex = '1000';
+        //     // Set cursor and add dragging class
+        //     document.body.style.cursor = 'grabbing';
+        //     block.classList.add('dragging');
+        //     block.style.zIndex = '1000';
 
-            // Prevent default to avoid text selection
-            e.preventDefault();
-        });
+        //     // Prevent default to avoid text selection
+        //     e.preventDefault();
+        // });
 
         // Function to handle block mousemove event
         document.addEventListener('mousemove', function(e) {
@@ -2299,5 +2295,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, true);
     }
+
+    // Function to ensure custom blocks have proper node setup
+    function setupCustomBlock(block) {
+        console.log('Setting up custom block:', block.id);
+
+        // Make sure the block is draggable
+        makeBlockDraggable(block);
+
+        // Set up node connections
+        setupNodeConnections(block);
+
+        // Position block on canvas if not already positioned
+        if (!block.style.transform) {
+            const canvas = document.querySelector('.canvas-container');
+            if (canvas) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const x = (Math.random() * 200) + 100;
+                const y = (Math.random() * 200) + 100;
+                block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+            }
+        }
+
+        return block;
+    }
+
 });
 

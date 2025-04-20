@@ -1922,12 +1922,14 @@ function saveModuleInfo(className, library, module, blockId = null) {
     // Find the block with matching class name
     const blockIndex = existingBlocks.findIndex(block => block.className === className);
 
+    const moduleInfo = {
+        library: library,
+        module: module
+    }
+
     if (blockIndex >= 0) {
         // Update existing block's module info
-        existingBlocks[blockIndex].moduleInfo = {
-            library: library,
-            module: module
-        };
+        existingBlocks[blockIndex].moduleInfo = moduleInfo
         // If a block ID was provided, update it
         if (blockId && existingBlocks[blockIndex].id !== blockId) {
             existingBlocks[blockIndex].id = blockId;
@@ -1938,10 +1940,7 @@ function saveModuleInfo(className, library, module, blockId = null) {
         existingBlocks.push({
             className: className,
             id: blockId || `class-${Date.now()}`, // Use provided ID or generate one
-            moduleInfo: {
-                library: library,
-                module: module
-            }
+            moduleInfo: moduleInfo
         });
     }
 
@@ -2018,12 +2017,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                 }
             </div>
             <div class="block-content">
-                <div class="method-selectors">
-                    <select class="method-select" title="Select method to execute">
-                        <option value="">Select method...</option>
-                    </select>
-                    <button class="add-param-btn" title="Add parameter">+</button>
-                </div>
+                <select class="method-select" title="Select method to execute">
+                    <option value="" disabled= selected>Select method...</option>
+                </select>
                 <div class="block-parameters">
                     <!-- Parameters will be added here dynamically -->
                 </div>
@@ -2116,12 +2112,12 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         });
 
         // Handle add parameter button
-        const addParamBtn = block.querySelector('.add-param-btn');
-        if (addParamBtn) {
-        addParamBtn.addEventListener('click', () => {
-            addCustomParameter(block);
-        });
-        }
+        // const addParamBtn = block.querySelector('.add-param-btn');
+        // if (addParamBtn) {
+        // addParamBtn.addEventListener('click', () => {
+        //     addCustomParameter(block);
+        // });
+        // }
     }
 
     return block;
@@ -2240,7 +2236,7 @@ function populateMethodsForBlock(block, className, blockId) {
                     console.error(`Error fetching methods for ${blockId || className}:`, error);
 
                     // Add default methods as fallback
-                    addDefaultMethods(methodSelect);
+                    // addDefaultMethods(methodSelect);
 
                     // Set first method as selected
                     if (methodSelect.options.length > 1) {
@@ -2254,7 +2250,7 @@ function populateMethodsForBlock(block, className, blockId) {
             console.warn(`No module info found for ${blockId || className}, using default methods`);
 
             // Add default methods
-            addDefaultMethods(methodSelect);
+            // addDefaultMethods(methodSelect);
 
             // Set first method as selected
             if (methodSelect.options.length > 1) {
@@ -2270,15 +2266,15 @@ function populateMethodsForBlock(block, className, blockId) {
 }
 
 // Helper function to add default methods
-function addDefaultMethods(methodSelect) {
-    const defaultMethods = ['call', 'run', 'invoke', 'execute'];
-    defaultMethods.forEach(method => {
-        const option = document.createElement('option');
-        option.value = method;
-        option.textContent = method;
-        methodSelect.appendChild(option);
-    });
-}
+// function addDefaultMethods(methodSelect) {
+//     const defaultMethods = ['call', 'run', 'invoke', 'execute'];
+//     defaultMethods.forEach(method => {
+//         const option = document.createElement('option');
+//         option.value = method;
+//         option.textContent = method;
+//         methodSelect.appendChild(option);
+//     });
+// }
 
 // Helper function to find module info for a class from sessionStorage
 function findModuleInfoForClass(className) {
@@ -2814,39 +2810,39 @@ function addEmptyParameterRow(container) {
 }
 
 // Function to add a custom parameter to a block
-function addCustomParameter(block) {
-    const paramsContainer = block.querySelector('.block-parameters');
-    if (!paramsContainer) return;
+// function addCustomParameter(block) {
+//     const paramsContainer = block.querySelector('.block-parameters');
+//     if (!paramsContainer) return;
 
-    console.log('params container', paramsContainer);
+//     console.log('params container', paramsContainer);
 
-    // Get the parameter select dropdown
-    const paramSelect = paramsContainer.querySelector('.param-select-dropdown');
-    console.log('param select', paramSelect);
-    if (paramSelect) {
-        // Show a visual indicator that user should use the dropdown
-        paramSelect.classList.add('highlight');
-        setTimeout(() => {
-            paramSelect.classList.remove('highlight');
-        }, 1000);
+//     // Get the parameter select dropdown
+//     const paramSelect = paramsContainer.querySelector('.param-select-dropdown');
+//     console.log('param select', paramSelect);
+//     if (paramSelect) {
+//         // Show a visual indicator that user should use the dropdown
+//         paramSelect.classList.add('highlight');
+//         setTimeout(() => {
+//             paramSelect.classList.remove('highlight');
+//         }, 1000);
 
-        // Force focus on the dropdown
-        paramSelect.focus();
+//         // Force focus on the dropdown
+//         paramSelect.focus();
 
-        // Simulate a click to open the dropdown
-        try {
-            paramSelect.click();
-        } catch (e) {
-            console.warn('Could not automatically open dropdownwtf:', e);
-        }
+//         // Simulate a click to open the dropdown
+//         try {
+//             paramSelect.click();
+//         } catch (e) {
+//             console.warn('Could not automatically open dropdownwtf:', e);
+//         }
 
-        return;
-    }
+//         return;
+//     }
 
-    // Fallback if dropdown isn't found - add a text input parameter row
-    const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
-    addEmptyParameterRow(activeParamsContainer);
-}
+//     // Fallback if dropdown isn't found - add a text input parameter row
+//     const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
+//     addEmptyParameterRow(activeParamsContainer);
+// }
 
 // Add this code at the end of the file, right before the closing brace of the last function
 
