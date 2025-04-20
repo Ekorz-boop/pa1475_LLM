@@ -807,18 +807,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Canvas pan functionality  ---------------!!!THIS BREAKS THE METHOD DROPDOWN ON BLOCKS!!!---------------
-    // canvas.addEventListener('mousedown', (e) => {
-    //     if (e.button === 0) { // Left mouse button only
-    //         isPanning = true;
-    //         canvas.classList.add('grabbing');
-    //         startPoint = {
-    //             x: e.clientX - currentTranslate.x,
-    //             y: e.clientY - currentTranslate.y
-    //         };
-    //         e.preventDefault();
-    //         e.stopPropagation();
-    //     }
-    // });
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 0 && !e.target.closest('select')) { // Left mouse button only
+            isPanning = true;
+            canvas.classList.add('grabbing');
+            startPoint = {
+                x: e.clientX - currentTranslate.x,
+                y: e.clientY - currentTranslate.y
+            };
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
     // Add grid snapping function
     function snapToGrid(value) {
