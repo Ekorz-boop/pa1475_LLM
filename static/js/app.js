@@ -900,14 +900,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (draggingConnection) {
-            const elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
-            if (elemUnderMouse && elemUnderMouse.classList.contains('input-node') && sourceNode) {
+            // Get the element under the mouse - be more thorough in checking for input nodes
+            let elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+            
+            // Search up for an input-node parent if element is a child of input-node
+            let inputNodeFound = null;
+            let currentElem = elemUnderMouse;
+            
+            // Check if it's directly an input-node or traverse up to find one
+            while (currentElem && !inputNodeFound) {
+                if (currentElem.classList && currentElem.classList.contains('input-node')) {
+                    inputNodeFound = currentElem;
+                    break;
+                }
+                // Try to find within node-label or tooltip-container which are children of input-node
+                if (currentElem.parentElement) {
+                    const parent = currentElem.parentElement;
+                    if (parent.classList && parent.classList.contains('input-node')) {
+                        inputNodeFound = parent;
+                        break;
+                    }
+                    // Check for tooltip-container parent
+                    if (parent.classList && parent.classList.contains('tooltip-container') && 
+                        parent.parentElement && parent.parentElement.classList.contains('input-node')) {
+                        inputNodeFound = parent.parentElement;
+                        break;
+                    }
+                }
+                currentElem = currentElem.parentElement;
+            }
+            
+            // If we found an input node and have a source node, create the connection
+            if (inputNodeFound && sourceNode) {
                 const sourceBlock = sourceNode.closest('.block');
-                const targetBlock = elemUnderMouse.closest('.block');
+                const targetBlock = inputNodeFound.closest('.block');
+                
                 if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
-                    const inputId = elemUnderMouse.getAttribute('data-input');
-                    removeConnectionsToInput(targetBlock.id, inputId);
-                    createConnection(sourceBlock, targetBlock, inputId);
+                    const inputId = inputNodeFound.getAttribute('data-input');
+                    if (inputId) {
+                        removeConnectionsToInput(targetBlock.id, inputId);
+                        createConnection(sourceBlock, targetBlock, inputId);
+                        console.log(`Created connection from ${sourceBlock.id} to ${targetBlock.id}:${inputId}`);
+                    }
                 }
             }
 
@@ -1100,6 +1134,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                         hoveredInputNode = inputNode;
                         inputNode.classList.add('input-node-hover');
+                        // Add an effect to better visualize the potential connection
+                        if (tempConnection) {
+                            tempConnection.classList.add('connection-hover');
+                        }
                         e.stopPropagation();
                     }
                 }
@@ -1109,6 +1147,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hoveredInputNode === inputNode) {
                     hoveredInputNode = null;
                     inputNode.classList.remove('input-node-hover');
+                    // Remove the connection hover effect
+                    if (tempConnection) {
+                        tempConnection.classList.remove('connection-hover');
+                    }
                     e.stopPropagation();
                 }
             });
@@ -2035,6 +2077,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                         hoveredInputNode = inputNode;
                         inputNode.classList.add('input-node-hover');
+                        // Add an effect to better visualize the potential connection
+                        if (tempConnection) {
+                            tempConnection.classList.add('connection-hover');
+                        }
                         e.stopPropagation();
                     }
                 }
@@ -2044,6 +2090,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hoveredInputNode === inputNode) {
                     hoveredInputNode = null;
                     inputNode.classList.remove('input-node-hover');
+                    // Remove the connection hover effect
+                    if (tempConnection) {
+                        tempConnection.classList.remove('connection-hover');
+                    }
                     e.stopPropagation();
                 }
             });
