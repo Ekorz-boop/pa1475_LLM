@@ -668,7 +668,7 @@ body.dark-mode {
 
 .dark-mode .custom-block .method-selectors {
     background-color: var(--secondary-bg);
-    border: 1px solid var(--border-color);
+    /* border: 1px solid var(--border-color); */
 }
 
 .dark-mode .custom-block .method-select {
@@ -709,9 +709,14 @@ body.dark-mode {
     color: var(--text-color);
 }
 
+.dark-mode .custom-block .block-content {
+    background-color: var(--secondary-bg);
+    /* border: 1px solid var(--border-color); */
+}
+
 .dark-mode .block-template[data-block-type="custom"] {
     background-color: var(--secondary-bg);
-    border: 1px solid var(--border-color);
+    /* border: 1px solid var(--border-color); */
 }
 
 .dark-mode .block-template[data-block-type="custom"] .block-header {

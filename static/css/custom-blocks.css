@@ -71,7 +71,6 @@
     height: 30%;
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
-    border-bottom: 1px solid #eee;
     background-color: var(--langchain-primary);
     padding: 0;
     height: 100%;
@@ -87,7 +86,6 @@
     font-size: 13px;
     color: white;
     background-color: transparent;
-    border-bottom: 1px solid #eee;
     padding: 8px;
     display: flex;
     align-items: center;
