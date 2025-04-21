@@ -1915,6 +1915,7 @@ function saveModuleInfo(className, library, module) {
 // Function to create a custom block on the canvas
 function createCustomBlock(className, inputNodes, outputNodes, blockId, originalBlockId = null) {
     // Create a new block element
+    var blockName = className;
     const block = document.createElement('div');
     block.className = 'block custom-block';
     block.setAttribute('data-block-type', 'custom');
@@ -1930,7 +1931,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     block.innerHTML = `
         <div class="block-content-wrapper">
             <div class="block-header">
-                <div class="block-drag-handle" contenteditable="true">${className}</div>
+                <div class="block-drag-handle" contenteditable="true">${blockName}</div>
             </div>
             <div class="node-container">
                 ${inputNodes && inputNodes.length > 0 ?
