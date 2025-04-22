@@ -73,7 +73,7 @@
     width: 24px;
     height: 24px;
     margin-right: 8px;
-    background-image: url('/static/images/icons/handup.svg');
+    /* background-image: url('/static/images/icons/handup.svg'); */
     background-size: contain;
     background-repeat: no-repeat;
 }
@@ -92,7 +92,7 @@
     width: 24px;
     height: 24px;
     margin-left: 8px;
-    background-image: url('/static/images/icons/handup.svg');
+    /* background-image: url('/static/images/icons/handup.svg'); */
     background-size: contain;
     background-repeat: no-repeat;
 }
@@ -111,7 +111,7 @@
     width: 24px;
     height: 24px;
     margin-right: 8px;
-    background-image: url('/static/images/icons/handleft.svg');
+    /* background-image: url('/static/images/icons/handleft.svg'); */
     background-size: contain;
     background-repeat: no-repeat;
 }

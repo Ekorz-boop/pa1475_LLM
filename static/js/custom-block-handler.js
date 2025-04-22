@@ -228,7 +228,7 @@ class CustomBlockHandler {
      */
     closeModal() {
         if (this.modal) {
-            this.modal.style.display = 'none';
+        this.modal.style.display = 'none';
             document.body.style.overflow = ''; // Restore body scrolling
         }
     }
@@ -422,15 +422,15 @@ class CustomBlockHandler {
             }
             const data = await response.json();
 
-            if (data.error) {
+                    if (data.error) {
                 throw new Error(data.error);
             }
 
             // Add classes to select
             data.classes.forEach(className => {
-                const option = document.createElement('option');
-                option.value = className;
-                option.textContent = className;
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = className;
                 classSelect.appendChild(option);
             });
 
@@ -461,24 +461,38 @@ class CustomBlockHandler {
      * Handle class selection change
      */
     async onClassChange() {
+        const library = this.librarySelect.value;
+        const module = this.moduleSelect.value;
         const selectedClass = this.classSelect.value;
+
+        console.log(`Class selected: ${selectedClass}`);
+
+        // Update the selectedClass property
+        this.selectedClass = selectedClass;
+
+        // Clear method select
+        this.methodsContainer.innerHTML = '<p>Select a class first</p>';
+
         if (!selectedClass) {
             return;
         }
 
-        this.selectedClass = selectedClass;
-        this.parameters = {}; // Clear parameters when changing class
+        // Show loading message in the method select
+        this.methodsContainer.innerHTML = '<div class="loading-message">Loading methods...</div>';
+
+        // Update parameter container to show loading
+        this.parametersContainer.innerHTML = '<div class="loading-message">Loading class details...</div>';
 
         try {
-            // Get library and module from selects
-            const library = this.librarySelect.value;
-            const module = this.moduleSelect.value;
+            // Clear previous details
+            this.selectedMethods = [];
+            this.parameters = {};
+            this.inputNodes = [];
+            this.outputNodes = [];
 
-            // Save module info for later use
-            saveModuleInfo(selectedClass, library, module);
-
-            // Fetch class details
+            // Perform the fetch
             const response = await fetch(`/api/langchain/class_details?library=${library}&module=${module}&class_name=${selectedClass}`);
+
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
@@ -486,10 +500,8 @@ class CustomBlockHandler {
             const data = await response.json();
             this.classDetails = data;
 
-            // Create a comprehensive class information display
+            // Update class description
             const description = this.modal.querySelector('.class-description');
-            
-            // Add class name header and formatted docstring
             description.innerHTML = `
                 <div class="class-name-header">
                     <h3>${selectedClass}</h3>
@@ -522,17 +534,17 @@ class CustomBlockHandler {
         }
     }
 
-    /**
-     * Initialize collapsible sections
-     */
+
+
+    // Initialize collapsible sections
     initCollapsibleSections() {
+
         // Find all collapsible sections
         const collapsibleSections = this.modal.querySelectorAll('.collapsible-section');
-        
+
         // Add click event listeners to each collapsible header
         collapsibleSections.forEach(section => {
             const header = section.querySelector('.collapsible-header');
-            
             header.addEventListener('click', () => {
                 // Toggle the expanded class
                 section.classList.toggle('expanded');
@@ -551,16 +563,16 @@ class CustomBlockHandler {
         }
 
         let formatted = docstring;
-        
+
         // Handle deprecation notices - these often start with ".. deprecated::" or similar text
         const deprecationRegex = /\.\.?\s*deprecated:?:?|\bdeprecated\b[.:]\s*(.*?)(?=\n\n|\n[^\s]|$)/i;
         const deprecationMatch = formatted.match(deprecationRegex);
-        
+
         if (deprecationMatch) {
             // Extract the deprecation message and remove it from the main text
             const deprecationMessage = deprecationMatch[0];
             formatted = formatted.replace(deprecationRegex, '');
-            
+
             // Add it back as a styled warning box
             formatted = `<div class="deprecation-warning">⚠️ ${deprecationMessage}</div>${formatted}`;
         }
@@ -569,7 +581,7 @@ class CustomBlockHandler {
         const installRegex = /Set?up:?\s*Install/i;
         if (installRegex.test(formatted)) {
             // Wrap the installation section in a themed container
-            formatted = formatted.replace(/(Set?up:?\s*Install[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/i, 
+            formatted = formatted.replace(/(Set?up:?\s*Install[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/i,
                 '<div class="install-section"><h4>Installation</h4>$1</div>');
         }
 
@@ -577,20 +589,20 @@ class CustomBlockHandler {
         const usageRegex = /(?:Usage|Instantiate|Example|Lazy load):/i;
         if (usageRegex.test(formatted)) {
             // Wrap usage examples in a themed container
-            formatted = formatted.replace(/((?:Usage|Instantiate|Example|Lazy load):[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/gi, 
+            formatted = formatted.replace(/((?:Usage|Instantiate|Example|Lazy load):[\s\S]*?)(?=\n\n[A-Z]|\n[A-Z]|$)/gi,
                 '<div class="usage-section"><h4>$1</div>');
-            
+
             // Fix the heading format
-            formatted = formatted.replace(/<h4>((?:Usage|Instantiate|Example|Lazy load)):([\s\S]*?)<\/div>/gi, 
+            formatted = formatted.replace(/<h4>((?:Usage|Instantiate|Example|Lazy load)):([\s\S]*?)<\/div>/gi,
                 '<h4>$1</h4>$2</div>');
         }
 
         // Convert URLs to clickable links
         formatted = formatted.replace(
-            /(https?:\/\/[^\s\)]+)/g, 
+            /(https?:\/\/[^\s\)]+)/g,
             '<a href="$1" target="_blank" rel="noopener noreferrer" class="url">$1 <span class="external-link-icon">↗</span></a>'
         );
-        
+
         // Detect and format class references like `langchain_google_community.BigQueryLoader`
         formatted = formatted.replace(
             /`?([a-zA-Z0-9_]+\.)*[A-Z][a-zA-Z0-9_]+(Loader|Chain|Model|Store|Splitter|Processor|Parser|Retriever|Embeddings?)`?/g,
@@ -600,7 +612,7 @@ class CustomBlockHandler {
                 return `<span class="class-reference">${cleanMatch}</span>`;
             }
         );
-        
+
         // Format code blocks with proper language indicators and copy buttons
         formatted = formatted.replace(
             /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n|\n\s*\.\.|$)/g,
@@ -611,7 +623,7 @@ class CustomBlockHandler {
                 return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
             }
         );
-        
+
         // Handle Python code blocks specifically (triple backticks)
         formatted = formatted.replace(
             /```(?:(python|bash|javascript|js|html|css|json|yaml|xml))?\n([\s\S]*?)```/g,
@@ -623,7 +635,7 @@ class CustomBlockHandler {
                 return `<pre class="code-block" data-language="${language}">${copyButton}<code>${highlightedCode}</code></pre>`;
             }
         );
-        
+
         // Format inline code
         formatted = formatted.replace(
             /`([^`]+)`/g,
@@ -644,12 +656,12 @@ class CustomBlockHandler {
             'BigQuery', 'Google Cloud Platform', 'metadata_columns', 'page_content_columns',
             'lazy_load', 'docs', 'loader', 'append', 'print', 'None', 'True', 'False'
         ];
-        
+
         // Create a regex that matches these terms as whole words
         const techTermsRegex = new RegExp(`\\b(${technicalTerms.join('|')})\\b`, 'g');
         formatted = formatted.replace(techTermsRegex, (match) => {
             // Don't reformat if already in a code element
-            if (formatted.includes(`<code class="inline-code">${match}</code>`) || 
+            if (formatted.includes(`<code class="inline-code">${match}</code>`) ||
                 formatted.includes(`<span class="parameter-name">${match}</span>`)) {
                 return match;
             }
@@ -671,11 +683,11 @@ class CustomBlockHandler {
 
         // Format common sections with headers
         const commonSections = [
-            "Parameters:", "Returns:", "Examples:", "Example:", 
+            "Parameters:", "Returns:", "Examples:", "Example:",
             "Usage:", "Notes:", "Note:", "Args:", "Arguments:",
             "Attributes:", "Raises:", "Exceptions:", "References:"
         ];
-        
+
         // Process section titles
         for (const section of commonSections) {
             // Only replace if the section is at the beginning of a line (possibly with whitespace)
@@ -693,37 +705,37 @@ class CustomBlockHandler {
         if (formatted.includes("<h4>Parameters:</h4>") || formatted.includes("<h4>Args:</h4>")) {
             const paramSectionRegex = /<h4>(Parameters:|Args:)<\/h4>([\s\S]*?)(?=<h4>|$)/;
             const paramMatch = formatted.match(paramSectionRegex);
-            
+
             if (paramMatch) {
                 // Extract the parameter section
                 const paramSection = paramMatch[2];
-                
+
                 // Format the parameters as a list
                 const formattedParams = this.formatParameterList(paramSection);
-                
+
                 // Replace the original parameter section with the formatted one
                 formatted = formatted.replace(
-                    paramSectionRegex, 
+                    paramSectionRegex,
                     `<h4>${paramMatch[1]}</h4>${formattedParams}`
                 );
             }
         }
-        
+
         // Add paragraph breaks (preserve existing structure)
         formatted = formatted.replace(/\n\s*\n/g, '</p><p>');
-        
+
         // Wrap in paragraph tags if not already wrapped
-        if (!formatted.startsWith('<p>') && !formatted.startsWith('<h4>') && 
+        if (!formatted.startsWith('<p>') && !formatted.startsWith('<h4>') &&
             !formatted.startsWith('<div class="deprecation-warning">') &&
             !formatted.startsWith('<div class="install-section">') &&
             !formatted.startsWith('<div class="usage-section">') &&
             !formatted.startsWith('<div class="collapsible-section">')) {
             formatted = '<p>' + formatted + '</p>';
         }
-        
+
         return formatted;
     }
-    
+
     /**
      * Create collapsible sections for long content blocks
      * @param {string} formatted - The formatted HTML content
@@ -731,9 +743,9 @@ class CustomBlockHandler {
      */
     createCollapsibleSections(formatted) {
         // Find sections that might benefit from being collapsible
-        
+
         // Create collapsible section for long parameter tables
-        if (formatted.includes('<div class="parameter-table">') && 
+        if (formatted.includes('<div class="parameter-table">') &&
             (formatted.match(/<div class="parameter-item/g) || []).length > 5) {
             // Count parameter items
             formatted = formatted.replace(
@@ -746,7 +758,7 @@ class CustomBlockHandler {
                 }
             );
         }
-        
+
         // Create collapsible sections for long code examples
         // This regex looks for code blocks that are more than 10 lines long
         formatted = formatted.replace(
@@ -754,7 +766,7 @@ class CustomBlockHandler {
             (match) => {
                 // Count the number of lines
                 const lineCount = (match.match(/\n/g) || []).length;
-                
+
                 // If the code block is long, make it collapsible
                 if (lineCount > 10) {
                     const language = match.match(/data-language="([^"]*)"/)[1];
@@ -763,14 +775,14 @@ class CustomBlockHandler {
                         <div class="collapsible-content">${match}</div>
                     </div>`;
                 }
-                
+
                 return match;
             }
         );
-        
+
         return formatted;
     }
-    
+
     /**
      * Apply basic syntax highlighting to Python code
      * @param {string} code - The code to highlight
@@ -778,52 +790,52 @@ class CustomBlockHandler {
      */
     applySyntaxHighlighting(code) {
         if (!code) return '';
-        
+
         // Python keywords
         const keywords = [
-            'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 
-            'def', 'del', 'elif', 'else', 'except', 'False', 'finally', 'for', 
-            'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'None', 
-            'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True', 'try', 
+            'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue',
+            'def', 'del', 'elif', 'else', 'except', 'False', 'finally', 'for',
+            'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'None',
+            'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True', 'try',
             'while', 'with', 'yield'
         ];
-        
+
         // Built-in functions
         const builtins = [
-            'abs', 'all', 'any', 'bin', 'bool', 'bytes', 'callable', 'chr', 
-            'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod', 
-            'enumerate', 'eval', 'exec', 'filter', 'float', 'format', 'frozenset', 
-            'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input', 
-            'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals', 'map', 
-            'max', 'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 
-            'print', 'property', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 
-            'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 
+            'abs', 'all', 'any', 'bin', 'bool', 'bytes', 'callable', 'chr',
+            'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod',
+            'enumerate', 'eval', 'exec', 'filter', 'float', 'format', 'frozenset',
+            'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input',
+            'int', 'isinstance', 'issubclass', 'iter', 'len', 'list', 'locals', 'map',
+            'max', 'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow',
+            'print', 'property', 'range', 'repr', 'reversed', 'round', 'set', 'setattr',
+            'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type',
             'vars', 'zip'
         ];
-        
+
         // Common method and function patterns
         const functionPattern = /(\w+)\s*\(/g;
-        
+
         // Class pattern
         const classPattern = /\b([A-Z]\w*)\b/g;
-        
+
         // Variable assignment pattern
         const variablePattern = /\b(\w+)\s*=/g;
-        
+
         let highlightedCode = code;
-        
+
         // Escape HTML to prevent XSS
         highlightedCode = highlightedCode
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
-        
+
         // Highlight strings
         highlightedCode = highlightedCode.replace(
-            /(["'])(.*?)\1/g, 
+            /(["'])(.*?)\1/g,
             '<span class="code-string">$&</span>'
         );
-        
+
         // Highlight functions
         highlightedCode = highlightedCode.replace(
             functionPattern,
@@ -834,7 +846,7 @@ class CustomBlockHandler {
                 return match.replace(funcName, `<span class="code-function">${funcName}</span>`);
             }
         );
-        
+
         // Highlight classes (capitalized words)
         highlightedCode = highlightedCode.replace(
             classPattern,
@@ -845,7 +857,7 @@ class CustomBlockHandler {
                 return `<span class="code-class">${className}</span>`;
             }
         );
-        
+
         // Highlight variable assignments
         highlightedCode = highlightedCode.replace(
             variablePattern,
@@ -856,40 +868,40 @@ class CustomBlockHandler {
                 return match.replace(varName, `<span class="code-variable">${varName}</span>`);
             }
         );
-        
+
         // Highlight keywords
         for (const keyword of keywords) {
             const keywordRegex = new RegExp(`\\b(${keyword})\\b`, 'g');
             highlightedCode = highlightedCode.replace(
-                keywordRegex, 
+                keywordRegex,
                 '<span class="code-keyword">$1</span>'
             );
         }
-        
+
         // Highlight built-in functions
         for (const builtin of builtins) {
             const builtinRegex = new RegExp(`\\b(${builtin})\\b`, 'g');
             highlightedCode = highlightedCode.replace(
-                builtinRegex, 
+                builtinRegex,
                 '<span class="code-builtin">$1</span>'
             );
         }
-        
+
         // Highlight numbers
         highlightedCode = highlightedCode.replace(
-            /\b(\d+(\.\d+)?)\b/g, 
+            /\b(\d+(\.\d+)?)\b/g,
             '<span class="code-number">$1</span>'
         );
-        
+
         // Highlight comments
         highlightedCode = highlightedCode.replace(
-            /(#.*?)($|\n)/g, 
+            /(#.*?)($|\n)/g,
             '<span class="code-comment">$1</span>$2'
         );
-        
+
         return highlightedCode;
     }
-    
+
     /**
      * Format parameter list from docstring
      * @param {string} paramText - Parameter section text
@@ -897,7 +909,7 @@ class CustomBlockHandler {
      */
     formatParameterList(paramText) {
         if (!paramText) return '';
-        
+
         // Split by parameter (assuming each is indented or has a name: description format)
         const lines = paramText.trim().split('\n');
         let html = '<div class="parameter-table">';
@@ -906,25 +918,25 @@ class CustomBlockHandler {
         html += '<div class="param-type-header">Type</div>';
         html += '<div class="param-desc-header">Description</div>';
         html += '</div>';
-        
+
         let rowIndex = 0;
-        
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             if (line === '') continue;
-            
+
             // Check if this is a parameter name line
             // This regex matches patterns like:
             // param_name (type): description
             // param_name: description
             // param_name (type) -- description
             const paramMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]+)\))?\s*(?:--|:)\s*(.*)/);
-            
+
             if (paramMatch) {
                 const name = paramMatch[1];
                 const type = paramMatch[2] || '';
                 let desc = paramMatch[3];
-                
+
                 // Look ahead for additional description lines (indented)
                 let j = i + 1;
                 while (j < lines.length && (lines[j].trim() === '' || lines[j].match(/^\s{2,}/))) {
@@ -934,10 +946,10 @@ class CustomBlockHandler {
                     j++;
                 }
                 i = j - 1; // Skip the lines we've processed
-                
+
                 const rowClass = rowIndex % 2 === 0 ? 'even-row' : 'odd-row';
                 rowIndex++;
-                
+
                 html += `
                     <div class="parameter-item ${rowClass}">
                         <div class="param-name">${name}</div>
@@ -947,10 +959,11 @@ class CustomBlockHandler {
                 `;
             }
         }
-        
+
         html += '</div>';
         return html;
     }
+
 
     /**
      * Suggest default input/output nodes based on component type from API
@@ -1179,6 +1192,7 @@ class CustomBlockHandler {
 
                 // Immediately save this selection to ensure it's not lost
                 if (this.editingBlockId && this.selectedClass) {
+                    console.log('Attempt save');
                     saveMethods(this.selectedClass, this.selectedMethods, this.editingBlockId);
                     console.log('Saved methods during editing:', this.selectedMethods);
                 }
@@ -1288,21 +1302,36 @@ class CustomBlockHandler {
             // Determine if parameter is required
             const isRequired = param.required;
             const requiredMark = isRequired ? '<span class="required">*</span>' : '';
-
+            
+            // Determine if the parameter is likely a file path
+            const isFilePath = param.name.toLowerCase().includes('file') || 
+                               param.name.toLowerCase().includes('path') || 
+                               (param.type && param.type.toLowerCase().includes('str'));
+            
             // Create input field with parameter details
             html += `
-                <div class="param-row">
+                <div class="param-row ${isFilePath ? 'file-param-row' : ''}">
                     <label for="${methodName}-${param.name}">
                         ${param.name}${requiredMark}:
                         <span class="param-type">${param.type || 'Any'}</span>
                     </label>
-                    <input type="text"
-                        id="${methodName}-${param.name}"
-                        class="param-input"
-                        data-method="${methodName}"
-                        data-param="${param.name}"
-                        value="${storedValue}"
-                        placeholder="${param.default || ''}">
+                    <div class="input-container">
+                        <input type="text"
+                            id="${methodName}-${param.name}"
+                            class="param-input"
+                            data-method="${methodName}"
+                            data-param="${param.name}"
+                            value="${storedValue}"
+                            placeholder="${param.default || ''}">
+                        ${isFilePath ? `
+                        <button type="button" 
+                            class="file-upload-btn" 
+                            data-method="${methodName}" 
+                            data-param="${param.name}"
+                            title="Upload files">
+                            <span>📁</span>
+                        </button>` : ''}
+                    </div>
                     ${param.description ? `<div class="param-description">${param.description}</div>` : ''}
                 </div>
             `;
@@ -1449,7 +1478,7 @@ class CustomBlockHandler {
             addCustomBlockToMenu(this.selectedClass, blockId, this.inputNodes, this.outputNodes);
 
             // Save module info for this class
-            saveModuleInfo(this.selectedClass, this.librarySelect.value, this.moduleSelect.value);
+            saveModuleInfo(this.selectedClass, this.librarySelect.value, this.moduleSelect.value, blockId);
 
             // Close the modal
             this.closeModal();
@@ -1587,6 +1616,7 @@ class CustomBlockHandler {
         this.outputNodes = [];
         this.parameters = {};
         this.editingBlockId = null;
+        console.log('selections reset');
 
         // Reset UI
         const methodCheckboxes = this.methodsContainer.querySelectorAll('input[type="checkbox"]');
@@ -1669,6 +1699,7 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     blockTemplate.innerHTML = `
         <div class="block-header">
             <div class="block-drag-handle" contenteditable="false">${blockName}</div>
+
         </div>
     `;
 
@@ -1805,9 +1836,9 @@ let customBlockHandler = null;
 
 // Initialize custom blocks when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Load saved custom blocks
-    loadCustomBlocks();
-    updateCustomBlocksSectionHeaderVisibility();
+    // Load saved custom blocks (commented out atm)
+    // loadCustomBlocks();
+    // updateCustomBlocksSectionHeaderVisibility();
 
     // Add event listener to clear sessionStorage on page unload
     window.addEventListener('beforeunload', () => {
@@ -1884,32 +1915,58 @@ function updateBlockNodes(blockElement, className, inputNodes, outputNodes) {
 }
 
 // Function to save module info for future edits
-function saveModuleInfo(className, library, module) {
+function saveModuleInfo(className, library, module, blockId = null) {
     // Get existing blocks from sessionStorage
     const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
     // Find the block with matching class name
     const blockIndex = existingBlocks.findIndex(block => block.className === className);
 
+    const moduleInfo = {
+        library: library,
+        module: module
+    }
+
     if (blockIndex >= 0) {
         // Update existing block's module info
-        existingBlocks[blockIndex].moduleInfo = {
-            library: library,
-            module: module
-        };
+        existingBlocks[blockIndex].moduleInfo = moduleInfo
+        // If a block ID was provided, update it
+        if (blockId && existingBlocks[blockIndex].id !== blockId) {
+            existingBlocks[blockIndex].id = blockId;
+        }
+
     } else {
         // Create a new entry if block not found
         existingBlocks.push({
             className: className,
-            moduleInfo: {
-                library: library,
-                module: module
-            }
+            id: blockId || `class-${Date.now()}`, // Use provided ID or generate one
+            moduleInfo: moduleInfo
         });
     }
 
     // Save back to sessionStorage
     sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+
+    console.log(`Saved module info for ${className}: ${module}`);
+
+    // Also save to localStorage as a backup
+    try {
+        const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+        const localBlockIndex = localBlocks.findIndex(block => block.className === className);
+
+        if (localBlockIndex >= 0) {
+            localBlocks[localBlockIndex].moduleInfo = moduleInfo;
+        } else {
+            localBlocks.push({
+                className: className,
+                moduleInfo: moduleInfo
+            });
+        }
+
+        localStorage.setItem('customBlocks', JSON.stringify(localBlocks));
+    } catch (e) {
+        console.warn('Failed to save to localStorage:', e);
+    }
 }
 
 // Function to create a custom block on the canvas
@@ -1936,9 +1993,10 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
             <div class="node-container">
                 ${inputNodes && inputNodes.length > 0 ?
                     `<div class="input-node-group">
+
                         ${inputNodes.map(node =>
                             `<div class="input-node" data-input="${typeof node === 'string' ? node : node.name}">
-                                <div class="tooltip-container">    
+                                <div class="tooltip-container">
                                     <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
                                 </div>
                             </div>`
@@ -1950,7 +2008,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                     `<div class="output-node-group">
                         ${outputNodes.map(node =>
                             `<div class="output-node" data-output="${typeof node === 'string' ? node : node.name}">
-                                <div class="tooltip-container">    
+                                <div class="tooltip-container">
                                     <div class="node-label">${typeof node === 'string' ? node : node.name}</div>
                                 </div>
                             </div>`
@@ -1960,12 +2018,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                 }
             </div>
             <div class="block-content">
-                <div class="method-selectors">
-                    <select class="method-select" title="Select method to execute">
-                        <option value="">Select method...</option>
-                    </select>
-                    <button class="add-param-btn" title="Add parameter">+</button>
-                </div>
+                <select class="method-select" title="Select method to execute">
+                    <option value="" disabled= selected>Select method...</option>
+                </select>
                 <div class="block-parameters">
                     <!-- Parameters will be added here dynamically -->
                 </div>
@@ -2044,9 +2099,11 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     // Populate methods dropdown - pass the original block ID if available for method lookup
     populateMethodsForBlock(block, className, originalBlockId || blockId);
 
-    // Handle method selection change
+        // Handle method selection change
     const methodSelect = block.querySelector('.method-select');
+    console.log('try method select');
     if (methodSelect) {
+        console.log('method select found');
         methodSelect.addEventListener('change', () => {
             const selectedMethod = methodSelect.value;
             console.log(`Method selected: ${selectedMethod}`);
@@ -2056,12 +2113,12 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         });
 
         // Handle add parameter button
-        const addParamBtn = block.querySelector('.add-param-btn');
-        if (addParamBtn) {
-            addParamBtn.addEventListener('click', () => {
-                addCustomParameter(block);
-            });
-        }
+        // const addParamBtn = block.querySelector('.add-param-btn');
+        // if (addParamBtn) {
+        // addParamBtn.addEventListener('click', () => {
+        //     addCustomParameter(block);
+        // });
+        // }
     }
 
     return block;
@@ -2180,7 +2237,7 @@ function populateMethodsForBlock(block, className, blockId) {
                     console.error(`Error fetching methods for ${blockId || className}:`, error);
 
                     // Add default methods as fallback
-                    addDefaultMethods(methodSelect);
+                    // addDefaultMethods(methodSelect);
 
                     // Set first method as selected
                     if (methodSelect.options.length > 1) {
@@ -2194,7 +2251,7 @@ function populateMethodsForBlock(block, className, blockId) {
             console.warn(`No module info found for ${blockId || className}, using default methods`);
 
             // Add default methods
-            addDefaultMethods(methodSelect);
+            // addDefaultMethods(methodSelect);
 
             // Set first method as selected
             if (methodSelect.options.length > 1) {
@@ -2210,15 +2267,15 @@ function populateMethodsForBlock(block, className, blockId) {
 }
 
 // Helper function to add default methods
-function addDefaultMethods(methodSelect) {
-    const defaultMethods = ['call', 'run', 'invoke', 'execute'];
-    defaultMethods.forEach(method => {
-        const option = document.createElement('option');
-        option.value = method;
-        option.textContent = method;
-        methodSelect.appendChild(option);
-    });
-}
+// function addDefaultMethods(methodSelect) {
+//     const defaultMethods = ['call', 'run', 'invoke', 'execute'];
+//     defaultMethods.forEach(method => {
+//         const option = document.createElement('option');
+//         option.value = method;
+//         option.textContent = method;
+//         methodSelect.appendChild(option);
+//     });
+// }
 
 // Helper function to find module info for a class from sessionStorage
 function findModuleInfoForClass(className) {
@@ -2239,8 +2296,17 @@ function saveMethods(className, methods, blockId = null) {
         if (blockId) {
             // If blockId is provided, update that specific block
             const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
-            if (existingBlockIndex >= 0) {
-                customBlocks[existingBlockIndex].methods = methods;
+        if (existingBlockIndex >= 0) {
+            customBlocks[existingBlockIndex].methods = methods;
+                // Make sure className is also set
+                customBlocks[existingBlockIndex].className = className;
+        } else {
+                // Create new entry with both blockId and className
+            customBlocks.push({
+                    id: blockId,
+                    className: className,
+                    methods: methods
+                });
             }
         } else {
             // If no blockId, update by className (legacy behavior)
@@ -2249,14 +2315,34 @@ function saveMethods(className, methods, blockId = null) {
                 customBlocks[existingBlockIndex].methods = methods;
             } else {
                 customBlocks.push({
-                    className,
-                    methods
+                    id: `class-${Date.now()}`,
+                    className: className,
+                    methods: methods
                 });
             }
         }
 
         sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
         console.log(`Saved methods for ${blockId || className}:`, methods);
+
+        // Also save to localStorage as a backup but only for className (not specific blocks)
+        try {
+            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+            const existingBlockIndex = localBlocks.findIndex(b => b.className === className);
+
+            if (existingBlockIndex >= 0) {
+                localBlocks[existingBlockIndex].methods = methods;
+            } else {
+                localBlocks.push({
+                    className: className,
+                    methods: methods
+                });
+            }
+
+            localStorage.setItem('customBlocks', JSON.stringify(localBlocks));
+        } catch (e) {
+            console.warn('Failed to save methods to localStorage:', e);
+        }
     } catch (error) {
         console.error(`Error saving methods for ${blockId || className}:`, error);
     }
@@ -2269,37 +2355,446 @@ function updateBlockParameters(block, methodName) {
     const paramsContainer = block.querySelector('.block-parameters');
     if (!paramsContainer) return;
 
+    // Store current parameter values before clearing container
+    const currentParams = {};
+    const paramRows = paramsContainer.querySelectorAll('.parameter-row');
+    paramRows.forEach(row => {
+        const nameSelect = row.querySelector('.param-name-select');
+        const nameInput = row.querySelector('.param-name');
+        const valueInput = row.querySelector('.param-value');
+
+        let paramName = '';
+        if (nameSelect && nameSelect.value) {
+            paramName = nameSelect.value;
+        } else if (nameInput && nameInput.value) {
+            paramName = nameInput.value;
+        }
+
+        if (paramName && valueInput) {
+            currentParams[paramName] = valueInput.value;
+        }
+    });
+
     // Clear existing parameters
     paramsContainer.innerHTML = '';
 
-    // Add a default parameter input
-    const paramRow = document.createElement('div');
-    paramRow.className = 'parameter-row';
-    paramRow.innerHTML = `
-        <input type="text" class="param-name" placeholder="Parameter name">
-        <input type="text" class="param-value" placeholder="Value">
-        <button class="remove-param-btn">×</button>
-    `;
+    // Get the class name
+    const className = block.getAttribute('data-class-name');
+    if (!className) return;
 
-    // Add event listener for remove button
-    const removeBtn = paramRow.querySelector('.remove-param-btn');
-    removeBtn.addEventListener('click', () => {
-        paramRow.remove();
-    });
+    // Get the block ID
+    const blockId = block.id;
 
-    paramsContainer.appendChild(paramRow);
+    // Find module info for this class
+    let moduleInfo = null;
+
+    // Try to find from sessionStorage first by blockId
+    try {
+        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        const blockData = customBlocks.find(b => b.id === blockId);
+
+        if (blockData && blockData.className === className) {
+            // If we have module info stored with the block
+            if (blockData.moduleInfo) {
+                moduleInfo = blockData.moduleInfo;
+            }
+        }
+    } catch (e) {
+        console.warn('Error fetching module info from sessionStorage:', e);
+    }
+
+    // If not found by blockId, try by className
+    if (!moduleInfo) {
+        try {
+            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+            const blockData = localBlocks.find(b => b.className === className);
+
+            if (blockData && blockData.moduleInfo) {
+                moduleInfo = blockData.moduleInfo;
+            }
+        } catch (e) {
+            console.warn('Error fetching module info from localStorage:', e);
+        }
+    }
+
+    // Get ALL saved parameters for this block from localStorage, not just for the current method
+    let savedMethodParams = {};
+    try {
+        const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+        savedMethodParams = savedParams;
+    } catch (e) {
+        console.warn('Error fetching saved parameters:', e);
+    }
+
+    // If we found module info, try to fetch class details
+    if (moduleInfo && moduleInfo.module) {
+        const library = moduleInfo.library || '';
+        const module = moduleInfo.module;
+
+        // Show loading message
+        const loadingMsg = document.createElement('div');
+        loadingMsg.className = 'loading-parameters';
+        loadingMsg.textContent = 'Loading parameters...';
+        paramsContainer.appendChild(loadingMsg);
+
+        // Fetch class details
+        fetch(`/api/langchain/class_details?library=${library}&module=${module}&class_name=${className}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch class details: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(`Fetched class details for ${className}:`, data);
+
+                // Remove loading message
+                paramsContainer.innerHTML = '';
+
+                // Collect parameters from all methods for complete parameter list
+                let allMethodParams = [];
+
+                // First add init params
+                if (data.init_params) {
+                    allMethodParams = [...data.init_params];
+                }
+
+                // Then add parameters from all methods
+                if (data.method_details) {
+                    data.method_details.forEach(methodDetail => {
+                        if (methodDetail.parameters) {
+                            methodDetail.parameters.forEach(param => {
+                                // Check if this parameter is already in our list
+                                const exists = allMethodParams.some(p => p.name === param.name);
+                                if (!exists && param.name !== 'self') {
+                                    allMethodParams.push(param);
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // Find method details for the current method
+                let methodParams = [];
+
+                if (methodName === '__init__') {
+                    // For constructor, use init_params from class details
+                    if (data.init_params) {
+                        methodParams = data.init_params;
+                    }
+                } else if (data.method_details) {
+                    // For other methods, find the specific method
+                    const methodDetail = data.method_details.find(m => m.name === methodName);
+                    if (methodDetail && methodDetail.parameters) {
+                        methodParams = methodDetail.parameters;
+                    }
+                }
+
+                // Create parameter selection dropdown
+                const paramSelectRow = document.createElement('div');
+                paramSelectRow.className = 'parameter-select-row';
+
+                const paramSelectLabel = document.createElement('label');
+                paramSelectLabel.textContent = 'Add parameter:';
+                paramSelectLabel.className = 'param-select-label';
+
+                const paramSelect = document.createElement('select');
+                paramSelect.className = 'param-select-dropdown';
+
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select parameter...';
+                paramSelect.appendChild(defaultOption);
+
+                // Add available parameters to dropdown
+                allMethodParams.forEach(param => {
+                    if (param.name === 'self') return; // Skip 'self' parameter
+
+                    const option = document.createElement('option');
+                    option.value = param.name;
+
+                    // Show parameter name with type and required status if available
+                    let optionText = param.name;
+                    if (param.type && param.type !== 'Any') {
+                        optionText += ` (${param.type})`;
+                    }
+                    if (param.required) {
+                        optionText += ' *';
+                    }
+                    option.textContent = optionText;
+                    paramSelect.appendChild(option);
+                });
+
+                // Add event listener for parameter selection
+                paramSelect.addEventListener('change', () => {
+                    if (!paramSelect.value) return;
+
+                    // Check if this parameter is already added
+                    const existingParam = paramsContainer.querySelector(`.parameter-row[data-param-name="${paramSelect.value}"]`);
+                    if (existingParam) {
+                        // Highlight the existing parameter briefly
+                        existingParam.classList.add('highlight');
+                        setTimeout(() => {
+                            existingParam.classList.remove('highlight');
+                        }, 1000);
+                        paramSelect.value = '';
+                        return;
+                    }
+
+                    // Find the parameter details
+                    const paramInfo = allMethodParams.find(p => p.name === paramSelect.value);
+                    if (paramInfo) {
+                        // Get value from saved parameters or current params
+                        let savedValue = '';
+                        if (savedMethodParams[paramInfo.name]) {
+                            savedValue = savedMethodParams[paramInfo.name];
+                        } else if (currentParams[paramInfo.name]) {
+                            savedValue = currentParams[paramInfo.name];
+                        }
+
+                        // Add the parameter row
+                        const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId);
+
+                        // Focus on the value input to encourage the user to enter a value
+                        const valueInput = paramRow.querySelector('.param-value');
+                        if (valueInput) {
+                            valueInput.focus();
+                            valueInput.select();
+                        }
+
+                        // Reset dropdown
+                        paramSelect.value = '';
+                    }
+                });
+
+                paramSelectRow.appendChild(paramSelectLabel);
+                paramSelectRow.appendChild(paramSelect);
+                paramsContainer.appendChild(paramSelectRow);
+
+                // Create divider
+                const divider = document.createElement('div');
+                divider.className = 'params-divider';
+                paramsContainer.appendChild(divider);
+
+                // Create parameters container
+                const activeParamsContainer = document.createElement('div');
+                activeParamsContainer.className = 'active-parameters';
+                paramsContainer.appendChild(activeParamsContainer);
+
+                // Create a set of parameters we will display
+                const displayedParams = new Set();
+
+                // First, show parameters for the current method that have values or are required
+                methodParams.forEach(param => {
+                    if (param.name === 'self') return; // Skip 'self' parameter
+
+                    // Check if we have a saved value for this parameter
+                    let hasValue = false;
+                    let savedValue = '';
+
+                    if (savedMethodParams[param.name]) {
+                        hasValue = true;
+                        savedValue = savedMethodParams[param.name];
+                    } else if (currentParams[param.name]) {
+                        hasValue = true;
+                        savedValue = currentParams[param.name];
+                    }
+
+                    // Always show parameters with values
+                    if (hasValue && savedValue.trim() !== '') {
+                        addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
+                        displayedParams.add(param.name);
+                    }
+                });
+
+                // Then show any saved parameters from other methods that have values
+                Object.keys(savedMethodParams).forEach(paramName => {
+                    // Skip if already displayed
+                    if (displayedParams.has(paramName)) return;
+
+                    const savedValue = savedMethodParams[paramName];
+
+                    // If parameter has a value, show it even if it's not part of the current method
+                    if (savedValue && savedValue.trim() !== '') {
+                        // Find parameter info if available
+                        const paramInfo = allMethodParams.find(p => p.name === paramName);
+                        if (paramInfo) {
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, allMethodParams, blockId);
+                            displayedParams.add(paramName);
+                        } else {
+                            // Handle case where param info is not available (fallback)
+                            const genericParams = [{name: paramName, type: 'Any', required: false}];
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, genericParams, blockId);
+                            displayedParams.add(paramName);
+                        }
+                    }
+                });
+
+                // Also show any current parameters with values not in saved params
+                Object.keys(currentParams).forEach(paramName => {
+                    // Skip if already displayed
+                    if (displayedParams.has(paramName)) return;
+
+                    const value = currentParams[paramName];
+
+                    // If parameter has a value, show it
+                    if (value && value.trim() !== '') {
+                        // Find parameter info if available
+                        const paramInfo = allMethodParams.find(p => p.name === paramName);
+                        if (paramInfo) {
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, allMethodParams, blockId);
+                            displayedParams.add(paramName);
+                        } else {
+                            // Handle case where param info is not available (fallback)
+                            const genericParams = [{name: paramName, type: 'Any', required: false}];
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockId);
+                            displayedParams.add(paramName);
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error(`Error fetching parameters for ${className}.${methodName}:`, error);
+
+                // Remove loading message
+                paramsContainer.innerHTML = '';
+
+                // Add a default parameter row as fallback
+                // addEmptyParameterRow(paramsContainer);
+            });
+    } else {
+        console.log('no module info');
+        // If no module info, just add a default parameter row
+        // addEmptyParameterRow(paramsContainer);
+    }
 }
 
-// Function to add a custom parameter to a block
-function addCustomParameter(block) {
-    const paramsContainer = block.querySelector('.block-parameters');
-    if (!paramsContainer) return;
-
+// Helper function to add a parameter row with an already selected parameter
+function addParameterRowForMethod(container, paramName, value = '', availableParams = [], blockId = '') {
     // Create a new parameter row
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
+    paramRow.setAttribute('data-param-name', paramName);
+
+    // Create param name label
+    const paramNameLabel = document.createElement('div');
+    paramNameLabel.className = 'param-name-label';
+
+    // Get parameter info for display
+    let displayName = paramName;
+    const paramInfo = availableParams.find(p => p.name === paramName);
+    if (paramInfo) {
+        if (paramInfo.type && paramInfo.type !== 'Any') {
+            displayName += ` (${paramInfo.type})`;
+        }
+        if (paramInfo.required) {
+            displayName += ' *';
+        }
+    }
+    paramNameLabel.textContent = displayName;
+
+    // Check if this parameter might be a file path
+    const isFilePath = paramName.toLowerCase().includes('file') || 
+                       paramName.toLowerCase().includes('path') ||
+                       (paramInfo && paramInfo.type && 
+                        paramInfo.type.toLowerCase().includes('str'));
+
+    // Create input container for file path parameters
+    const inputContainer = document.createElement('div');
+    inputContainer.className = isFilePath ? 'input-container' : '';
+    
+    // Create value input
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.className = 'param-value';
+    valueInput.placeholder = 'Value';
+    valueInput.value = value;
+
+    // Save value on input instead of just change event to be more responsive
+    valueInput.addEventListener('input', () => {
+        saveParameterValue(blockId, paramName, valueInput.value);
+    });
+
+    // Also keep the change event for compatibility
+    valueInput.addEventListener('change', () => {
+        saveParameterValue(blockId, paramName, valueInput.value);
+    });
+
+    // Add the input to the container
+    inputContainer.appendChild(valueInput);
+
+    // Add file upload button for file path parameters
+    if (isFilePath) {
+        const fileUploadBtn = document.createElement('button');
+        fileUploadBtn.type = 'button';
+        fileUploadBtn.className = 'file-upload-btn';
+        fileUploadBtn.title = 'Upload files';
+        fileUploadBtn.setAttribute('data-param', paramName);
+        fileUploadBtn.innerHTML = '<span>📁</span>';
+        
+        inputContainer.appendChild(fileUploadBtn);
+        paramRow.classList.add('file-param-row');
+    }
+
+    // Create remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-param-btn';
+    removeBtn.innerHTML = '×';
+    removeBtn.addEventListener('click', () => {
+        // When removing, also remove from saved parameters
+        if (blockId) {
+            try {
+                const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+                delete savedParams[paramName];
+                localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+            } catch (e) {
+                console.warn('Error removing saved parameter:', e);
+            }
+        }
+        paramRow.remove();
+    });
+
+    // Add hidden input with parameter name for form submission
+    const hiddenNameInput = document.createElement('input');
+    hiddenNameInput.type = 'hidden';
+    hiddenNameInput.className = 'param-name-select';
+    hiddenNameInput.value = paramName;
+
+    // Add elements to row
+    paramRow.appendChild(paramNameLabel);
+    paramRow.appendChild(isFilePath ? inputContainer : valueInput);
+    paramRow.appendChild(removeBtn);
+    paramRow.appendChild(hiddenNameInput);
+
+    // Add row to container
+    container.appendChild(paramRow);
+
+    // Save the parameter value immediately (even if empty) to track that user has explicitly added it
+    saveParameterValue(blockId, paramName, value);
+
+    return paramRow;
+}
+
+// Helper function to save parameter value
+function saveParameterValue(blockId, paramName, value) {
+    if (blockId) {
+        try {
+            const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+            savedParams[paramName] = value;
+            localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+        } catch (e) {
+            console.warn('Error saving parameter value:', e);
+        }
+    }
+}
+
+// // Helper function to add an empty parameter row with text input
+function addEmptyParameterRow(container) {
+    const paramRow = document.createElement('div');
+    paramRow.className = 'parameter-row';
     paramRow.innerHTML = `
-        <input type="text" class="param-name" placeholder="Parameter name">
+        <input type="text" class="param-name" placeholder="wrong">
         <input type="text" class="param-value" placeholder="Value">
         <button class="remove-param-btn">×</button>
     `;
@@ -2310,8 +2805,399 @@ function addCustomParameter(block) {
         paramRow.remove();
     });
 
-    paramsContainer.appendChild(paramRow);
+
+    container.appendChild(paramRow);
+    return paramRow;
 }
+
+// Function to add a custom parameter to a block
+// function addCustomParameter(block) {
+//     const paramsContainer = block.querySelector('.block-parameters');
+//     if (!paramsContainer) return;
+
+//     console.log('params container', paramsContainer);
+
+//     // Get the parameter select dropdown
+//     const paramSelect = paramsContainer.querySelector('.param-select-dropdown');
+//     console.log('param select', paramSelect);
+//     if (paramSelect) {
+//         // Show a visual indicator that user should use the dropdown
+//         paramSelect.classList.add('highlight');
+//         setTimeout(() => {
+//             paramSelect.classList.remove('highlight');
+//         }, 1000);
+
+//         // Force focus on the dropdown
+//         paramSelect.focus();
+
+//         // Simulate a click to open the dropdown
+//         try {
+//             paramSelect.click();
+//         } catch (e) {
+//             console.warn('Could not automatically open dropdownwtf:', e);
+//         }
+
+//         return;
+//     }
+
+//     // Fallback if dropdown isn't found - add a text input parameter row
+//     const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
+//     addEmptyParameterRow(activeParamsContainer);
+// }
+
+// Add this code at the end of the file, right before the closing brace of the last function
+
+// Create a namespace for file handling functionality
+const FilePathHandler = {
+    // Store selected files by parameter
+    selectedFiles: {},
+
+    // Initialize event listeners for file upload buttons
+    init() {
+        // Add global event delegation for file upload buttons
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('.file-upload-btn');
+            if (button) {
+                e.preventDefault();
+                
+                // Get the method name and parameter name
+                const methodName = button.getAttribute('data-method') || '__init__';
+                const paramName = button.getAttribute('data-param');
+                
+                // Find the input element - try multiple selectors to ensure we find it
+                let inputElement = null;
+                
+                // First try to find by data attributes
+                if (methodName && paramName) {
+                    inputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+                }
+                
+                // If not found, try to find it within the parameter row
+                if (!inputElement) {
+                    const paramRow = button.closest('.parameter-row');
+                    if (paramRow) {
+                        inputElement = paramRow.querySelector('.param-value') || paramRow.querySelector('input[type="text"]');
+                    }
+                }
+                
+                // Get current value (comma-separated paths)
+                const currentValue = inputElement ? inputElement.value : '';
+                
+                console.log('File upload clicked:', { methodName, paramName, currentValue });
+                
+                // Show file selection modal
+                this.showFileSelectionModal(methodName, paramName, currentValue);
+            }
+        });
+    },
+    
+    // Extract file paths from a string which might contain filenames in various formats
+    // such as "files/file1.pdf", "[files/file1.pdf, files/file2.pdf]", etc.
+    extractFilePaths(inputString) {
+        if (!inputString || typeof inputString !== 'string') {
+            return [];
+        }
+    
+        const paths = [];
+        
+        // Clean up the input string
+        let cleaned = inputString.trim();
+        
+        // Check if it's an array format
+        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+            // Remove brackets and split by commas
+            cleaned = cleaned.substring(1, cleaned.length - 1);
+            const items = cleaned.split(',').map(item => item.trim());
+            
+            for (const item of items) {
+                // Extract file name from various formats
+                let filename = item;
+                
+                // If it looks like "files/filename.ext"
+                if (item.includes('files/')) {
+                    filename = item.substring(item.indexOf('files/') + 6);
+                    // Remove quotes if present
+                    filename = filename.replace(/['"]/g, '');
+                    paths.push(filename);
+                }
+                // If it looks like 'os.path.join("files", "filename.ext")'
+                else if (item.includes('os.path.join') && item.includes('"files"')) {
+                    const match = item.match(/"([^"]+)"(?:\s*\))?$/);
+                    if (match && match[1]) {
+                        paths.push(match[1]);
+                    }
+                }
+                // If it's just a quoted filename
+                else if (item.startsWith('"') || item.startsWith("'")) {
+                    filename = item.substring(1, item.length - 1);
+                    if (!filename.includes('/') && !filename.includes('\\')) {
+                        paths.push(filename);
+                    }
+                }
+            }
+        } 
+        // If it's comma-separated paths like "files/file1.pdf, files/file2.pdf"
+        else if (cleaned.includes(',')) {
+            const items = cleaned.split(',').map(item => item.trim());
+            
+            for (const item of items) {
+                let filename = item;
+                
+                // If it looks like "files/filename.ext"
+                if (item.includes('files/')) {
+                    filename = item.substring(item.indexOf('files/') + 6);
+                    // Remove quotes if present
+                    filename = filename.replace(/['"]/g, '');
+                    paths.push(filename);
+                }
+                // Direct filename (no files/ prefix)
+                else {
+                    // Remove quotes if present
+                    filename = item.replace(/['"]/g, '');
+                    if (filename) {
+                        paths.push(filename);
+                    }
+                }
+            }
+        }
+        // If it's just a single path like "files/filename.ext"
+        else if (cleaned.includes('files/')) {
+            let filename = cleaned.substring(cleaned.indexOf('files/') + 6);
+            // Remove quotes if present
+            filename = filename.replace(/['"]/g, '');
+            paths.push(filename);
+        }
+        // Single filename without files/ prefix
+        else if (cleaned) {
+            // Remove quotes if present
+            const filename = cleaned.replace(/['"]/g, '');
+            if (filename) {
+                paths.push(filename);
+            }
+        }
+        
+        return paths;
+    },
+
+    // Show file selection modal
+    showFileSelectionModal(methodName, paramName, currentValue) {
+        // First check if there's already an open file selection modal and remove it
+        const existingModal = document.querySelector('.file-selection-modal');
+        if (existingModal) {
+            document.body.removeChild(existingModal);
+        }
+    
+        // Generate a unique key for this parameter
+        const paramKey = `${methodName}_${paramName}`;
+        
+        // Store the current input element reference for when we save
+        let targetInputElement = null;
+        
+        // Try to find by data attributes
+        if (methodName && paramName) {
+            targetInputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+        }
+        
+        // Try to find by parameter row
+        if (!targetInputElement) {
+            const paramRows = document.querySelectorAll(`.parameter-row[data-param-name="${paramName}"]`);
+            if (paramRows.length > 0) {
+                targetInputElement = paramRows[0].querySelector('.param-value');
+            }
+        }
+        
+        // Initialize selected files for this parameter if not already done
+        if (!this.selectedFiles[paramKey]) {
+            // Parse any existing files from the current input value
+            const filenames = this.extractFilePaths(currentValue);
+            this.selectedFiles[paramKey] = filenames.map(name => ({ name }));
+        }
+
+        // Create modal markup
+        const modal = document.createElement('div');
+        modal.className = 'file-selection-modal';
+        // Store reference to the target input element
+        modal.dataset.targetInput = paramKey;
+        modal.innerHTML = `
+            <div class="file-selection-content">
+                <div class="file-selection-header">
+                    <h3>Select Files for ${paramName}</h3>
+                    <button class="close-modal">×</button>
+                </div>
+                <div class="file-selection-body">
+                    <div class="file-upload-area">
+                        <p>Drag & drop files here or click to select</p>
+                        <input type="file" id="file-upload-input" multiple style="display: none;">
+                    </div>
+                    <div class="files-container">
+                        <h4>Selected Files</h4>
+                        <ul class="file-list"></ul>
+                    </div>
+                </div>
+                <div class="file-selection-footer">
+                    <button type="button" class="cancel-btn secondary">Cancel</button>
+                    <button type="button" class="save-btn primary">Save</button>
+                </div>
+            </div>
+        `;
+
+        // Add modal to the DOM
+        document.body.appendChild(modal);
+
+        // Get modal elements
+        const closeBtn = modal.querySelector('.close-modal');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        const saveBtn = modal.querySelector('.save-btn');
+        const fileUploadArea = modal.querySelector('.file-upload-area');
+        const fileInput = modal.querySelector('#file-upload-input');
+        const fileList = modal.querySelector('.file-list');
+
+        // Update file list UI
+        this.updateFileList(fileList, paramKey);
+
+        // Add event listeners
+        closeBtn.addEventListener('click', () => this.closeModal(modal));
+        cancelBtn.addEventListener('click', () => this.closeModal(modal));
+        
+        saveBtn.addEventListener('click', () => {
+            // Find the corresponding input element using the stored reference
+            let inputElement = targetInputElement;
+            
+            // If we still can't find it, use more aggressive DOM search
+            if (!inputElement) {
+                // Look for any input that matches this parameter name
+                const allInputs = document.querySelectorAll('input.param-value, input.param-input');
+                for (const input of allInputs) {
+                    const paramAttr = input.getAttribute('data-param');
+                    const paramRow = input.closest('.parameter-row');
+                    const rowParamName = paramRow?.getAttribute('data-param-name');
+                    
+                    if ((paramAttr === paramName) || (rowParamName === paramName)) {
+                        inputElement = input;
+                        break;
+                    }
+                }
+            }
+            
+            if (inputElement) {
+                // Get file paths and make them relative to the 'files' directory
+                const filePaths = this.selectedFiles[paramKey].map(file => 
+                    `files/${file.name}`
+                );
+                
+                // Update input value with comma-space separated file paths
+                // This ensures proper formatting for both visual display and parsing
+                inputElement.value = filePaths.join(', ');
+                
+                // Trigger change event to save the value
+                const event = new Event('change', { bubbles: true });
+                inputElement.dispatchEvent(event);
+                
+                console.log('Updated input with file paths:', inputElement.value);
+            } else {
+                console.warn('Could not find input element to update with file paths');
+            }
+            
+            this.closeModal(modal);
+        });
+
+        // File selection handling
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', () => {
+            const files = fileInput.files;
+            if (files.length > 0) {
+                // Add selected files to the list
+                for (let i = 0; i < files.length; i++) {
+                    // Only store the filename, not the actual file contents
+                    this.selectedFiles[paramKey].push({
+                        name: files[i].name
+                    });
+                }
+                
+                // Update the file list UI
+                this.updateFileList(fileList, paramKey);
+                
+                // Reset the file input
+                fileInput.value = '';
+            }
+        });
+
+        // Drag and drop handling
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('drag-over');
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.classList.remove('drag-over');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                // Add dropped files to the list
+                for (let i = 0; i < files.length; i++) {
+                    this.selectedFiles[paramKey].push({
+                        name: files[i].name
+                    });
+                }
+                
+                // Update the file list UI
+                this.updateFileList(fileList, paramKey);
+            }
+        });
+    },
+
+    // Update the file list UI
+    updateFileList(fileListElement, paramKey) {
+        if (!fileListElement || !this.selectedFiles[paramKey]) return;
+        
+        // Clear the current list
+        fileListElement.innerHTML = '';
+        
+        // Add each file to the list
+        this.selectedFiles[paramKey].forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            li.innerHTML = `
+                <span class="file-name">${file.name}</span>
+                <button type="button" class="remove-file" data-index="${index}">×</button>
+            `;
+            fileListElement.appendChild(li);
+            
+            // Add event listener for remove button
+            li.querySelector('.remove-file').addEventListener('click', () => {
+                this.selectedFiles[paramKey].splice(index, 1);
+                this.updateFileList(fileListElement, paramKey);
+            });
+        });
+        
+        // Show message if no files selected
+        if (this.selectedFiles[paramKey].length === 0) {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            li.innerHTML = '<span class="file-name">No files selected</span>';
+            fileListElement.appendChild(li);
+        }
+    },
+
+    // Close the modal
+    closeModal(modal) {
+        if (modal && modal.parentNode) {
+            document.body.removeChild(modal);
+        }
+    }
+};
+
+// Initialize file handling after DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing file path handler');
+    FilePathHandler.init();
+});
 
 // Function to update a block's name in sessionStorage
 function updateBlockNameInStorage(blockId, newName) {
@@ -2337,35 +3223,3 @@ function updateBlockNameInStorage(blockId, newName) {
     }
 }
 
-// After removing a block, hide the section header if no custom blocks remain
-function removeCustomBlockFromMenu(blockId) {
-    const blocksContent = document.getElementById('blocks-content');
-    if (!blocksContent) return;
-    const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
-    if (!customBlocksContainer) return;
-    const block = customBlocksContainer.querySelector(`[data-block-id="${blockId}"]`);
-    if (block) {
-        customBlocksContainer.removeChild(block);
-    }
-    if (customBlocksContainer.children.length === 0) {
-        const sectionHeader = blocksContent.querySelector('#custom-blocks-section-header');
-        if (sectionHeader) {
-            sectionHeader.style.display = 'none';
-        }
-    }
-}
-
-// On page load, hide the section header if there are no custom blocks
-function updateCustomBlocksSectionHeaderVisibility() {
-    const blocksContent = document.getElementById('blocks-content');
-    if (!blocksContent) return;
-    const customBlocksContainer = blocksContent.querySelector('#custom-blocks-container');
-    const sectionHeader = blocksContent.querySelector('#custom-blocks-section-header');
-    if (sectionHeader) {
-        if (customBlocksContainer && customBlocksContainer.children.length > 0) {
-            sectionHeader.style.display = '';
-        } else {
-            sectionHeader.style.display = 'none';
-        }
-    }
-}
