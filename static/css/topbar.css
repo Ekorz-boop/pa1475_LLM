@@ -98,7 +98,7 @@
 .export-button {
     position: fixed;
     top: 20px;
-    right: 80px;
+    right: 20px;
     padding: 12px;
     background-color: var(--langchain-primary);
     color: var(--langchain-white);
