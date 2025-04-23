@@ -705,7 +705,7 @@ class CustomBlockHandler {
                         <strong>__init__</strong> - Constructor
                     </label>
                     <div class="method-details">
-                        <p>${this.classDetails.doc || 'No documentation available for constructor.'}</p>
+                        ${this.formatDocstring(this.classDetails.doc || 'No documentation available for constructor.')}
                     </div>
                 </div>
             `;
@@ -739,7 +739,7 @@ class CustomBlockHandler {
                         <strong>${methodName}</strong>
                     </label>
                     <div class="method-details">
-                        <p>${methodDoc}</p>
+                        ${this.formatDocstring(methodDoc)}
                     </div>
                 </div>
             `;
