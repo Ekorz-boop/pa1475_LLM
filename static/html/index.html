@@ -17,7 +17,6 @@
     <link rel="stylesheet" href="/static/css/sidebar.css">
     <link rel="stylesheet" href="/static/css/topbar.css">
     <link rel="stylesheet" href="/static/css/canvas.css">
-    <link rel="stylesheet" href="/static/css/management_window.css">
     <link rel="stylesheet" href="/static/css/custom-block-modal.css">
     <link rel="stylesheet" href="/static/css/custom-blocks.css">
     <link rel="stylesheet" href="/static/css/dark-mode.css">
@@ -26,12 +25,6 @@
 
 <body>
     <div id="app">
-        <div id="notification-banner" class="notification-hidden">
-            <span>⚠️ Ollama is not running. Some features will be unavailable.</span>
-            <button id="open-management">Open System Management</button>
-            <button class="close-notification">×</button>
-        </div>
-        
         <!-- Add sidebar toggle button -->
         <div id="sidebar-toggle">
             <img src="/static/images/icons/hamburger.svg" alt="Menu">
@@ -89,13 +82,6 @@
                                 <div class="bg-color-option" data-color="light-purple" title="Light Purple">
                                     <div class="color-preview light-purple-bg"></div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <div class="bottom-menu">
-                            <div class="menu-item" id="management-button" data-menu="system">
-                                <img src="/static/images/icons/status.svg" alt="System Status">
-                                <span>System Status</span>
                             </div>
                         </div>
                     </div>
@@ -190,28 +176,6 @@
                         <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
                     </svg>
                 </button>
-            </div>
-        </div>
-
-        <!-- Add the management panel HTML directly -->
-        <div id="system-management" class="management-panel">
-            <div class="management-header">
-                <h2>System Status</h2>
-                <button class="close-button">×</button>
-            </div>
-
-            <div class="management-content">
-                <div class="status-items">
-                    <div class="status-item">
-                        <span class="status-label">Status:</span>
-                        <span class="status-value" id="ollama-status">Checking...</span>
-                    </div>
-                </div>
-
-                <div class="models-list">
-                    <h3>Available Models</h3>
-                    <div id="ollama-models">Loading models...</div>
-                </div>
             </div>
         </div>
     </div>

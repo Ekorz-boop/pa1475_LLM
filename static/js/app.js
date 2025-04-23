@@ -68,12 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize sidebar state from localStorage
-    const sidebarExpanded = localStorage.getItem('sidebarExpanded') === 'true';
-    if (sidebarExpanded) {
-        sidebar.classList.add('expanded');
-    }
-
     // Handle sidebar toggle
     sidebarToggle.addEventListener('click', () => {
         sidebar.classList.toggle('expanded');
@@ -94,18 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
         customBlockHandler.showModal();
     });
 
-    // Add export button handler
     const exportButton = document.getElementById('export-pipeline');
-    console.log('Export button found:', exportButton); // Debug log
-    if (exportButton) {
-        exportButton.addEventListener('click', () => {
-            console.log('Export button clicked'); // Debug log
-            exportPipeline();
-        });
-    } else {
-        console.error('Export button not found in the DOM'); // Debug log
-    }
-
+    exportButton.addEventListener('click', () => { // This is what used to cause exportPipeline to run twice
+        exportPipeline()
+    })
 
     // Handle menu item clicks
     menuItems.forEach(item => {
@@ -242,7 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const connectionsContainer = document.getElementById('connections');
     const blockTemplates = document.querySelectorAll('.block-template');
-    const runAllButton = document.getElementById('run-all');
     const searchInput = document.getElementById('block-search');
     let blockCounter = 1;
     let connections = [];
@@ -288,11 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
     blockContainer.className = 'block-container';
     canvasContainer.appendChild(blockContainer);
 
-    // Run all blocks button
-    runAllButton.addEventListener('click', () => {
-        runPipeline();
-    });
-
     // Add these utility functions at the top of the file
     function showToast(message, type = 'info', duration = 3000) {
         const toast = document.createElement('div');
@@ -322,51 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.progress-fill').style.width = `${percent}%`;
         if (status) {
             document.getElementById('progress-status').textContent = status;
-        }
-    }
-
-    // Update the runPipeline function
-    async function runPipeline() {
-        showProgress(true, 'Running Pipeline', 'Analyzing pipeline structure...');
-        const blocks = document.querySelectorAll('.block');
-        const totalBlocks = blocks.length;
-        let processedBlocks = 0;
-
-        try {
-            // First validate the pipeline
-            const validationResult = validatePipeline();
-            if (!validationResult.valid) {
-                showToast(validationResult.error, 'error');
-                showProgress(false);
-                return;
-            }
-
-            // Process blocks in order
-            for (const block of blocks) {
-                const type = block.getAttribute('data-block-type');
-                updateProgress(
-                    (processedBlocks / totalBlocks) * 100,
-                    `Processing ${type} block...`
-                );
-
-                try {
-                    await processBlock(block);
-                    processedBlocks++;
-                } catch (error) {
-                    showToast(`Error in ${type} block: ${error.message}`, 'error');
-                    showProgress(false);
-                    return;
-                }
-            }
-
-            updateProgress(100, 'Pipeline completed successfully!');
-            setTimeout(() => {
-                showProgress(false);
-                showToast('Pipeline executed successfully!', 'success');
-            }, 1000);
-        } catch (error) {
-            showToast(`Pipeline error: ${error.message}`, 'error');
-            showProgress(false);
         }
     }
 
@@ -805,7 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Canvas pan functionality  ---------------!!!THIS BREAKS THE METHOD DROPDOWN ON BLOCKS!!!---------------
+    // Canvas pan functionality
     canvas.addEventListener('mousedown', (e) => {
         if (e.button === 0 && !e.target.closest('select')) { // Left mouse button only
             isPanning = true;
@@ -1538,35 +1473,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // System Management Panel
-    const managementButton = document.getElementById('management-button');
-    const managementPanel = document.getElementById('system-management');
-
-
-    if (!managementButton || !managementPanel) {
-        console.error('Management panel elements not found!');
-        return;
-    }
-
-    // Management panel event listeners
-
-    managementButton.addEventListener('click', () => {
-        managementPanel.classList.add('visible');
-        // updateSystemStatus();
-    });
-
-    managementPanel.querySelector('.close-button').addEventListener('click', () => {
-        managementPanel.classList.remove('visible');
-    });
-
-    // Initialize action buttons
-    const actionButtons = {
-        'install-ollama': installOllama,
-        'ollama-guide': showOllamaGuide,
-        // 'clear-temp': clearTemp,
-        // 'remove-models': removeModels
-    };
-
     Object.entries(actionButtons).forEach(([id, handler]) => {
         const button = document.getElementById(id);
         if (button) {
@@ -1574,72 +1480,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Check Ollama status periodically
-    // checkOllamaStatus();
-    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
-
-    function showOllamaGuide() {
-        const system = navigator.platform.toLowerCase();
-        let instructions = '';
-
-        if (system.includes('win')) {
-            instructions =
-                '1. Open the Start menu\n' +
-                '2. Search for "Ollama"\n' +
-                '3. Click on the Ollama application to start it\n\n' +
-                'Note: The Ollama icon should appear in your system tray when running.';
-        } else if (system.includes('mac')) {
-            instructions =
-                '1. Open Terminal (you can find it in Applications > Utilities)\n' +
-                '2. Type: ollama serve\n' +
-                '3. Press Enter\n\n' +
-                'Note: Keep the Terminal window open while using Ollama.';
-        } else {
-            instructions =
-                '1. Open a terminal\n' +
-                '2. Type: ollama serve\n' +
-                '3. Press Enter\n\n' +
-                'Note: Keep the terminal window open while using Ollama.';
-        }
-
-        alert('How to Start Ollama:\n\n' + instructions);
-    }
-
-    async function installOllama() {
-        const button = document.getElementById('install-ollama');
-        button.disabled = true;
-
-        try {
-            const response = await fetch('/api/system/install-ollama', {
-                method: 'POST'
-            });
-            const data = await response.json();
-
-            if (data.status === 'manual_install_required') {
-                window.open(data.download_url, '_blank');
-                alert('Please download and install Ollama from the opened page.');
-            } else if (data.status === 'success') {
-                alert('Ollama installed successfully! Please restart the application.');
-            }
-        } catch (error) {
-            alert('Failed to install Ollama: ' + error.message);
-        } finally {
-            button.disabled = false;
-            // updateSystemStatus();
-        }
-    }
-
     // Add notification handling
     const notificationBanner = document.getElementById('notification-banner');
     const topBar = document.getElementById('top-bar');
-    const openManagementBtn = document.getElementById('open-management');
     const closeNotificationBtn = document.querySelector('.close-notification');
-
-    openManagementBtn.addEventListener('click', () => {
-        const managementPanel = document.getElementById('system-management');
-        managementPanel.classList.add('visible');
-        // updateSystemStatus();
-    });
 
     closeNotificationBtn.addEventListener('click', () => {
         notificationBanner.classList.add('notification-hidden');
