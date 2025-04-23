@@ -164,3 +164,10 @@
 .dark-mode .info-text {
     color: var(--langchain-white);
 }
+
+/* Make arrows white in dark mode */
+.dark-mode .info-text:nth-child(2)::before,
+.dark-mode .info-text:nth-child(3)::after,
+.dark-mode .info-text:nth-child(4)::before {
+    filter: brightness(0) invert(1);
+}
