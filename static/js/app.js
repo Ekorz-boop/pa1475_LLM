@@ -389,7 +389,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Update the exportPipeline function
-    // Update the exportPipeline function
     async function exportPipeline() {
         // Show progress indicator
         showProgress(true, 'Exporting Pipeline', 'Validating pipeline');
@@ -1606,65 +1605,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('How to Start Ollama:\n\n' + instructions);
     }
 
-    // async function updateSystemStatus() {
-    //     try {
-    //         const response = await fetch('/api/system/status');
-    //         const data = await response.json();
-    //         const ollamaStatus = document.getElementById('ollama-status');
-
-    //         if (data.ollama_status === 'running') {
-    //             ollamaStatus.textContent = 'Running';
-    //             ollamaStatus.className = 'status-value running';
-    //             // Update both models list and model selectors
-    //             await Promise.all([updateModelsList(), updateModelSelectors()]);
-    //         } else {
-    //             ollamaStatus.textContent = 'Not Running';
-    //             ollamaStatus.className = 'status-value not-running';
-    //             document.getElementById('ollama-models').innerHTML = 'Ollama must be running to view models';
-    //         }
-    //     } catch (error) {
-    //         console.error('Failed to check Ollama status:', error);
-    //     }
-    // }
-
-    function updateStatusDisplay(elementId, status) {
-        const element = document.getElementById(elementId);
-        element.className = 'status-value ' + status;
-
-        switch(status) {
-            case 'running':
-                element.textContent = 'Running';
-                break;
-            case 'not_running':
-                element.textContent = 'Not Running';
-                break;
-            case 'installed':
-                element.textContent = 'Installed';
-                break;
-            case 'not_installed':
-                element.textContent = 'Not Installed';
-                break;
-            case 'downloading':
-                element.textContent = 'Downloading...';
-                break;
-        }
-    }
-
-    function updateStorageDisplay(storage) {
-        document.getElementById('storage-usage').textContent =
-            formatBytes(storage.models_size);
-        document.getElementById('temp-files').textContent =
-            formatBytes(storage.temp_size);
-    }
-
-    function formatBytes(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
     async function installOllama() {
         const button = document.getElementById('install-ollama');
         button.disabled = true;
@@ -1695,20 +1635,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const openManagementBtn = document.getElementById('open-management');
     const closeNotificationBtn = document.querySelector('.close-notification');
 
-    // function checkOllamaStatus() {
-    //     fetch('/api/system/status')
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             if (data.ollama_status === 'not_running') {
-    //                 notificationBanner.classList.remove('notification-hidden');
-    //                 topBar.classList.add('with-notification');
-    //             } else {
-    //                 notificationBanner.classList.add('notification-hidden');
-    //                 topBar.classList.remove('with-notification');
-    //             }
-    //         });
-    // }
-
     openManagementBtn.addEventListener('click', () => {
         const managementPanel = document.getElementById('system-management');
         managementPanel.classList.add('visible');
@@ -1719,78 +1645,6 @@ document.addEventListener('DOMContentLoaded', () => {
         notificationBanner.classList.add('notification-hidden');
         topBar.classList.remove('with-notification');
     });
-
-    // Check Ollama status periodically
-    // checkOllamaStatus();
-    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
-
-    async function updateModelsList() {
-        try {
-            const response = await fetch('/api/models/list');
-            const data = await response.json();
-            const modelsDiv = document.getElementById('ollama-models');
-
-            if (response.ok) {
-                if (data.models && data.models.length > 0) {
-                    modelsDiv.innerHTML = data.models.map(model => `
-                        <div class="model-item">
-                            <span class="model-name">${model.name}</span>
-                            <span class="model-size">${formatSize(model.size)}</span>
-                        </div>
-                    `).join('');
-                } else {
-                    modelsDiv.innerHTML = 'No models installed';
-                }
-            } else {
-                modelsDiv.innerHTML = data.error || 'Failed to load models';
-            }
-        } catch (error) {
-            document.getElementById('ollama-models').innerHTML = 'Failed to load models';
-            console.error('Failed to fetch models:', error);
-        }
-    }
-
-    function formatSize(bytes) {
-        if (!bytes) return 'N/A';
-        const units = ['B', 'KB', 'MB', 'GB'];
-        let size = bytes;
-        let unitIndex = 0;
-        while (size >= 1024 && unitIndex < units.length - 1) {
-            size /= 1024;
-            unitIndex++;
-        }
-        return `${size.toFixed(1)} ${units[unitIndex]}`;
-    }
-
-    // Add this function to update model selectors when models list changes
-    async function updateModelSelectors() {
-        try {
-            const response = await fetch('/api/models/list');
-            const data = await response.json();
-
-            if (response.ok && data.models) {
-                const modelSelectors = document.querySelectorAll('.model-selector');
-                modelSelectors.forEach(selector => {
-                    const currentValue = selector.value;
-                    // Clear existing options
-                    selector.innerHTML = '';
-                    // Add new options
-                    data.models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model.name;
-                        option.textContent = model.name;
-                        selector.appendChild(option);
-                    });
-                    // Try to restore previous selection
-                    if (data.models.some(m => m.name === currentValue)) {
-                        selector.value = currentValue;
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('Failed to update model selectors:', error);
-        }
-    }
 
     // Add export button handler
     exportButton.addEventListener('click', exportPipeline);
@@ -2268,36 +2122,36 @@ document.addEventListener('DOMContentLoaded', () => {
         let blockStartX, blockStartY;
 
         // Function to handle block mousedown event
-        // document.addEventListener('mousedown', function(e) {
-        //     // Check if target is a block drag handle
-        //     const dragHandle = e.target.closest('.block-drag-handle');
-        //     if (!dragHandle) return;
+        document.addEventListener('mousedown', function(e) {
+            // Check if target is a block drag handle
+            const dragHandle = e.target.closest('.block-drag-handle');
+            if (!dragHandle) return;
 
-        //     const block = dragHandle.closest('.block');
-        //     if (!block) return;
+            const block = dragHandle.closest('.block');
+            if (!block) return;
 
-        //     // Start dragging
-        //     isDragging = true;
-        //     currentBlock = block;
+            // Start dragging
+            isDragging = true;
+            currentBlock = block;
 
-        //     // Get current block position from its transform style
-        //     const transform = window.getComputedStyle(block).transform;
-        //     const matrix = new DOMMatrixReadOnly(transform);
-        //     blockStartX = matrix.m41;
-        //     blockStartY = matrix.m42;
+            // Get current block position from its transform style
+            const transform = window.getComputedStyle(block).transform;
+            const matrix = new DOMMatrixReadOnly(transform);
+            blockStartX = matrix.m41;
+            blockStartY = matrix.m42;
 
-        //     // Get mouse position in screen coordinates
-        //     startX = e.clientX;
-        //     startY = e.clientY;
+            // Get mouse position in screen coordinates
+            startX = e.clientX;
+            startY = e.clientY;
 
-        //     // Set cursor and add dragging class
-        //     document.body.style.cursor = 'grabbing';
-        //     block.classList.add('dragging');
-        //     block.style.zIndex = '1000';
+            // Set cursor and add dragging class
+            document.body.style.cursor = 'grabbing';
+            block.classList.add('dragging');
+            block.style.zIndex = '1000';
 
-        //     // Prevent default to avoid text selection
-        //     e.preventDefault();
-        // });
+            // Prevent default to avoid text selection
+            e.preventDefault();
+        });
 
         // Function to handle block mousemove event
         document.addEventListener('mousemove', function(e) {
