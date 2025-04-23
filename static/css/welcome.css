@@ -54,8 +54,8 @@
     font-size: 24px;
     color: var(--langchain-text-light);
     pointer-events: none;
-    display: flex;
-    align-items: center;
+    display: block;
+    height: 140px;
 }
 
 /* Placera info-texterna på specifika platser */
@@ -63,17 +63,25 @@
 .info-text:nth-child(2) {
     margin-top: 30px;
     top: 40px;
-    left: 70px;
+    left: 20px;
     text-align: left;
+}
+
+.info-text:nth-child(2) .text-content {
+    position: relative;
+    top: 10px;
+    left: 80px;
 }
 
 .info-text:nth-child(2)::before {
     content: '';
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    margin-right: 8px;
-    /* background-image: url('/static/images/icons/handup.svg'); */
+    display: block;
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-image: url('/static/images/icons/arrow_upLeft.png');
     background-size: contain;
     background-repeat: no-repeat;
 }
@@ -81,37 +89,57 @@
 /* Höger sida - exportknappen */
 .info-text:nth-child(3) {
     margin-top: 70px;
-    top: 40px;
-    right: 70px;
+    top: 10px;
+    right: 25px;
     text-align: right;
+}
+
+.info-text:nth-child(3) .text-content {
+    position: relative;
+    top: 10px;
+    right: 80px;
+    z-index: 2;
 }
 
 .info-text:nth-child(3)::after {
     content: '';
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    margin-left: 8px;
-    /* background-image: url('/static/images/icons/handup.svg'); */
+    display: block;
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-image: url('/static/images/icons/arrow_upRight.png');
     background-size: contain;
     background-repeat: no-repeat;
+    z-index: 1;
 }
 
 /* Botten - zoom/expand knappen */
 .info-text:nth-child(4) {
-    margin-bottom: 20px;
-    bottom: 5px;
-    left: 65px;
+    margin-bottom: 10px;
+    bottom: -10px;
+    left: 20px;
     text-align: left;
+    display: block;
+    height: 140px;
+}
+
+.info-text:nth-child(4) .text-content {
+    position: relative;
+    bottom: -35px;
+    left: 80px;
 }
 
 .info-text:nth-child(4)::before {
     content: '';
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    margin-right: 8px;
-    /* background-image: url('/static/images/icons/handleft.svg'); */
+    display: block;
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background-image: url('/static/images/icons/arrow_down.png');
     background-size: contain;
     background-repeat: no-repeat;
 }
