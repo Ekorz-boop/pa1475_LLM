@@ -8,6 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/blocks.css">
     <link rel="stylesheet" href="/static/css/block_content.css">
@@ -18,6 +21,7 @@
     <link rel="stylesheet" href="/static/css/custom-block-modal.css">
     <link rel="stylesheet" href="/static/css/custom-blocks.css">
     <link rel="stylesheet" href="/static/css/dark-mode.css">
+    <link rel="stylesheet" href="/static/css/welcome.css">
 </head>
 
 <body>
@@ -39,10 +43,6 @@
                     <!-- Main Menu Content -->
                     <div class="menu-content" id="main-menu-content">
                         <div class="menu-section">
-                            <div class="menu-item" data-menu="dashboard">
-                                <img src="/static/images/icons/Dashboard.svg" alt="Dashboard">
-                                <span>Dashboard</span>
-                            </div>
                             <div class="menu-item" data-menu="blocks">
                                 <img src="/static/images/icons/Blocks.svg" alt="Blocks">
                                 <span>Blocks</span>
@@ -100,17 +100,6 @@
                         </div>
                     </div>
 
-                    <!-- Dashboard Content -->
-                    <div class="menu-content" id="dashboard-content">
-                        <div class="content-header">
-                            <button class="back-button">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: rgba(0, 0, 0, 1)"><path d="M21 11H6.414l5.293-5.293-1.414-1.414L2.586 12l7.707 7.707 1.414-1.414L6.414 13H21z"></path></svg>
-                            </button>
-                            <h3>Dashboard</h3>
-                        </div>
-                        <!-- Dashboard specific content -->
-                    </div>
-
                     <!-- Blocks Content -->
                     <div class="menu-content" id="blocks-content">
                         <div class="content-header">
@@ -157,16 +146,30 @@
                 </div>
             </div>
             <div id="canvas">
-                <button id="run-all" class="run-button" title="Run Pipeline">
-                    <img src="/static/images/icons/run.svg" alt="Run Pipeline">
-                </button>
-                <div class="debug-mode-container" title="Enable to run partial pipelines for debugging">
-                    <input type="checkbox" id="debug-mode">
-                    <label for="debug-mode">Debug Mode</label>
-                </div>
                 <button id="export-pipeline" class="export-button" title="Export Pipeline">
                     <img src="/static/images/icons/export.svg" alt="Export Pipeline">
                 </button>
+                <button id="run-all" class="run-button" title="Run Pipeline" style="display: none;">
+                    <img src="/static/images/icons/run.svg" alt="Run Pipeline">
+                </button>
+                <div class="debug-mode-container" title="Enable to run partial pipelines for debugging" style="display: none;">
+                    <input type="checkbox" id="debug-mode">
+                    <label for="debug-mode">Debug Mode</label>
+                </div>
+                
+                <!-- Welcome Screen -->
+                <div id="simple-welcome">
+                    <div class="welcome-container">
+                        <div class="center-content">
+                            <h1 class="title">RAGgie</h1>
+                            <p class="subtitle">Create, test and export your RAG pipelines easily</p>
+                        </div>
+                        <p class="info-text"><span class="text-content">Blocks, Templates and canvas customization</span></p>
+                        <p class="info-text"><span class="text-content">Export and download pipeline to python</span></p>
+                        <p class="info-text"><span class="text-content">Fit to view</span></p>
+                    </div>
+                </div>
+                
                 <div class="canvas-container">
                     <div class="canvas-grid"></div>
                     <svg id="connections"></svg>
@@ -217,6 +220,7 @@
     <script src="/static/js/app.js"></script>
     <script src="/static/js/docstring-handler.js"></script>
     <script src="/static/js/custom-block-handler.js"></script>
+    <script src="/static/js/welcome.js"></script>
 
     <!-- Add this right after the body opening tag -->
     <div id="notification-system">

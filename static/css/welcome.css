@@ -1,0 +1,167 @@
+#simple-welcome {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    background-color: transparent;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+.welcome-container {
+    text-align: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    pointer-events: none;
+}
+
+.center-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 100%;
+    pointer-events: none;
+}
+
+.title {
+    font-family: "Caveat", cursive;
+    font-size: 72px;
+    font-weight: 700;
+    color: var(--langchain-primary);
+    margin-bottom: 16px;
+}
+
+.subtitle {
+    font-family: "Caveat", cursive;
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--langchain-text-light);
+    margin-bottom: 40px;
+    white-space: nowrap;
+}
+
+.info-text {
+    position: absolute;
+    font-family: "Caveat", cursive;
+    font-size: 24px;
+    color: var(--langchain-text-light);
+    pointer-events: none;
+    display: block;
+    height: 140px;
+}
+
+/* Placera info-texterna på specifika platser */
+/* Vänster sida - hamburgermenyn */
+.info-text:nth-child(2) {
+    margin-top: 30px;
+    top: 40px;
+    left: 20px;
+    text-align: left;
+}
+
+.info-text:nth-child(2) .text-content {
+    position: relative;
+    top: 10px;
+    left: 80px;
+}
+
+.info-text:nth-child(2)::before {
+    content: '';
+    display: block;
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-image: url('/static/images/icons/arrow_upLeft.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+/* Höger sida - exportknappen */
+.info-text:nth-child(3) {
+    margin-top: 70px;
+    top: 10px;
+    right: 25px;
+    text-align: right;
+}
+
+.info-text:nth-child(3) .text-content {
+    position: relative;
+    top: 10px;
+    right: 80px;
+    z-index: 2;
+}
+
+.info-text:nth-child(3)::after {
+    content: '';
+    display: block;
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-image: url('/static/images/icons/arrow_upRight.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    z-index: 1;
+}
+
+/* Botten - zoom/expand knappen */
+.info-text:nth-child(4) {
+    margin-bottom: 10px;
+    bottom: -10px;
+    left: 20px;
+    text-align: left;
+    display: block;
+    height: 140px;
+}
+
+.info-text:nth-child(4) .text-content {
+    position: relative;
+    bottom: -35px;
+    left: 80px;
+}
+
+.info-text:nth-child(4)::before {
+    content: '';
+    display: block;
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background-image: url('/static/images/icons/arrow_down.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+
+.dark-mode .welcome-container {
+    background-color: var(--background-color);
+}
+
+.dark-mode .title {
+    color: var(--langchain-primary);
+}
+
+.dark-mode .subtitle {
+    color: var(--langchain-white);
+}
+
+.dark-mode .info-text {
+    color: var(--langchain-white);
+}

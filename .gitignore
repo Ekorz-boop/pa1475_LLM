@@ -49,3 +49,4 @@ db.sqlite3
 Thumbs.db
 
 static/css/blocks_old.css
+generated_pipeline.py
