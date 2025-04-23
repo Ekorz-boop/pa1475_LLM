@@ -904,8 +904,7 @@ class CustomBlockHandler {
             
             // Determine if the parameter is likely a file path
             const isFilePath = param.name.toLowerCase().includes('file') || 
-                               param.name.toLowerCase().includes('path') || 
-                               (param.type && param.type.toLowerCase().includes('str'));
+                               param.name.toLowerCase().includes('path');
             
             // Create input field with parameter details
             html += `
@@ -1418,10 +1417,6 @@ let customBlockHandler = null;
 
 // Initialize custom blocks when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Load saved custom blocks (commented out atm)
-    // loadCustomBlocks();
-    // updateCustomBlocksSectionHeaderVisibility();
-
     // Add event listener to clear sessionStorage on page unload
     window.addEventListener('beforeunload', () => {
         // Clear all custom block data on page refresh or close
@@ -1815,8 +1810,6 @@ function populateMethodsForBlock(block, className, blockId) {
             }
         }
     }
-
-    // Event listener for method selection is already added in createCustomBlock
 }
 
 // Helper function to find module info for a class from sessionStorage
@@ -2233,9 +2226,7 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
 
     // Check if this parameter might be a file path
     const isFilePath = paramName.toLowerCase().includes('file') || 
-                       paramName.toLowerCase().includes('path') ||
-                       (paramInfo && paramInfo.type && 
-                        paramInfo.type.toLowerCase().includes('str'));
+                       paramName.toLowerCase().includes('path');
 
     // Create input container for file path parameters
     const inputContainer = document.createElement('div');
@@ -2324,27 +2315,6 @@ function saveParameterValue(blockId, paramName, value) {
             console.warn('Error saving parameter value:', e);
         }
     }
-}
-
-// // Helper function to add an empty parameter row with text input
-function addEmptyParameterRow(container) {
-    const paramRow = document.createElement('div');
-    paramRow.className = 'parameter-row';
-    paramRow.innerHTML = `
-        <input type="text" class="param-name" placeholder="wrong">
-        <input type="text" class="param-value" placeholder="Value">
-        <button class="remove-param-btn">×</button>
-    `;
-
-    // Add event listener for remove button
-    const removeBtn = paramRow.querySelector('.remove-param-btn');
-    removeBtn.addEventListener('click', () => {
-        paramRow.remove();
-    });
-
-
-    container.appendChild(paramRow);
-    return paramRow;
 }
 
 // Create a namespace for file handling functionality
