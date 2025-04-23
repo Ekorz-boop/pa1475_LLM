@@ -34,19 +34,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
-    
+
     // Handle theme option clicks
     if (themeOptions) {
         themeOptions.forEach(option => {
             option.addEventListener('click', () => {
                 const theme = option.dataset.theme;
-                
+
                 // Remove active class from all options
                 themeOptions.forEach(opt => opt.classList.remove('active'));
-                
+
                 // Add active class to clicked option
                 option.classList.add('active');
-                
+
                 // Apply theme
                 if (theme === 'dark') {
                     document.body.classList.add('dark-mode');
@@ -62,18 +62,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     localStorage.removeItem('darkMode');
                 }
-                
+
                 localStorage.setItem('theme', theme);
             });
         });
     }
-    
+
     // Initialize sidebar state from localStorage
     const sidebarExpanded = localStorage.getItem('sidebarExpanded') === 'true';
     if (sidebarExpanded) {
         sidebar.classList.add('expanded');
     }
-    
+
     // Handle sidebar toggle
     sidebarToggle.addEventListener('click', () => {
         sidebar.classList.toggle('expanded');
@@ -94,21 +94,34 @@ document.addEventListener('DOMContentLoaded', () => {
         customBlockHandler.showModal();
     });
 
+    // Add export button handler
+    const exportButton = document.getElementById('export-pipeline');
+    console.log('Export button found:', exportButton); // Debug log
+    if (exportButton) {
+        exportButton.addEventListener('click', () => {
+            console.log('Export button clicked'); // Debug log
+            exportPipeline();
+        });
+    } else {
+        console.error('Export button not found in the DOM'); // Debug log
+    }
+
+
     // Handle menu item clicks
     menuItems.forEach(item => {
         item.addEventListener('click', () => {
             const menuType = item.dataset.menu;
-            
+
             // Hide all content sections
             document.querySelectorAll('.menu-content').forEach(content => {
                 content.classList.remove('active');
             });
-            
+
             // Show the selected content section
             const selectedContent = document.getElementById(`${menuType}-content`);
             if (selectedContent) {
                 selectedContent.classList.add('active');
-                
+
                 // Add submenu-open class to sidebar and main-menu when not on main menu
                 if (menuType !== 'main-menu') {
                     sidebar.classList.add('submenu-open');
@@ -118,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     mainMenu.classList.remove('submenu-open');
                 }
             }
-            
+
             // Update active state of menu items
             menuItems.forEach(i => i.classList.remove('active'));
             item.classList.add('active');
@@ -132,13 +145,13 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.menu-content').forEach(content => {
                 content.classList.remove('active');
             });
-            
+
             // Show main menu content
             document.getElementById('main-menu-content').classList.add('active');
-            
+
             // Remove active state from all menu items
             menuItems.forEach(item => item.classList.remove('active'));
-            
+
             // Remove submenu-open class
             sidebar.classList.remove('submenu-open');
             mainMenu.classList.remove('submenu-open');
@@ -151,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             // Ensure sidebar is expanded when clicking a menu item
             if (!sidebar.classList.contains('expanded')) {
                 sidebar.classList.add('expanded');
@@ -177,11 +190,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Open selected sub-menu
             if (targetMenu) {
                 targetMenu.classList.add('active');
-                
+
                 // Position the sub-menu properly
                 const menuRect = mainMenu.getBoundingClientRect();
                 targetMenu.style.top = `${menuRect.top}px`;
-                
+
                 // Adjust left position based on sidebar state
                 if (sidebar.classList.contains('expanded')) {
                     targetMenu.style.left = `${menuRect.right + 10}px`;
@@ -195,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize canvas background color from localStorage
     const savedBgColor = localStorage.getItem('canvasBgColor') || 'default';
     canvas.setAttribute('data-bg-color', savedBgColor);
-    
+
     // Set active class on the saved background color option
     if (bgColorOptions) {
         bgColorOptions.forEach(option => {
@@ -205,22 +218,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
     // Handle background color option clicks
     if (bgColorOptions) {
         bgColorOptions.forEach(option => {
             option.addEventListener('click', () => {
                 const color = option.dataset.color;
-                
+
                 // Remove active class from all options
                 bgColorOptions.forEach(opt => opt.classList.remove('active'));
-                
+
                 // Add active class to clicked option
                 option.classList.add('active');
-                
+
                 // Apply color to canvas
                 canvas.setAttribute('data-bg-color', color);
-                
+
                 // Save color preference
                 localStorage.setItem('canvasBgColor', color);
             });
@@ -359,122 +372,207 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add pipeline validation function
     function validatePipeline() {
+        // Check if there are any blocks at all
         const blocks = document.querySelectorAll('.block');
+
+        // Check if there are any blocks at all
         if (blocks.length === 0) {
-            return { valid: false, error: 'Pipeline is empty. Add some blocks first.' };
+            return {
+                valid: false,
+                error: 'Pipeline is empty. Add some blocks first.'
+            };
         }
-
-        // Check if debug mode is enabled
-        const debugMode = document.getElementById('debug-mode')?.checked || false;
-
-        if (debugMode) {
-            console.log("Debug mode is enabled - relaxing pipeline validation rules");
-            // In debug mode, we relax the requirement for specific block types
-            // but still check that there's at least one block
-            return { valid: true, debug: true };
-        }
-
-        // Normal validation when not in debug mode
-        // Check for required block types
-        const blockTypes = Array.from(blocks).map(b => b.getAttribute('data-block-type'));
-        const hasVectorStore = blockTypes.includes('vector_store');
-        const hasAIModel = blockTypes.includes('ai_model');
-
-        if (!hasVectorStore) {
-            return { valid: false, error: 'Pipeline must include a Vector Store block.' };
-        }
-        if (!hasAIModel) {
-            return { valid: false, error: 'Pipeline must include an AI Model block.' };
-        }
-
-        // Check connections
-        for (const block of blocks) {
-            const inputNodes = block.querySelectorAll('.input-node');
-            for (const inputNode of inputNodes) {
-                const hasConnection = connections.some(conn =>
-                    conn.target === block.id && conn.inputId === inputNode.getAttribute('data-input')
-                );
-                if (!hasConnection) {
-                    const blockType = block.getAttribute('data-block-type');
-                    const inputType = inputNode.getAttribute('data-input');
-                    return {
-                        valid: false,
-                        error: `${blockType} block is missing connection for ${inputType} input.`
-                    };
-                }
-            }
-        }
-
-        return { valid: true };
+        // If blocks are present, the pipeline is valid
+        return {
+            valid: true
+        };
     }
 
     // Update the exportPipeline function
+    // Update the exportPipeline function
     async function exportPipeline() {
-        showProgress(true, 'Exporting Pipeline', 'Collecting block configurations...');
+        // Show progress indicator
+        showProgress(true, 'Exporting Pipeline', 'Validating pipeline');
+
+        // Validate the pipeline
+        const validationResult = validatePipeline();
+        if (!validationResult.valid) {
+            showProgress(false);
+            showToast(validationResult.error, 'error');
+            return;
+        }
+
+        updateProgress(25, 'Collecting block configurations');
 
         try {
-            // Validate pipeline first
-            const validationResult = validatePipeline();
-            if (!validationResult.valid) {
-                showToast(validationResult.error, 'error');
-                showProgress(false);
-                return;
-            }
+            // Get the block configurations and connections
+            const blockConfigs = {};
+            document.querySelectorAll('.block').forEach(block => {
+                const blockId = block.getAttribute('id');
+                const blockType = block.getAttribute('data-block-type');
 
-            // Get all blocks and their configurations
-            const blocks = document.querySelectorAll('.block');
-            const blockData = {};
-            let processedBlocks = 0;
+                // For custom blocks, include the full module path and class name
+                let finalBlockType = blockType;
+                if (blockType === 'custom') {
+                    const className = block.getAttribute('data-class-name');
 
-            for (const block of blocks) {
-                const id = block.id;
-                const type = block.getAttribute('data-block-type');
+                    // Find module info from sessionStorage to get the full path
+                    let moduleInfo = null;
 
-                updateProgress(
-                    (processedBlocks / blocks.length) * 50,
-                    `Processing ${type} configuration...`
-                );
+                    // First try to find in customBlocks array in sessionStorage
+                    try {
+                        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                        const blockData = customBlocks.find(b => b.className === className || b.id === blockId);
+                        if (blockData && blockData.moduleInfo) {
+                            moduleInfo = blockData.moduleInfo;
+                        }
+                    } catch (e) {
+                        console.warn('Error finding module info in sessionStorage:', e);
+                    }
 
-                blockData[id] = {
-                    type: type,
-                    config: getBlockConfig(block)
+                    // If not found, try localStorage as a fallback
+                    if (!moduleInfo) {
+                        try {
+                            const localStorageData = JSON.parse(localStorage.getItem('customBlocks') || '[]');
+                            const localData = localStorageData.find(b => b.className === className);
+                            if (localData && localData.moduleInfo) {
+                                moduleInfo = localData.moduleInfo;
+                            }
+                        } catch (e) {
+                            console.warn('Error finding module info in localStorage:', e);
+                        }
+                    }
+
+                    // If we found module info, build the full path
+                    if (moduleInfo && moduleInfo.module) {
+                        finalBlockType = `custom_${moduleInfo.module}.${className}`;
+                        console.log(`Using full path for custom block: ${finalBlockType}`);
+                    } else {
+                        // Default to just using the class name
+                        finalBlockType = `custom_${className}`;
+                        console.log(`Using just class name for custom block: ${finalBlockType}`);
+                    }
+                }
+
+                // Get methods from sessionStorage if available
+                let methods = [];
+                try {
+                    const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                    const blockData = customBlocks.find(b => b.id === blockId);
+                    if (blockData && blockData.methods) {
+                        methods = blockData.methods;
+                    }
+                } catch (e) {
+                    console.warn('Error reading methods from sessionStorage:', e);
+                }
+
+                blockConfigs[blockId] = {
+                    id: blockId,
+                    type: finalBlockType,
+                    config: {
+                        ...getBlockConfig(block),
+                        methods: methods
+                    }
                 };
-                processedBlocks++;
-            }
+            });
 
-            updateProgress(75, 'Generating Python code...');
 
-            // Send to backend
+            updateProgress(50, 'Generating Python code');
+
+            // Call the export API
             const response = await fetch('/api/blocks/export', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    blocks: blockData,
+                    blocks: blockConfigs,
                     connections: connections,
-                    output_file: 'generated_rag.py'
-                })
+                    output_file: 'generated_pipeline.py'
+                }),
             });
 
-            const result = await response.json();
-
-            if (result.status === 'success') {
-                updateProgress(100, 'Export completed!');
-                setTimeout(() => {
-                    showProgress(false);
-                    showToast(
-                        `Pipeline exported successfully to ${result.file}! 🎉`,
-                        'success'
-                    );
-                }, 1000);
-            } else {
-                throw new Error(result.error);
+            if (!response.ok) {
+                throw new Error('Export failed: ' + (await response.text()));
             }
-        } catch (error) {
-            showToast(`Export failed: ${error.message}`, 'error');
+
+            const result = await response.json();
+            updateProgress(100, 'Export complete');
+
+            // Create a modal to display the code
+            const modal = document.createElement('div');
+            modal.className = 'code-preview-modal';
+            modal.innerHTML = `
+                <div class="code-preview-content">
+                    <div class="code-preview-header">
+                        <h3>Generated Python Code</h3>
+                        <button class="close-button">&times;</button>
+                    </div>
+                    <pre class="code-preview-body">${escapeHtml(result.code)}</pre>
+                    <div class="code-preview-footer">
+                        <button class="copy-button">Copy to Clipboard</button>
+                        <button class="save-button">Save as File</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Close modal when clicking the close button or outside the content
+            const closeButton = modal.querySelector('.close-button');
+            closeButton.addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+
+            // Copy to clipboard functionality
+            const copyButton = modal.querySelector('.copy-button');
+            copyButton.addEventListener('click', () => {
+                const codeText = result.code;
+                navigator.clipboard.writeText(codeText)
+                    .then(() => {
+                        showToast('Code copied to clipboard', 'success');
+                    })
+                    .catch(() => {
+                        showToast('Failed to copy code', 'error');
+                    });
+            });
+
+            // Save as file functionality
+            const saveButton = modal.querySelector('.save-button');
+            saveButton.addEventListener('click', () => {
+                const blob = new Blob([result.code], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'generated_pipeline.py';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 0);
+            });
+
             showProgress(false);
+            showToast('Code generated successfully', 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            showProgress(false);
+            showToast('Failed to generate code: ' + error.message, 'error');
         }
+    }
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // Update block processing function
@@ -651,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (blockType) {
             // Get the canvas rectangle
             const rect = canvas.getBoundingClientRect();
-            
+
             // Calculate position in canvas coordinates, accounting for zoom and transform
             // This is the key calculation that ensures accuracy at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom;
@@ -683,11 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     newBlock.classList.add('custom-block');
                 }
 
-                // Make block draggable
-                makeBlockDraggable(newBlock);
-
-                // Setup node connections
-                setupNodeConnections(newBlock);
+                setupCustomBlock(newBlock)
 
                 // Add to canvas
                 blockContainer.appendChild(newBlock);
@@ -712,9 +806,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Canvas pan functionality
+    // Canvas pan functionality  ---------------!!!THIS BREAKS THE METHOD DROPDOWN ON BLOCKS!!!---------------
     canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 0) { // Left mouse button only
+        if (e.button === 0 && !e.target.closest('select')) { // Left mouse button only
             isPanning = true;
             canvas.classList.add('grabbing');
             startPoint = {
@@ -745,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
-            
+
             // Calculate position relative to canvas, correctly accounting for zoom and pan
             // This calculation ensures the block stays under the cursor at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
@@ -806,14 +900,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (draggingConnection) {
-            const elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
-            if (elemUnderMouse && elemUnderMouse.classList.contains('input-node') && sourceNode) {
+            // Get the element under the mouse - be more thorough in checking for input nodes
+            let elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+            
+            // Search up for an input-node parent if element is a child of input-node
+            let inputNodeFound = null;
+            let currentElem = elemUnderMouse;
+            
+            // Check if it's directly an input-node or traverse up to find one
+            while (currentElem && !inputNodeFound) {
+                if (currentElem.classList && currentElem.classList.contains('input-node')) {
+                    inputNodeFound = currentElem;
+                    break;
+                }
+                // Try to find within node-label or tooltip-container which are children of input-node
+                if (currentElem.parentElement) {
+                    const parent = currentElem.parentElement;
+                    if (parent.classList && parent.classList.contains('input-node')) {
+                        inputNodeFound = parent;
+                        break;
+                    }
+                    // Check for tooltip-container parent
+                    if (parent.classList && parent.classList.contains('tooltip-container') && 
+                        parent.parentElement && parent.parentElement.classList.contains('input-node')) {
+                        inputNodeFound = parent.parentElement;
+                        break;
+                    }
+                }
+                currentElem = currentElem.parentElement;
+            }
+            
+            // If we found an input node and have a source node, create the connection
+            if (inputNodeFound && sourceNode) {
                 const sourceBlock = sourceNode.closest('.block');
-                const targetBlock = elemUnderMouse.closest('.block');
+                const targetBlock = inputNodeFound.closest('.block');
+                
                 if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
-                    const inputId = elemUnderMouse.getAttribute('data-input');
-                    removeConnectionsToInput(targetBlock.id, inputId);
-                    createConnection(sourceBlock, targetBlock, inputId);
+                    const inputId = inputNodeFound.getAttribute('data-input');
+                    if (inputId) {
+                        removeConnectionsToInput(targetBlock.id, inputId);
+                        createConnection(sourceBlock, targetBlock, inputId);
+                        console.log(`Created connection from ${sourceBlock.id} to ${targetBlock.id}:${inputId}`);
+                    }
                 }
             }
 
@@ -946,17 +1074,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 // This is critical for the block to stay at the correct position relative to cursor
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                
+
                 // Get the block's transform to find its real position
                 const transform = window.getComputedStyle(block).transform;
                 const matrix = new DOMMatrixReadOnly(transform);
                 const blockX = matrix.m41;
                 const blockY = matrix.m42;
-                
+
                 // Get mouse position in canvas coordinates
                 const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
                 const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
-                
+
                 // Calculate offset between mouse and block origin
                 dragOffset.x = mouseX - blockX;
                 dragOffset.y = mouseY - blockY;
@@ -1006,6 +1134,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                         hoveredInputNode = inputNode;
                         inputNode.classList.add('input-node-hover');
+                        // Add an effect to better visualize the potential connection
+                        if (tempConnection) {
+                            tempConnection.classList.add('connection-hover');
+                        }
                         e.stopPropagation();
                     }
                 }
@@ -1015,6 +1147,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hoveredInputNode === inputNode) {
                     hoveredInputNode = null;
                     inputNode.classList.remove('input-node-hover');
+                    // Remove the connection hover effect
+                    if (tempConnection) {
+                        tempConnection.classList.remove('connection-hover');
+                    }
                     e.stopPropagation();
                 }
             });
@@ -1417,7 +1553,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     managementButton.addEventListener('click', () => {
         managementPanel.classList.add('visible');
-        updateSystemStatus();
+        // updateSystemStatus();
     });
 
     managementPanel.querySelector('.close-button').addEventListener('click', () => {
@@ -1428,8 +1564,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionButtons = {
         'install-ollama': installOllama,
         'ollama-guide': showOllamaGuide,
-        'clear-temp': clearTemp,
-        'remove-models': removeModels
+        // 'clear-temp': clearTemp,
+        // 'remove-models': removeModels
     };
 
     Object.entries(actionButtons).forEach(([id, handler]) => {
@@ -1440,8 +1576,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Check Ollama status periodically
-    checkOllamaStatus();
-    setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
+    // checkOllamaStatus();
+    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 
     function showOllamaGuide() {
         const system = navigator.platform.toLowerCase();
@@ -1470,26 +1606,26 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('How to Start Ollama:\n\n' + instructions);
     }
 
-    async function updateSystemStatus() {
-        try {
-            const response = await fetch('/api/system/status');
-            const data = await response.json();
-            const ollamaStatus = document.getElementById('ollama-status');
+    // async function updateSystemStatus() {
+    //     try {
+    //         const response = await fetch('/api/system/status');
+    //         const data = await response.json();
+    //         const ollamaStatus = document.getElementById('ollama-status');
 
-            if (data.ollama_status === 'running') {
-                ollamaStatus.textContent = 'Running';
-                ollamaStatus.className = 'status-value running';
-                // Update both models list and model selectors
-                await Promise.all([updateModelsList(), updateModelSelectors()]);
-            } else {
-                ollamaStatus.textContent = 'Not Running';
-                ollamaStatus.className = 'status-value not-running';
-                document.getElementById('ollama-models').innerHTML = 'Ollama must be running to view models';
-            }
-        } catch (error) {
-            console.error('Failed to check Ollama status:', error);
-        }
-    }
+    //         if (data.ollama_status === 'running') {
+    //             ollamaStatus.textContent = 'Running';
+    //             ollamaStatus.className = 'status-value running';
+    //             // Update both models list and model selectors
+    //             await Promise.all([updateModelsList(), updateModelSelectors()]);
+    //         } else {
+    //             ollamaStatus.textContent = 'Not Running';
+    //             ollamaStatus.className = 'status-value not-running';
+    //             document.getElementById('ollama-models').innerHTML = 'Ollama must be running to view models';
+    //         }
+    //     } catch (error) {
+    //         console.error('Failed to check Ollama status:', error);
+    //     }
+    // }
 
     function updateStatusDisplay(elementId, status) {
         const element = document.getElementById(elementId);
@@ -1549,7 +1685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Failed to install Ollama: ' + error.message);
         } finally {
             button.disabled = false;
-            updateSystemStatus();
+            // updateSystemStatus();
         }
     }
 
@@ -1559,24 +1695,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const openManagementBtn = document.getElementById('open-management');
     const closeNotificationBtn = document.querySelector('.close-notification');
 
-    function checkOllamaStatus() {
-        fetch('/api/system/status')
-            .then(response => response.json())
-            .then(data => {
-                if (data.ollama_status === 'not_running') {
-                    notificationBanner.classList.remove('notification-hidden');
-                    topBar.classList.add('with-notification');
-                } else {
-                    notificationBanner.classList.add('notification-hidden');
-                    topBar.classList.remove('with-notification');
-                }
-            });
-    }
+    // function checkOllamaStatus() {
+    //     fetch('/api/system/status')
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             if (data.ollama_status === 'not_running') {
+    //                 notificationBanner.classList.remove('notification-hidden');
+    //                 topBar.classList.add('with-notification');
+    //             } else {
+    //                 notificationBanner.classList.add('notification-hidden');
+    //                 topBar.classList.remove('with-notification');
+    //             }
+    //         });
+    // }
 
     openManagementBtn.addEventListener('click', () => {
         const managementPanel = document.getElementById('system-management');
         managementPanel.classList.add('visible');
-        updateSystemStatus();
+        // updateSystemStatus();
     });
 
     closeNotificationBtn.addEventListener('click', () => {
@@ -1585,8 +1721,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Check Ollama status periodically
-    checkOllamaStatus();
-    setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
+    // checkOllamaStatus();
+    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 
     async function updateModelsList() {
         try {
@@ -1657,7 +1793,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Add export button handler
-    const exportButton = document.getElementById('export-pipeline');
     exportButton.addEventListener('click', exportPipeline);
 
     function getBlockConfig(block) {
@@ -1719,6 +1854,66 @@ document.addEventListener('DOMContentLoaded', () => {
                             config.prompt = config.prompt.replace('{context}', contextBlock.dataset.output || '');
                         }
                     }
+                }
+                break;
+            case 'custom':
+                // For custom blocks, get the selected method
+                const methodSelect = block.querySelector('.method-select');
+                if (methodSelect && methodSelect.value) {
+                    config.selected_method = methodSelect.value;
+                }
+
+                // Get any parameter values - support both dropdown and text input
+                const paramRows = block.querySelectorAll('.parameter-row');
+                if (paramRows.length > 0) {
+                    config.parameters = {};
+
+                    paramRows.forEach(row => {
+                        // Check for dropdown parameter selector first (new style)
+                        const nameDropdown = row.querySelector('.param-name-select');
+                        const nameInput = row.querySelector('.param-name');
+                        const valueInput = row.querySelector('.param-value');
+
+                        let paramName = '';
+                        if (nameDropdown && nameDropdown.value) {
+                            paramName = nameDropdown.value;
+                        } else if (nameInput && nameInput.value) {
+                            paramName = nameInput.value;
+                        }
+
+                        if (paramName && valueInput) {
+                            config.parameters[paramName] = valueInput.value;
+                        }
+                    });
+                }
+
+                // Get the class name
+                const className = block.getAttribute('data-class-name');
+                if (className) {
+                    config.class_name = className;
+                }
+
+                // Try to get methods from sessionStorage
+                try {
+                    const blockId = block.id;
+                    const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                    const blockData = customBlocks.find(b => b.id === blockId);
+
+                    if (blockData && blockData.methods) {
+                        config.methods = blockData.methods;
+
+                        // If selected_method isn't already set, use the first method or __init__
+                        if (!config.selected_method) {
+                            const nonInitMethods = blockData.methods.filter(m => m !== '__init__');
+                            if (nonInitMethods.length > 0) {
+                                config.selected_method = nonInitMethods[0];
+                            } else if (blockData.methods.includes('__init__')) {
+                                config.selected_method = '__init__';
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Error getting methods from sessionStorage:', e);
                 }
                 break;
         }
@@ -1820,17 +2015,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 // This is critical for the block to stay at the correct position relative to cursor
                 const rect = block.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
-                
+
                 // Get the block's transform to find its real position
                 const transform = window.getComputedStyle(block).transform;
                 const matrix = new DOMMatrixReadOnly(transform);
                 const blockX = matrix.m41;
                 const blockY = matrix.m42;
-                
+
                 // Get mouse position in canvas coordinates
                 const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
                 const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
-                
+
                 // Calculate offset between mouse and block origin
                 dragOffset.x = mouseX - blockX;
                 dragOffset.y = mouseY - blockY;
@@ -1882,6 +2077,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                         hoveredInputNode = inputNode;
                         inputNode.classList.add('input-node-hover');
+                        // Add an effect to better visualize the potential connection
+                        if (tempConnection) {
+                            tempConnection.classList.add('connection-hover');
+                        }
                         e.stopPropagation();
                     }
                 }
@@ -1891,6 +2090,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hoveredInputNode === inputNode) {
                     hoveredInputNode = null;
                     inputNode.classList.remove('input-node-hover');
+                    // Remove the connection hover effect
+                    if (tempConnection) {
+                        tempConnection.classList.remove('connection-hover');
+                    }
                     e.stopPropagation();
                 }
             });
@@ -1995,7 +2198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Calculate the bounds of all blocks in their current positions
             let minX = Infinity, minY = Infinity;
             let maxX = -Infinity, maxY = -Infinity;
-            
+
             blocks.forEach(block => {
                 // Get block position from transform
                 const transform = block.style.transform;
@@ -2005,51 +2208,51 @@ document.addEventListener('DOMContentLoaded', () => {
                     const y = parseFloat(match[2]);
                     const width = block.offsetWidth;
                     const height = block.offsetHeight;
-                    
+
                     minX = Math.min(minX, x);
                     minY = Math.min(minY, y);
                     maxX = Math.max(maxX, x + width);
                     maxY = Math.max(maxY, y + height);
                 }
             });
-            
+
             if (minX === Infinity) {
                 console.log("Could not determine block bounds");
                 return;
             }
-            
+
             // Add padding
             const padding = 50;
             minX -= padding;
             minY -= padding;
             maxX += padding;
             maxY += padding;
-            
+
             // Calculate dimensions
             const width = maxX - minX;
             const height = maxY - minY;
             const centerX = minX + (width / 2);
             const centerY = minY + (height / 2);
-            
+
             // Calculate scale to fit
             const canvasWidth = canvas.offsetWidth;
             const canvasHeight = canvas.offsetHeight;
             const scaleX = canvasWidth / width;
             const scaleY = canvasHeight / height;
             const newZoom = Math.min(scaleX, scaleY, 1.5);
-            
+
             // Important: Just like the zoom buttons, ONLY update these two variables
             // and let updateCanvasTransform do all the work
             zoom = newZoom;
             currentTranslate.x = (canvasWidth / 2) - (centerX * zoom);
             currentTranslate.y = (canvasHeight / 2) - (centerY * zoom);
-            
+
             // Do NOT set any global flags or variables that might interfere with the
             // well-functioning drag and drop functionality
-            
+
             // Use the same function that the zoom buttons use
             updateCanvasTransform();
-            
+
             showToast("Adjusted view to fit all blocks", "success");
         } catch (e) {
             console.error("Error in fitAllBlocksToView:", e);
@@ -2063,39 +2266,39 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentBlock = null;
         let startX, startY;
         let blockStartX, blockStartY;
-        
+
         // Function to handle block mousedown event
-        document.addEventListener('mousedown', function(e) {
-            // Check if target is a block drag handle
-            const dragHandle = e.target.closest('.block-drag-handle');
-            if (!dragHandle) return;
-            
-            const block = dragHandle.closest('.block');
-            if (!block) return;
-            
-            // Start dragging
-            isDragging = true;
-            currentBlock = block;
-            
-            // Get current block position from its transform style
-            const transform = window.getComputedStyle(block).transform;
-            const matrix = new DOMMatrixReadOnly(transform);
-            blockStartX = matrix.m41;
-            blockStartY = matrix.m42;
-            
-            // Get mouse position in screen coordinates
-            startX = e.clientX;
-            startY = e.clientY;
-            
-            // Set cursor and add dragging class
-            document.body.style.cursor = 'grabbing';
-            block.classList.add('dragging');
-            block.style.zIndex = '1000';
-            
-            // Prevent default to avoid text selection
-            e.preventDefault();
-        });
-        
+        // document.addEventListener('mousedown', function(e) {
+        //     // Check if target is a block drag handle
+        //     const dragHandle = e.target.closest('.block-drag-handle');
+        //     if (!dragHandle) return;
+
+        //     const block = dragHandle.closest('.block');
+        //     if (!block) return;
+
+        //     // Start dragging
+        //     isDragging = true;
+        //     currentBlock = block;
+
+        //     // Get current block position from its transform style
+        //     const transform = window.getComputedStyle(block).transform;
+        //     const matrix = new DOMMatrixReadOnly(transform);
+        //     blockStartX = matrix.m41;
+        //     blockStartY = matrix.m42;
+
+        //     // Get mouse position in screen coordinates
+        //     startX = e.clientX;
+        //     startY = e.clientY;
+
+        //     // Set cursor and add dragging class
+        //     document.body.style.cursor = 'grabbing';
+        //     block.classList.add('dragging');
+        //     block.style.zIndex = '1000';
+
+        //     // Prevent default to avoid text selection
+        //     e.preventDefault();
+        // });
+
         // Function to handle block mousemove event
         document.addEventListener('mousemove', function(e) {
             if (!isDragging || !currentBlock) return;
@@ -2103,14 +2306,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // Calculate the mouse movement delta in screen coordinates
             const deltaX = e.clientX - startX;
             const deltaY = e.clientY - startY;
-            
+
             // Apply the delta, adjusted for zoom level to maintain proper scaling
             const newX = blockStartX + (deltaX / zoom);
             const newY = blockStartY + (deltaY / zoom);
-            
+
             // Apply the new position
             currentBlock.style.transform = `translate(${newX}px, ${newY}px)`;
-            
+
             // Update connections
             updateConnections();
         });
@@ -2118,7 +2321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Function to handle block mouseup event
         document.addEventListener('mouseup', function() {
             if (!isDragging) return;
-            
+
             isDragging = false;
             if (currentBlock) {
                 currentBlock.classList.remove('dragging');
@@ -2142,6 +2345,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, true);
     }
-});
 
+    // Function to ensure custom blocks have proper node setup
+    function setupCustomBlock(block) {
+        console.log('Setting up custom block:', block.id);
+
+        // Make sure the block is draggable
+        makeBlockDraggable(block);
+
+        // Set up node connections
+        setupNodeConnections(block);
+
+        // Position block on canvas if not already positioned
+        if (!block.style.transform) {
+            const canvas = document.querySelector('.canvas-container');
+            if (canvas) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const x = (Math.random() * 200) + 100;
+                const y = (Math.random() * 200) + 100;
+                block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+            }
+        }
+
+        return block;
+    }
+
+});
 

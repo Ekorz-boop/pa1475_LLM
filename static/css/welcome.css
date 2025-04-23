@@ -75,13 +75,11 @@
 
 .info-text:nth-child(2)::before {
     content: '';
-    display: block;
-    width: 100px;
-    height: 100px;
-    position: absolute;
-    top: 0;
-    left: 0;
-    background-image: url('/static/images/icons/arrow_upLeft.png');
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    /* background-image: url('/static/images/icons/handup.svg'); */
     background-size: contain;
     background-repeat: no-repeat;
 }
@@ -103,13 +101,11 @@
 
 .info-text:nth-child(3)::after {
     content: '';
-    display: block;
-    width: 100px;
-    height: 100px;
-    position: absolute;
-    top: 0;
-    right: 0;
-    background-image: url('/static/images/icons/arrow_upRight.png');
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    /* background-image: url('/static/images/icons/handup.svg'); */
     background-size: contain;
     background-repeat: no-repeat;
     z-index: 1;
@@ -133,13 +129,11 @@
 
 .info-text:nth-child(4)::before {
     content: '';
-    display: block;
-    width: 100px;
-    height: 100px;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    background-image: url('/static/images/icons/arrow_down.png');
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    /* background-image: url('/static/images/icons/handleft.svg'); */
     background-size: contain;
     background-repeat: no-repeat;
 }
