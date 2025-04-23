@@ -1175,17 +1175,6 @@ class CustomBlockHandler {
      * This is a helper method to find which library and module a class belongs to
      */
     findBlockData(className) {
-        // Default popular modules to check first
-        const popularModules = [
-            'langchain.document_loaders',
-            'langchain.text_splitter',
-            'langchain.embeddings',
-            'langchain.vectorstores',
-            'langchain.chains',
-            'langchain_community.document_loaders',
-            'langchain_community.embeddings',
-            'langchain_community.vectorstores'
-        ];
 
         // Try to find in localStorage if we've used this class before
         const customBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
@@ -1197,12 +1186,6 @@ class CustomBlockHandler {
                 module: existingBlock.moduleInfo.module
             };
         }
-
-        // If not found, return default values
-        return {
-            library: 'langchain_community',
-            module: 'langchain_community.document_loaders'
-        };
     }
 
     /**
@@ -1821,7 +1804,7 @@ function populateMethodsForBlock(block, className, blockId) {
                     }
                 });
         } else {
-            console.warn(`No module info found for ${blockId || className}, using default methods`);
+            console.warn(`No module info found for ${blockId || className}`);
 
             // Set first method as selected
             if (methodSelect.options.length > 1) {
