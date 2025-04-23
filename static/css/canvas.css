@@ -39,7 +39,7 @@ html, body {
     pointer-events: none;
     background-size: 40px 40px;
     background-image: 
-        radial-gradient(circle at 1px 1px, var(--langchain-border) 2px, transparent 0);
+        radial-gradient(circle at 1px 1px, var(--grid-dots-color) 2px, transparent 0);
     z-index: 1;
 }
 
@@ -106,7 +106,7 @@ html, body {
     overflow: hidden;
     background-size: 10px 10px;
     background-image: 
-        radial-gradient(circle at 1px 1px, var(--langchain-border) 1px, transparent 0);
+        radial-gradient(circle at 1px 1px, var(--grid-dots-color) 1px, transparent 0);
     z-index: 1000;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     transition: width 0.25s cubic-bezier(0.4,0,0.2,1), height 0.25s cubic-bezier(0.4,0,0.2,1);
@@ -194,6 +194,7 @@ html, body {
     --bg-light-yellow: #fffbe6;
     --bg-light-green: #e6ffe6;
     --bg-light-purple: #f3e6ff;
+    --grid-dots-color: #BBBBBB;  /* Slightly darker color for grid dots */
     
     /* Dark mode colors */
     --bg-dark-default: #2d2d2d;
