@@ -10,8 +10,6 @@ from blocks import (
 )
 import os
 
-# import sys
-
 app = Flask(__name__, static_folder="static")
 CORS(app)
 
@@ -184,7 +182,7 @@ def export_blocks():
                         self.component_type = "chains"
                     else:
                         # Default to a generic type
-                        self.component_type = "utility"
+                        self.component_type = "error"
 
                     # Set import string and function string
                     if self.module_path:
@@ -389,11 +387,6 @@ def generate_python_code(blocks, connections):
                                     # Special handling for specific loaders
                                     if (
                                         param_name == "file_path"
-                                        and (
-                                            class_name == "PyPDFLoader"
-                                            or class_name == "TextLoader"
-                                            or class_name == "CSVLoader"
-                                        )
                                         and block_id not in special_init_blocks
                                     ):
                                         # Mark this block as specially initialized
@@ -982,14 +975,6 @@ def get_langchain_class_details():
         # Get docstring
         docstring = inspect.getdoc(class_obj) or "No documentation available"
 
-        # Define embedding parameter mappings for fixing parameter names
-        embedding_param_mapping = {"embed_documents": "texts", "embed_query": "text"}
-
-        # Special patching for embedding classes to fix parameter names
-        is_embedding_class = (
-            "embedding" in module_path.lower() or "embed" in class_name.lower()
-        )
-
         # Get methods and patch them if needed
         methods = []
         method_names = []
@@ -1006,38 +991,11 @@ def get_langchain_class_details():
                 sig = inspect.signature(method)
                 parameters = []
 
-                # Handle special case for embeddings
-                if (
-                    is_embedding_class
-                    and name in embedding_param_mapping
-                    and "data" in sig.parameters
-                ):
-                    # Create new parameters dictionary with renamed parameter
-                    new_params = {}
-                    for param_name, param in sig.parameters.items():
-                        if param_name == "data":
-                            new_param_name = embedding_param_mapping[name]
-                            new_params[new_param_name] = param.replace(
-                                name=new_param_name
-                            )
-                        else:
-                            new_params[param_name] = param
-
-                    # Use corrected signature with mapped parameter names
-                    sig = sig.replace(parameters=new_params)
-
                 for param_name, param in sig.parameters.items():
                     # Skip self parameter
                     if param_name == "self":
                         continue
 
-                    # Use the correct parameter name for embeddings
-                    if (
-                        is_embedding_class
-                        and param_name == "data"
-                        and name in embedding_param_mapping
-                    ):
-                        param_name = embedding_param_mapping[name]
 
                     param_info = {
                         "name": param_name,
@@ -1074,154 +1032,31 @@ def get_langchain_class_details():
             "document_loader" in module_path.lower() or "loader" in class_name.lower()
         )
 
-        # Document loader special cases
-        if is_document_loader:
-            # PyPDFLoader - Override with correct parameters
-            if class_name == "PyPDFLoader":
-                print(f"Applying override parameters for {class_name}")
-                init_params = [
-                    {
-                        "name": "file_path",
-                        "required": True,
-                        "default": None,
-                        "type": "str",
-                    }
-                ]
-                # Return early to skip automatic parameter detection completely
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                # Create result with only the file_path parameter
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                # Cache the result
-                class_details_cache.set(cache_key, result)
-
-                return jsonify(result)
-            # TextLoader
-            elif class_name == "TextLoader":
-                init_params = [
-                    {
-                        "name": "file_path",
-                        "required": True,
-                        "default": None,
-                        "type": "str",
-                    },
-                    {
-                        "name": "encoding",
-                        "required": False,
-                        "default": "utf-8",
-                        "type": "str",
-                    },
-                ]
-                # Return early to skip automatic parameter detection
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                class_details_cache.set(cache_key, result)
-                return jsonify(result)
-            # CSVLoader
-            elif class_name == "CSVLoader":
-                init_params = [
-                    {
-                        "name": "file_path",
-                        "required": True,
-                        "default": None,
-                        "type": "str",
-                    },
-                    {
-                        "name": "csv_args",
-                        "required": False,
-                        "default": "{}",
-                        "type": "dict",
-                    },
-                ]
-                # Return early
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                class_details_cache.set(cache_key, result)
-                return jsonify(result)
-            # WebBaseLoader
-            elif class_name == "WebBaseLoader":
-                init_params = [
-                    {
-                        "name": "web_paths",
-                        "required": True,
-                        "default": None,
-                        "type": "List[str]",
-                    }
-                ]
-                # Return early
-                class_type = ["DocumentLoader"]
-                component_type = "document_loaders"
-
-                result = {
-                    "doc": docstring,
-                    "methods": method_names,
-                    "method_details": methods,
-                    "init_params": init_params,
-                    "class_type": class_type,
-                    "component_type": component_type,
-                }
-
-                class_details_cache.set(cache_key, result)
-                return jsonify(result)
-
         # If no fields found from Pydantic-style inspection, use regular signature inspection
         if not init_params:
             # Check if we have special parameter handling for this class
-            if is_document_loader:
-                # No special parameters by default
-                print(f"No special parameters defined for {class_name}")
-            else:
-                # Get the __init__ method signature
-                init_sig = inspect.signature(class_obj)
-                for param_name, param in init_sig.parameters.items():
-                    # Skip self parameter
-                    if param_name == "self":
-                        continue
+            # Get the __init__ method signature
+            init_sig = inspect.signature(class_obj)
+            for param_name, param in init_sig.parameters.items():
+                # Skip self parameter
+                if param_name == "self":
+                    continue
 
-                    param_info = {
-                        "name": param_name,
-                        "required": param.default == inspect.Parameter.empty,
-                        "default": (
-                            str(param.default)
-                            if param.default != inspect.Parameter.empty
-                            else None
-                        ),
-                        "type": (
-                            str(param.annotation)
-                            if param.annotation != inspect.Parameter.empty
-                            else "Any"
-                        ),
-                    }
-                    init_params.append(param_info)
+                param_info = {
+                    "name": param_name,
+                    "required": param.default == inspect.Parameter.empty,
+                    "default": (
+                        str(param.default)
+                        if param.default != inspect.Parameter.empty
+                        else None
+                    ),
+                    "type": (
+                        str(param.annotation)
+                        if param.annotation != inspect.Parameter.empty
+                        else "Any"
+                    ),
+                }
+                init_params.append(param_info)
 
         # Get class inheritance to determine type
         class_type = []
