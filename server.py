@@ -996,7 +996,6 @@ def get_langchain_class_details():
                     if param_name == "self":
                         continue
 
-
                     param_info = {
                         "name": param_name,
                         "required": param.default == inspect.Parameter.empty,
@@ -1026,11 +1025,6 @@ def get_langchain_class_details():
 
         # Get init parameters with special handling for document loaders and Pydantic models
         init_params = []
-
-        # Special handling for document loaders - applied before any automatic detection
-        is_document_loader = (
-            "document_loader" in module_path.lower() or "loader" in class_name.lower()
-        )
 
         # If no fields found from Pydantic-style inspection, use regular signature inspection
         if not init_params:
