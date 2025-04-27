@@ -68,12 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize sidebar state from localStorage
-    const sidebarExpanded = localStorage.getItem('sidebarExpanded') === 'true';
-    if (sidebarExpanded) {
-        sidebar.classList.add('expanded');
-    }
-
     // Handle sidebar toggle
     sidebarToggle.addEventListener('click', () => {
         sidebar.classList.toggle('expanded');
@@ -94,18 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
         customBlockHandler.showModal();
     });
 
-    // Add export button handler
     const exportButton = document.getElementById('export-pipeline');
-    console.log('Export button found:', exportButton); // Debug log
-    if (exportButton) {
-        exportButton.addEventListener('click', () => {
-            console.log('Export button clicked'); // Debug log
-            exportPipeline();
-        });
-    } else {
-        console.error('Export button not found in the DOM'); // Debug log
-    }
-
+    exportButton.addEventListener('click', () => { // This is what used to cause exportPipeline to run twice
+        exportPipeline()
+    })
 
     // Handle menu item clicks
     menuItems.forEach(item => {
@@ -242,7 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const connectionsContainer = document.getElementById('connections');
     const blockTemplates = document.querySelectorAll('.block-template');
-    const runAllButton = document.getElementById('run-all');
     const searchInput = document.getElementById('block-search');
     let blockCounter = 1;
     let connections = [];
@@ -288,11 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
     blockContainer.className = 'block-container';
     canvasContainer.appendChild(blockContainer);
 
-    // Run all blocks button
-    runAllButton.addEventListener('click', () => {
-        runPipeline();
-    });
-
     // Add these utility functions at the top of the file
     function showToast(message, type = 'info', duration = 3000) {
         const toast = document.createElement('div');
@@ -325,51 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Update the runPipeline function
-    async function runPipeline() {
-        showProgress(true, 'Running Pipeline', 'Analyzing pipeline structure...');
-        const blocks = document.querySelectorAll('.block');
-        const totalBlocks = blocks.length;
-        let processedBlocks = 0;
-
-        try {
-            // First validate the pipeline
-            const validationResult = validatePipeline();
-            if (!validationResult.valid) {
-                showToast(validationResult.error, 'error');
-                showProgress(false);
-                return;
-            }
-
-            // Process blocks in order
-            for (const block of blocks) {
-                const type = block.getAttribute('data-block-type');
-                updateProgress(
-                    (processedBlocks / totalBlocks) * 100,
-                    `Processing ${type} block...`
-                );
-
-                try {
-                    await processBlock(block);
-                    processedBlocks++;
-                } catch (error) {
-                    showToast(`Error in ${type} block: ${error.message}`, 'error');
-                    showProgress(false);
-                    return;
-                }
-            }
-
-            updateProgress(100, 'Pipeline completed successfully!');
-            setTimeout(() => {
-                showProgress(false);
-                showToast('Pipeline executed successfully!', 'success');
-            }, 1000);
-        } catch (error) {
-            showToast(`Pipeline error: ${error.message}`, 'error');
-            showProgress(false);
-        }
-    }
-
     // Add pipeline validation function
     function validatePipeline() {
         // Check if there are any blocks at all
@@ -388,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Update the exportPipeline function
     // Update the exportPipeline function
     async function exportPipeline() {
         // Show progress indicator
@@ -806,7 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Canvas pan functionality  ---------------!!!THIS BREAKS THE METHOD DROPDOWN ON BLOCKS!!!---------------
+    // Canvas pan functionality
     canvas.addEventListener('mousedown', (e) => {
         if (e.button === 0 && !e.target.closest('select')) { // Left mouse button only
             isPanning = true;
@@ -1539,35 +1473,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // System Management Panel
-    const managementButton = document.getElementById('management-button');
-    const managementPanel = document.getElementById('system-management');
-
-
-    if (!managementButton || !managementPanel) {
-        console.error('Management panel elements not found!');
-        return;
-    }
-
-    // Management panel event listeners
-
-    managementButton.addEventListener('click', () => {
-        managementPanel.classList.add('visible');
-        // updateSystemStatus();
-    });
-
-    managementPanel.querySelector('.close-button').addEventListener('click', () => {
-        managementPanel.classList.remove('visible');
-    });
-
-    // Initialize action buttons
-    const actionButtons = {
-        'install-ollama': installOllama,
-        'ollama-guide': showOllamaGuide,
-        // 'clear-temp': clearTemp,
-        // 'remove-models': removeModels
-    };
-
     Object.entries(actionButtons).forEach(([id, handler]) => {
         const button = document.getElementById(id);
         if (button) {
@@ -1575,222 +1480,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Check Ollama status periodically
-    // checkOllamaStatus();
-    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
-
-    function showOllamaGuide() {
-        const system = navigator.platform.toLowerCase();
-        let instructions = '';
-
-        if (system.includes('win')) {
-            instructions =
-                '1. Open the Start menu\n' +
-                '2. Search for "Ollama"\n' +
-                '3. Click on the Ollama application to start it\n\n' +
-                'Note: The Ollama icon should appear in your system tray when running.';
-        } else if (system.includes('mac')) {
-            instructions =
-                '1. Open Terminal (you can find it in Applications > Utilities)\n' +
-                '2. Type: ollama serve\n' +
-                '3. Press Enter\n\n' +
-                'Note: Keep the Terminal window open while using Ollama.';
-        } else {
-            instructions =
-                '1. Open a terminal\n' +
-                '2. Type: ollama serve\n' +
-                '3. Press Enter\n\n' +
-                'Note: Keep the terminal window open while using Ollama.';
-        }
-
-        alert('How to Start Ollama:\n\n' + instructions);
-    }
-
-    // async function updateSystemStatus() {
-    //     try {
-    //         const response = await fetch('/api/system/status');
-    //         const data = await response.json();
-    //         const ollamaStatus = document.getElementById('ollama-status');
-
-    //         if (data.ollama_status === 'running') {
-    //             ollamaStatus.textContent = 'Running';
-    //             ollamaStatus.className = 'status-value running';
-    //             // Update both models list and model selectors
-    //             await Promise.all([updateModelsList(), updateModelSelectors()]);
-    //         } else {
-    //             ollamaStatus.textContent = 'Not Running';
-    //             ollamaStatus.className = 'status-value not-running';
-    //             document.getElementById('ollama-models').innerHTML = 'Ollama must be running to view models';
-    //         }
-    //     } catch (error) {
-    //         console.error('Failed to check Ollama status:', error);
-    //     }
-    // }
-
-    function updateStatusDisplay(elementId, status) {
-        const element = document.getElementById(elementId);
-        element.className = 'status-value ' + status;
-
-        switch(status) {
-            case 'running':
-                element.textContent = 'Running';
-                break;
-            case 'not_running':
-                element.textContent = 'Not Running';
-                break;
-            case 'installed':
-                element.textContent = 'Installed';
-                break;
-            case 'not_installed':
-                element.textContent = 'Not Installed';
-                break;
-            case 'downloading':
-                element.textContent = 'Downloading...';
-                break;
-        }
-    }
-
-    function updateStorageDisplay(storage) {
-        document.getElementById('storage-usage').textContent =
-            formatBytes(storage.models_size);
-        document.getElementById('temp-files').textContent =
-            formatBytes(storage.temp_size);
-    }
-
-    function formatBytes(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    async function installOllama() {
-        const button = document.getElementById('install-ollama');
-        button.disabled = true;
-
-        try {
-            const response = await fetch('/api/system/install-ollama', {
-                method: 'POST'
-            });
-            const data = await response.json();
-
-            if (data.status === 'manual_install_required') {
-                window.open(data.download_url, '_blank');
-                alert('Please download and install Ollama from the opened page.');
-            } else if (data.status === 'success') {
-                alert('Ollama installed successfully! Please restart the application.');
-            }
-        } catch (error) {
-            alert('Failed to install Ollama: ' + error.message);
-        } finally {
-            button.disabled = false;
-            // updateSystemStatus();
-        }
-    }
-
     // Add notification handling
     const notificationBanner = document.getElementById('notification-banner');
     const topBar = document.getElementById('top-bar');
-    const openManagementBtn = document.getElementById('open-management');
     const closeNotificationBtn = document.querySelector('.close-notification');
-
-    // function checkOllamaStatus() {
-    //     fetch('/api/system/status')
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             if (data.ollama_status === 'not_running') {
-    //                 notificationBanner.classList.remove('notification-hidden');
-    //                 topBar.classList.add('with-notification');
-    //             } else {
-    //                 notificationBanner.classList.add('notification-hidden');
-    //                 topBar.classList.remove('with-notification');
-    //             }
-    //         });
-    // }
-
-    openManagementBtn.addEventListener('click', () => {
-        const managementPanel = document.getElementById('system-management');
-        managementPanel.classList.add('visible');
-        // updateSystemStatus();
-    });
 
     closeNotificationBtn.addEventListener('click', () => {
         notificationBanner.classList.add('notification-hidden');
         topBar.classList.remove('with-notification');
     });
-
-    // Check Ollama status periodically
-    // checkOllamaStatus();
-    // setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
-
-    async function updateModelsList() {
-        try {
-            const response = await fetch('/api/models/list');
-            const data = await response.json();
-            const modelsDiv = document.getElementById('ollama-models');
-
-            if (response.ok) {
-                if (data.models && data.models.length > 0) {
-                    modelsDiv.innerHTML = data.models.map(model => `
-                        <div class="model-item">
-                            <span class="model-name">${model.name}</span>
-                            <span class="model-size">${formatSize(model.size)}</span>
-                        </div>
-                    `).join('');
-                } else {
-                    modelsDiv.innerHTML = 'No models installed';
-                }
-            } else {
-                modelsDiv.innerHTML = data.error || 'Failed to load models';
-            }
-        } catch (error) {
-            document.getElementById('ollama-models').innerHTML = 'Failed to load models';
-            console.error('Failed to fetch models:', error);
-        }
-    }
-
-    function formatSize(bytes) {
-        if (!bytes) return 'N/A';
-        const units = ['B', 'KB', 'MB', 'GB'];
-        let size = bytes;
-        let unitIndex = 0;
-        while (size >= 1024 && unitIndex < units.length - 1) {
-            size /= 1024;
-            unitIndex++;
-        }
-        return `${size.toFixed(1)} ${units[unitIndex]}`;
-    }
-
-    // Add this function to update model selectors when models list changes
-    async function updateModelSelectors() {
-        try {
-            const response = await fetch('/api/models/list');
-            const data = await response.json();
-
-            if (response.ok && data.models) {
-                const modelSelectors = document.querySelectorAll('.model-selector');
-                modelSelectors.forEach(selector => {
-                    const currentValue = selector.value;
-                    // Clear existing options
-                    selector.innerHTML = '';
-                    // Add new options
-                    data.models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model.name;
-                        option.textContent = model.name;
-                        selector.appendChild(option);
-                    });
-                    // Try to restore previous selection
-                    if (data.models.some(m => m.name === currentValue)) {
-                        selector.value = currentValue;
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('Failed to update model selectors:', error);
-        }
-    }
 
     // Add export button handler
     exportButton.addEventListener('click', exportPipeline);
@@ -2268,36 +1966,36 @@ document.addEventListener('DOMContentLoaded', () => {
         let blockStartX, blockStartY;
 
         // Function to handle block mousedown event
-        // document.addEventListener('mousedown', function(e) {
-        //     // Check if target is a block drag handle
-        //     const dragHandle = e.target.closest('.block-drag-handle');
-        //     if (!dragHandle) return;
+        document.addEventListener('mousedown', function(e) {
+            // Check if target is a block drag handle
+            const dragHandle = e.target.closest('.block-drag-handle');
+            if (!dragHandle) return;
 
-        //     const block = dragHandle.closest('.block');
-        //     if (!block) return;
+            const block = dragHandle.closest('.block');
+            if (!block) return;
 
-        //     // Start dragging
-        //     isDragging = true;
-        //     currentBlock = block;
+            // Start dragging
+            isDragging = true;
+            currentBlock = block;
 
-        //     // Get current block position from its transform style
-        //     const transform = window.getComputedStyle(block).transform;
-        //     const matrix = new DOMMatrixReadOnly(transform);
-        //     blockStartX = matrix.m41;
-        //     blockStartY = matrix.m42;
+            // Get current block position from its transform style
+            const transform = window.getComputedStyle(block).transform;
+            const matrix = new DOMMatrixReadOnly(transform);
+            blockStartX = matrix.m41;
+            blockStartY = matrix.m42;
 
-        //     // Get mouse position in screen coordinates
-        //     startX = e.clientX;
-        //     startY = e.clientY;
+            // Get mouse position in screen coordinates
+            startX = e.clientX;
+            startY = e.clientY;
 
-        //     // Set cursor and add dragging class
-        //     document.body.style.cursor = 'grabbing';
-        //     block.classList.add('dragging');
-        //     block.style.zIndex = '1000';
+            // Set cursor and add dragging class
+            document.body.style.cursor = 'grabbing';
+            block.classList.add('dragging');
+            block.style.zIndex = '1000';
 
-        //     // Prevent default to avoid text selection
-        //     e.preventDefault();
-        // });
+            // Prevent default to avoid text selection
+            e.preventDefault();
+        });
 
         // Function to handle block mousemove event
         document.addEventListener('mousemove', function(e) {

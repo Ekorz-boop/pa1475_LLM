@@ -904,8 +904,7 @@ class CustomBlockHandler {
             
             // Determine if the parameter is likely a file path
             const isFilePath = param.name.toLowerCase().includes('file') || 
-                               param.name.toLowerCase().includes('path') || 
-                               (param.type && param.type.toLowerCase().includes('str'));
+                               param.name.toLowerCase().includes('path');
             
             // Create input field with parameter details
             html += `
@@ -1175,17 +1174,6 @@ class CustomBlockHandler {
      * This is a helper method to find which library and module a class belongs to
      */
     findBlockData(className) {
-        // Default popular modules to check first
-        const popularModules = [
-            'langchain.document_loaders',
-            'langchain.text_splitter',
-            'langchain.embeddings',
-            'langchain.vectorstores',
-            'langchain.chains',
-            'langchain_community.document_loaders',
-            'langchain_community.embeddings',
-            'langchain_community.vectorstores'
-        ];
 
         // Try to find in localStorage if we've used this class before
         const customBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
@@ -1197,12 +1185,6 @@ class CustomBlockHandler {
                 module: existingBlock.moduleInfo.module
             };
         }
-
-        // If not found, return default values
-        return {
-            library: 'langchain_community',
-            module: 'langchain_community.document_loaders'
-        };
     }
 
     /**
@@ -1435,10 +1417,6 @@ let customBlockHandler = null;
 
 // Initialize custom blocks when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Load saved custom blocks (commented out atm)
-    // loadCustomBlocks();
-    // updateCustomBlocksSectionHeaderVisibility();
-
     // Add event listener to clear sessionStorage on page unload
     window.addEventListener('beforeunload', () => {
         // Clear all custom block data on page refresh or close
@@ -1642,20 +1620,6 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     });
     block.appendChild(deleteButton);
 
-    // Add event listener for the edit parameters button
-    // const editParamsButton = block.querySelector('.edit-parameters-btn');
-    // if (editParamsButton) {
-    //     editParamsButton.addEventListener('click', () => {
-    //         // Create custom block handler if not already created
-    //         if (!customBlockHandler) {
-    //             customBlockHandler = new CustomBlockHandler();
-    //         }
-
-    //         // Load the block data for editing
-    //         customBlockHandler.editBlock(blockId, className, inputNodes, outputNodes);
-    //     });
-    // }
-
     // Add event listener for the block-drag-handle to make it editable
     const dragHandle = block.querySelector('.block-drag-handle');
     if (dragHandle) {
@@ -1710,14 +1674,6 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
             // Update block parameters based on selected method
             updateBlockParameters(block, selectedMethod);
         });
-
-        // Handle add parameter button
-        // const addParamBtn = block.querySelector('.add-param-btn');
-        // if (addParamBtn) {
-        // addParamBtn.addEventListener('click', () => {
-        //     addCustomParameter(block);
-        // });
-        // }
     }
 
     return block;
@@ -1834,10 +1790,6 @@ function populateMethodsForBlock(block, className, blockId) {
                 })
                 .catch(error => {
                     console.error(`Error fetching methods for ${blockId || className}:`, error);
-
-                    // Add default methods as fallback
-                    // addDefaultMethods(methodSelect);
-
                     // Set first method as selected
                     if (methodSelect.options.length > 1) {
                         methodSelect.selectedIndex = 1;
@@ -1847,10 +1799,7 @@ function populateMethodsForBlock(block, className, blockId) {
                     }
                 });
         } else {
-            console.warn(`No module info found for ${blockId || className}, using default methods`);
-
-            // Add default methods
-            // addDefaultMethods(methodSelect);
+            console.warn(`No module info found for ${blockId || className}`);
 
             // Set first method as selected
             if (methodSelect.options.length > 1) {
@@ -1861,20 +1810,7 @@ function populateMethodsForBlock(block, className, blockId) {
             }
         }
     }
-
-    // Event listener for method selection is already added in createCustomBlock
 }
-
-// Helper function to add default methods
-// function addDefaultMethods(methodSelect) {
-//     const defaultMethods = ['call', 'run', 'invoke', 'execute'];
-//     defaultMethods.forEach(method => {
-//         const option = document.createElement('option');
-//         option.value = method;
-//         option.textContent = method;
-//         methodSelect.appendChild(option);
-//     });
-// }
 
 // Helper function to find module info for a class from sessionStorage
 function findModuleInfoForClass(className) {
@@ -2258,14 +2194,9 @@ function updateBlockParameters(block, methodName) {
 
                 // Remove loading message
                 paramsContainer.innerHTML = '';
-
-                // Add a default parameter row as fallback
-                // addEmptyParameterRow(paramsContainer);
             });
     } else {
         console.log('no module info');
-        // If no module info, just add a default parameter row
-        // addEmptyParameterRow(paramsContainer);
     }
 }
 
@@ -2295,9 +2226,7 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
 
     // Check if this parameter might be a file path
     const isFilePath = paramName.toLowerCase().includes('file') || 
-                       paramName.toLowerCase().includes('path') ||
-                       (paramInfo && paramInfo.type && 
-                        paramInfo.type.toLowerCase().includes('str'));
+                       paramName.toLowerCase().includes('path');
 
     // Create input container for file path parameters
     const inputContainer = document.createElement('div');
@@ -2387,64 +2316,6 @@ function saveParameterValue(blockId, paramName, value) {
         }
     }
 }
-
-// // Helper function to add an empty parameter row with text input
-function addEmptyParameterRow(container) {
-    const paramRow = document.createElement('div');
-    paramRow.className = 'parameter-row';
-    paramRow.innerHTML = `
-        <input type="text" class="param-name" placeholder="wrong">
-        <input type="text" class="param-value" placeholder="Value">
-        <button class="remove-param-btn">×</button>
-    `;
-
-    // Add event listener for remove button
-    const removeBtn = paramRow.querySelector('.remove-param-btn');
-    removeBtn.addEventListener('click', () => {
-        paramRow.remove();
-    });
-
-
-    container.appendChild(paramRow);
-    return paramRow;
-}
-
-// Function to add a custom parameter to a block
-// function addCustomParameter(block) {
-//     const paramsContainer = block.querySelector('.block-parameters');
-//     if (!paramsContainer) return;
-
-//     console.log('params container', paramsContainer);
-
-//     // Get the parameter select dropdown
-//     const paramSelect = paramsContainer.querySelector('.param-select-dropdown');
-//     console.log('param select', paramSelect);
-//     if (paramSelect) {
-//         // Show a visual indicator that user should use the dropdown
-//         paramSelect.classList.add('highlight');
-//         setTimeout(() => {
-//             paramSelect.classList.remove('highlight');
-//         }, 1000);
-
-//         // Force focus on the dropdown
-//         paramSelect.focus();
-
-//         // Simulate a click to open the dropdown
-//         try {
-//             paramSelect.click();
-//         } catch (e) {
-//             console.warn('Could not automatically open dropdownwtf:', e);
-//         }
-
-//         return;
-//     }
-
-//     // Fallback if dropdown isn't found - add a text input parameter row
-//     const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
-//     addEmptyParameterRow(activeParamsContainer);
-// }
-
-// Add this code at the end of the file, right before the closing brace of the last function
 
 // Create a namespace for file handling functionality
 const FilePathHandler = {
