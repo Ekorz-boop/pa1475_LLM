@@ -292,57 +292,28 @@ class TemplateHandler {
     }
     
     /**
-     * Creates the load template modal if it doesn't exist
-     */
-    createLoadTemplateModal() {
-        const modalHtml = `
-            <div id="load-template-modal" class="modal">
-                <div class="modal-content template-modal">
-                    <div class="modal-header">
-                        <h3>Load Pipeline Template</h3>
-                        <button class="close-modal">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="upload-section">
-                            <p>Upload a template file:</p>
-                            <label for="template-file-input" class="file-upload-btn">
-                                <span>Select Template File</span>
-                                <input type="file" id="template-file-input" accept=".json">
-                            </label>
-                        </div>
-                        <div class="saved-templates-section">
-                            <h4>Saved Templates</h4>
-                            <div id="saved-templates-list" class="saved-templates-list">
-                                <p class="no-templates">No saved templates found</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Add modal to the DOM
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-        // Show the modal
-        document.getElementById('load-template-modal').style.display = 'flex';
-        
-        // Load and display saved templates
-        this.displaySavedTemplates();
-    }
-    
-    /**
      * Shows the load template modal
      */
     showLoadTemplateModal() {
-        const modal = document.getElementById('load-template-modal');
-        if (!modal) {
-            this.createLoadTemplateModal();
-        } else {
-            // Refresh the templates list before showing
-            this.displaySavedTemplates();
-            modal.style.display = 'flex';
-        }
+        // Create a file input element
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        
+        // Set up change event handler
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.handleTemplateFileUpload(e.target.files[0]);
+            }
+            
+            // Remove the element after use
+            document.body.removeChild(fileInput);
+        });
+        
+        // Trigger the file dialog
+        fileInput.click();
     }
     
     /**
@@ -400,10 +371,27 @@ class TemplateHandler {
             blockElements.forEach(blockEl => {
                 const blockId = blockEl.id;
                 const blockType = blockEl.dataset.type || blockEl.getAttribute('data-block-type') || 'unknown';
+                
+                // Get accurate position from element style
+                // Parse as integers and default to 0 if not set or invalid
                 const position = {
                     x: parseInt(blockEl.style.left, 10) || 0,
                     y: parseInt(blockEl.style.top, 10) || 0
                 };
+                
+                // If position values are both 0, try to get from DOM rect as a fallback
+                if (position.x === 0 && position.y === 0) {
+                    const rect = blockEl.getBoundingClientRect();
+                    const canvasContainer = document.querySelector('.canvas-container');
+                    if (rect && canvasContainer) {
+                        const canvasRect = canvasContainer.getBoundingClientRect();
+                        // Calculate position relative to canvas container
+                        position.x = rect.left - canvasRect.left + canvasContainer.scrollLeft;
+                        position.y = rect.top - canvasRect.top + canvasContainer.scrollTop;
+                    }
+                }
+                
+                console.log(`Saving position for block ${blockId}: x=${position.x}, y=${position.y}`);
                 
                 // Get input and output nodes
                 const inputNodes = Array.from(blockEl.querySelectorAll('.input-node')).map(
@@ -545,11 +533,8 @@ class TemplateHandler {
             
             this.updateProgress(95, 'Downloading template file');
             
-            // Download template file
-            const saveAsFile = document.getElementById('save-as-file-checkbox')?.checked || false;
-            if (saveAsFile) {
-                this.downloadTemplateFile(template, templateName);
-            }
+            // Always download template file
+            this.downloadTemplateFile(template, templateName);
             
             this.updateProgress(100, 'Template saved successfully');
             this.showProgress(false);
@@ -603,38 +588,8 @@ class TemplateHandler {
      * @param {Object} template - The template data
      */
     saveTemplateToStorage(template) {
-        try {
-            // Ensure template has required structure
-            if (!template.blocks) template.blocks = {};
-            if (!template.connections) template.connections = [];
-            if (!template.name) template.name = 'Untitled Template';
-            
-            // Get existing templates
-            const templates = JSON.parse(localStorage.getItem('pipeline_templates') || '[]');
-            
-            // Generate a unique ID if not present
-            if (!template.id) {
-                template.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
-            }
-            
-            // Add creation timestamp if not present
-            if (!template.created_at) {
-                template.created_at = new Date().toISOString();
-            }
-            
-            // Add new template (or replace if same name exists)
-            const existingIndex = templates.findIndex(t => t.name === template.name);
-            if (existingIndex >= 0) {
-                templates[existingIndex] = template;
-            } else {
-                templates.push(template);
-            }
-            
-            // Save back to localStorage (max last 10 templates)
-            localStorage.setItem('pipeline_templates', JSON.stringify(templates.slice(-10)));
-        } catch (error) {
-            console.error('Error saving template to storage:', error);
-        }
+        // Don't save to localStorage to avoid persisting templates
+        // The template will still be downloaded as a file
     }
     
     /**
@@ -642,7 +597,7 @@ class TemplateHandler {
      */
     loadSavedTemplates() {
         try {
-            return JSON.parse(localStorage.getItem('pipeline_templates') || '[]');
+            return []; // Return empty array to show no saved templates
         } catch (error) {
             console.error('Error loading saved templates:', error);
             return [];
@@ -853,19 +808,8 @@ class TemplateHandler {
                             throw new Error(result.error);
                         }
                         
-                        // Save to localStorage for future use
-                        this.saveTemplateToStorage(template);
-                        
-                        // Apply the template
+                        // Apply the template directly (don't save to localStorage)
                         this.applyTemplate(template);
-                        
-                        // Store modal reference before applying template (in case DOM changes)
-                        const modal = document.getElementById('load-template-modal');
-                        
-                        // Close the modal safely
-                        if (modal) {
-                            setTimeout(() => this.closeModal(modal), 100);
-                        }
                         
                         this.showToast('Template loaded successfully', 'success');
                     })
@@ -930,7 +874,35 @@ class TemplateHandler {
             }
             
             try {
-                // Create all blocks first (in parallel)
+                // First, add all custom blocks to the sidebar to ensure session storage is properly populated
+                this.updateProgress(40, 'Setting up custom blocks');
+                const customBlocks = Object.values(blocks).filter(blockData => blockData.custom && blockData.className);
+                
+                // First register blocks in session storage
+                customBlocks.forEach(blockData => {
+                    // Save the block data to session storage first
+                    this.saveCustomBlockToSessionStorage(blockData);
+                });
+                
+                // Then add to sidebar UI
+                customBlocks.forEach(blockData => {
+                    // Use the global function if available
+                    if (typeof window.addCustomBlockToMenu === 'function') {
+                        window.addCustomBlockToMenu(
+                            blockData.className, 
+                            blockData.id, 
+                            blockData.inputs || [], 
+                            blockData.outputs || []
+                        );
+                    } else {
+                        this.addToCustomBlocksList(blockData);
+                    }
+                });
+                
+                // Create all blocks in the canvas
+                this.updateProgress(50, 'Creating blocks in canvas');
+                
+                // Create all blocks (in parallel)
                 const blockPromises = Object.entries(blocks).map(async ([blockId, blockData]) => {
                     try {
                         // Make sure the ID is properly set in the block data
@@ -956,6 +928,15 @@ class TemplateHandler {
                 
                 // Give DOM time to update and process the block elements
                 await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Apply draggable to all blocks again to ensure they can be moved
+                const allBlockElements = document.querySelectorAll('.block');
+                allBlockElements.forEach(blockElement => {
+                    if (typeof window.makeBlockDraggable === 'function') {
+                        window.makeBlockDraggable(blockElement);
+                        console.log(`Made block ${blockElement.id} draggable`);
+                    }
+                });
                 
                 // Then create connections
                 const connections = template.connections || [];
@@ -984,6 +965,26 @@ class TemplateHandler {
                 if (window.updateMiniMap) {
                     window.updateMiniMap();
                 }
+                
+                // Give some time for the DOM to update
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Re-apply draggable functionality one more time to ensure everything is movable
+                document.querySelectorAll('.block').forEach(blockEl => {
+                    if (typeof window.makeBlockDraggable === 'function') {
+                        window.makeBlockDraggable(blockEl);
+                    }
+                    
+                    // Set up node connections if they're not already set up
+                    if (typeof window.setupNodeConnections === 'function') {
+                        window.setupNodeConnections(blockEl);
+                    }
+                    
+                    // Apply setupCustomBlock if it's a custom block
+                    if (blockEl.classList.contains('custom-block') && typeof window.setupCustomBlock === 'function') {
+                        window.setupCustomBlock(blockEl);
+                    }
+                });
                 
                 // Fit all blocks to view
                 setTimeout(() => {
@@ -1089,8 +1090,9 @@ class TemplateHandler {
                         blockData.id
                     );
                     
-                    // Set position
+                    // Set position - make sure to apply the saved position
                     if (block && block.style) {
+                        console.log(`Setting position for ${blockData.id} to x:${blockData.position.x}, y:${blockData.position.y}`);
                         block.style.left = `${blockData.position.x}px`;
                         block.style.top = `${blockData.position.y}px`;
                     }
@@ -1150,12 +1152,25 @@ class TemplateHandler {
                     }
                 }
                 
+                // Make block draggable in the canvas
+                if (block && typeof window.makeBlockDraggable === 'function') {
+                    window.makeBlockDraggable(block);
+                    console.log(`Made block ${blockData.id} draggable`);
+                }
+                
+                // Set up node connections
+                if (block && typeof window.setupNodeConnections === 'function') {
+                    window.setupNodeConnections(block);
+                    console.log(`Set up node connections for block ${blockData.id}`);
+                }
+                
                 return block;
             }
             
             // For regular blocks, use the standard approach
             if (typeof window.createBlock === 'function' && !blockData.custom) {
                 console.log("Using global createBlock function");
+                // Make sure to pass position to createBlock
                 const block = window.createBlock(blockData.type, blockData.position.x, blockData.position.y);
                 
                 // Set ID if possible
@@ -1163,6 +1178,19 @@ class TemplateHandler {
                     const blockElement = document.getElementById(block.id);
                     if (blockElement) {
                         blockElement.id = blockData.id;
+                        
+                        // Double-check position is set correctly
+                        if (blockElement.style) {
+                            console.log(`Setting position for ${blockData.id} to x:${blockData.position.x}, y:${blockData.position.y}`);
+                            blockElement.style.left = `${blockData.position.x}px`;
+                            blockElement.style.top = `${blockData.position.y}px`;
+                        }
+                        
+                        // Make block draggable
+                        if (typeof window.makeBlockDraggable === 'function') {
+                            window.makeBlockDraggable(blockElement);
+                            console.log(`Made block ${blockData.id} draggable`);
+                        }
                     }
                     block.id = blockData.id;
                 }
@@ -1494,6 +1522,329 @@ class TemplateHandler {
         
         return connection;
     }
+
+    /**
+     * Create a block manually when global functions are not available
+     * @param {Object} blockData - Block data from template
+     * @returns {HTMLElement} - Created block element
+     */
+    createBlockManually(blockData) {
+        console.log("Creating block manually:", blockData);
+        
+        try {
+            // Get the canvas container
+            const canvasContainer = document.querySelector('.canvas-container');
+            if (!canvasContainer) {
+                throw new Error("Canvas container not found");
+            }
+            
+            // Create block element
+            const block = document.createElement('div');
+            block.id = blockData.id;
+            block.className = 'block';
+            
+            if (blockData.custom) {
+                block.classList.add('custom-block');
+            }
+            
+            // Set type attribute
+            block.setAttribute('data-type', blockData.type);
+            block.setAttribute('data-block-type', blockData.type);
+            
+            // Set class name if available
+            if (blockData.className) {
+                block.setAttribute('data-class-name', blockData.className);
+            }
+            
+            // Set position
+            block.style.position = 'absolute';
+            block.style.left = `${blockData.position.x}px`;
+            block.style.top = `${blockData.position.y}px`;
+            
+            // Add block content (header, body, etc.)
+            let blockContent = `
+                <div class="block-header">
+                    <div class="block-title">${blockData.className || blockData.type}</div>
+                    <div class="block-actions">
+                        <button class="block-delete-btn" title="Delete block">×</button>
+                    </div>
+                </div>
+                <div class="block-body"></div>
+            `;
+            
+            // Add input nodes if specified
+            if (blockData.inputs && blockData.inputs.length > 0) {
+                blockContent += '<div class="input-nodes">';
+                blockData.inputs.forEach((input, index) => {
+                    blockContent += `
+                        <div class="input-node" data-input="${input || index}">
+                            <div class="node-label">${input || 'Input ' + (index + 1)}</div>
+                        </div>
+                    `;
+                });
+                blockContent += '</div>';
+            }
+            
+            // Add output nodes if specified
+            if (blockData.outputs && blockData.outputs.length > 0) {
+                blockContent += '<div class="output-nodes">';
+                blockData.outputs.forEach((output, index) => {
+                    blockContent += `
+                        <div class="output-node" data-output="${output || index}">
+                            <div class="node-label">${output || 'Output ' + (index + 1)}</div>
+                        </div>
+                    `;
+                });
+                blockContent += '</div>';
+            }
+            
+            // Set inner HTML
+            block.innerHTML = blockContent;
+            
+            // Add to canvas
+            canvasContainer.appendChild(block);
+            
+            // Make block draggable if the function exists
+            if (typeof window.makeBlockDraggable === 'function') {
+                window.makeBlockDraggable(block);
+            }
+            
+            // Set up node connections if the function exists
+            if (typeof window.setupNodeConnections === 'function') {
+                window.setupNodeConnections(block);
+            }
+            
+            // Set up custom block if applicable
+            if (blockData.custom && typeof window.setupCustomBlock === 'function') {
+                window.setupCustomBlock(block);
+            }
+            
+            // Add to custom blocks list in sidebar if it's a custom block
+            if (blockData.custom && blockData.className) {
+                this.addToCustomBlocksList(blockData);
+            }
+            
+            return block;
+        } catch (error) {
+            console.error("Error in createBlockManually:", error);
+            return null;
+        }
+    }
+    
+    /**
+     * Adds a block to the custom blocks list in the sidebar
+     * @param {Object} blockData - Block data
+     */
+    addToCustomBlocksList(blockData) {
+        try {
+            // Check if window.addCustomBlockToMenu exists and use it instead
+            if (typeof window.addCustomBlockToMenu === 'function') {
+                console.log(`Using global addCustomBlockToMenu for ${blockData.className}`);
+                window.addCustomBlockToMenu(
+                    blockData.className, 
+                    blockData.id, 
+                    blockData.inputs || [], 
+                    blockData.outputs || []
+                );
+                return;
+            }
+            
+            // Fallback implementation if the global function isn't available
+            // Check if the custom blocks container exists
+            const customBlocksContainer = document.getElementById('custom-blocks-container');
+            if (!customBlocksContainer) {
+                console.warn("Custom blocks container not found");
+                return;
+            }
+            
+            // Show the custom blocks section header
+            const sectionHeader = document.getElementById('custom-blocks-section-header');
+            if (sectionHeader) {
+                sectionHeader.style.display = 'flex';
+            }
+            
+            // Check if this block type already exists in the list
+            const existingBlock = customBlocksContainer.querySelector(`[data-block-id="${blockData.id}"]`);
+            if (existingBlock) {
+                console.log(`Block ${blockData.id} already exists in menu, skipping`);
+                return;
+            }
+            
+            // Create the block template element
+            const blockTemplate = document.createElement('div');
+            blockTemplate.className = 'block-template custom-block-template';
+            blockTemplate.setAttribute('draggable', 'true');
+            blockTemplate.setAttribute('data-block-type', 'custom');
+            blockTemplate.setAttribute('data-block-id', blockData.id);
+            blockTemplate.setAttribute('data-class-name', blockData.className);
+            
+            let blockName = blockData.className;
+            
+            // Extract display name from full class path
+            const parts = blockName.split('.');
+            if (parts.length > 0) {
+                blockName = parts[parts.length - 1];
+            }
+            
+            // Create simplified block structure for the menu
+            blockTemplate.innerHTML = `
+                <div class="block-header">
+                    <div class="block-drag-handle" contenteditable="false">${blockName}</div>
+                </div>
+            `;
+            
+            // Add drag start event listener with correct data
+            blockTemplate.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', 'custom');
+                e.dataTransfer.setData('blockId', blockData.id);
+                e.dataTransfer.setData('className', blockData.className);
+                e.dataTransfer.setData('inputNodes', JSON.stringify(blockData.inputs || []));
+                e.dataTransfer.setData('outputNodes', JSON.stringify(blockData.outputs || []));
+                
+                // Also set block-type for compatibility
+                e.dataTransfer.setData('block-type', `custom_${blockData.className}`);
+                e.dataTransfer.setData('custom-block', 'true');
+            });
+            
+            // Add event listener for the block-drag-handle
+            const dragHandle = blockTemplate.querySelector('.block-drag-handle');
+            if (dragHandle) {
+                // Store the original class name as a data attribute
+                dragHandle.setAttribute('data-original-name', blockData.className);
+                
+                // Add click event to make it editable
+                dragHandle.addEventListener('click', (e) => {
+                    // Only make editable on direct click (not during drag)
+                    if (e.target === dragHandle) {
+                        dragHandle.contentEditable = 'true';
+                        dragHandle.focus();
+                        // Select all text
+                        const range = document.createRange();
+                        range.selectNodeContents(dragHandle);
+                        const selection = window.getSelection();
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                });
+                
+                // Save the new name when focus is lost
+                dragHandle.addEventListener('blur', () => {
+                    dragHandle.contentEditable = 'false';
+                    const newName = dragHandle.textContent.trim();
+                    if (newName && newName !== blockName) {
+                        // Update the block's class name attribute
+                        blockTemplate.setAttribute('data-class-name', blockData.className);
+                        
+                        // Update the block in sessionStorage if the function exists
+                        if (typeof window.updateBlockNameInStorage === 'function') {
+                            window.updateBlockNameInStorage(blockData.id, newName);
+                        }
+                        
+                        console.log(`Block name changed from "${blockName}" to "${newName}"`);
+                    }
+                });
+                
+                // Prevent drag when editing
+                dragHandle.addEventListener('mousedown', (e) => {
+                    // If the user is editing (has focus), don't start dragging
+                    if (document.activeElement === dragHandle) {
+                        e.stopPropagation();
+                    }
+                });
+            }
+            
+            // Add to custom blocks container
+            customBlocksContainer.appendChild(blockTemplate);
+            
+            // Save to sessionStorage for persistence
+            this.saveCustomBlockToSessionStorage(blockData);
+            
+            console.log(`Added ${blockData.className} to custom blocks list`);
+        } catch (error) {
+            console.error("Error adding to custom blocks list:", error);
+        }
+    }
+    
+    /**
+     * Save custom block to session storage for persistence
+     * @param {Object} blockData - The block data to save
+     */
+    saveCustomBlockToSessionStorage(blockData) {
+        try {
+            // Get existing blocks or initialize empty array
+            const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+            
+            // Ensure we have methods for this block
+            let methods = ['__init__']; // Default to constructor only
+            
+            if (blockData.config && blockData.config.methods && blockData.config.methods.length > 0) {
+                methods = [...blockData.config.methods];
+                // Ensure __init__ is always included
+                if (!methods.includes('__init__')) {
+                    methods.unshift('__init__');
+                }
+            } else {
+                // Try to find existing methods for this class
+                const existingBlock = existingBlocks.find(b => b.className === blockData.className);
+                if (existingBlock && existingBlock.methods && existingBlock.methods.length > 0) {
+                    methods = [...existingBlock.methods];
+                }
+            }
+            
+            // Check if block already exists
+            const existingBlockIndex = existingBlocks.findIndex(block => block.id === blockData.id);
+            
+            if (existingBlockIndex >= 0) {
+                // Update existing block
+                existingBlocks[existingBlockIndex] = {
+                    ...existingBlocks[existingBlockIndex],
+                    className: blockData.className,
+                    inputNodes: blockData.inputs || [],
+                    outputNodes: blockData.outputs || [],
+                    methods: methods,
+                    moduleInfo: blockData.config?.moduleInfo || existingBlocks[existingBlockIndex].moduleInfo
+                };
+            } else {
+                // Add new block
+                existingBlocks.push({
+                    id: blockData.id,
+                    className: blockData.className,
+                    inputNodes: blockData.inputs || [],
+                    outputNodes: blockData.outputs || [],
+                    methods: methods,
+                    moduleInfo: blockData.config?.moduleInfo
+                });
+            }
+            
+            // Save back to sessionStorage
+            sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+            console.log(`Saved block ${blockData.id} (${blockData.className}) to session storage`);
+            
+            // Also save module info separately if available
+            if (blockData.config?.moduleInfo) {
+                const moduleInfo = blockData.config.moduleInfo;
+                if (moduleInfo.library && moduleInfo.module) {
+                    if (typeof window.saveModuleInfo === 'function') {
+                        window.saveModuleInfo(
+                            blockData.className, 
+                            moduleInfo.library, 
+                            moduleInfo.module, 
+                            blockData.id
+                        );
+                    }
+                }
+            }
+            
+            // Save methods separately if available
+            if (methods && methods.length > 0) {
+                if (typeof window.saveMethods === 'function') {
+                    window.saveMethods(blockData.className, methods, blockData.id);
+                }
+            }
+        } catch (error) {
+            console.error('Error saving custom block to session storage:', error);
+        }
+    }
 }
 
 // Initialize the template handler with a delay to ensure all scripts are loaded
@@ -1519,4 +1870,4 @@ document.addEventListener('DOMContentLoaded', () => {
         window.templateHandler = getTemplateHandler();
         console.log('Template handler initialized on DOMContentLoaded');
     }
-}); 
+});
