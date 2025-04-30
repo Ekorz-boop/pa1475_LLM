@@ -1182,25 +1182,28 @@ def save_template():
         template_name = data.get("template_name", "My Template")
         blocks_data = data.get("blocks", {})
         connections_data = data.get("connections", [])
-        
+
         # Create a template object with all necessary data
         template = {
             "name": template_name,
             "created_at": __import__("datetime").datetime.now().isoformat(),
             "blocks": blocks_data,
-            "connections": connections_data
+            "connections": connections_data,
         }
-        
+
         # Just return the template JSON for the client to download
-        return jsonify({
-            "status": "success", 
-            "message": "Template ready for download",
-            "template": template
-        })
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Template ready for download",
+                "template": template,
+            }
+        )
     except Exception as e:
         print(f"Template save error: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/templates/load", methods=["POST"])
 def load_template():
@@ -1208,23 +1211,21 @@ def load_template():
     try:
         data = request.json
         template_data = data.get("template")
-        
+
         if not template_data:
             return jsonify({"error": "No template data provided"}), 400
-            
+
         # Basic validation of the template structure
         if "blocks" not in template_data or "connections" not in template_data:
             return jsonify({"error": "Invalid template format"}), 400
-            
+
         # Return success - client will handle the actual restoration
-        return jsonify({
-            "status": "success",
-            "message": "Template loaded successfully"
-        })
+        return jsonify({"status": "success", "message": "Template loaded successfully"})
     except Exception as e:
         print(f"Template load error: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     canvas.clear()  # Clear the canvas to prevent custom blocks from persisting
