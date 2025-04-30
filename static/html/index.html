@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="/static/css/custom-blocks.css">
     <link rel="stylesheet" href="/static/css/dark-mode.css">
     <link rel="stylesheet" href="/static/css/welcome.css">
+    <link rel="stylesheet" href="/static/css/templates.css">
 </head>
 
 <body>
@@ -128,16 +129,58 @@
                             <h3>Templates</h3>
                         </div>
                         <!-- Templates specific content -->
+                        <div class="templates-section">
+                            <div class="template-actions-menu">
+                                <button id="save-template-btn" class="template-action-btn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                        <polyline points="7 3 7 8 15 8"></polyline>
+                                    </svg>
+                                    <span>Save Current Pipeline</span>
+                                </button>
+                                <button id="load-template-btn" class="template-action-btn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    <span>Load Template</span>
+                                </button>
+                            </div>
+                            <div class="saved-templates-preview">
+                                <h4>Recent Templates</h4>
+                                <div id="recent-templates-list" class="saved-templates-list">
+                                    <p class="no-templates">No saved templates found</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             <div id="canvas">
-                <button id="export-pipeline" class="export-button" title="Export Pipeline">
-                    <img src="/static/images/icons/export.svg" alt="Export Pipeline">
-                </button>
-                <button id="run-all" class="run-button" title="Run Pipeline" style="display: none;">
-                    <img src="/static/images/icons/run.svg" alt="Run Pipeline">
-                </button>
+                <div class="canvas-actions">
+                    <button id="export-pipeline" class="export-button" title="Export Pipeline">
+                        <img src="/static/images/icons/export.svg" alt="Export Pipeline">
+                    </button>
+                    <button id="save-template" class="template-button" title="Save Template">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                    </button>
+                    <button id="load-template" class="template-button" title="Load Template">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                    <button id="run-all" class="run-button" title="Run Pipeline" style="display: none;">
+                        <img src="/static/images/icons/run.svg" alt="Run Pipeline">
+                    </button>
+                </div>
                 <div class="debug-mode-container" title="Enable to run partial pipelines for debugging" style="display: none;">
                     <input type="checkbox" id="debug-mode">
                     <label for="debug-mode">Debug Mode</label>
@@ -184,6 +227,7 @@
     <script src="/static/js/app.js"></script>
     <script src="/static/js/docstring-handler.js"></script>
     <script src="/static/js/custom-block-handler.js"></script>
+    <script src="/static/js/template-handler.js"></script>
     <script src="/static/js/welcome.js"></script>
 
     <!-- Add this right after the body opening tag -->
@@ -290,6 +334,58 @@
         color: #666;
         margin-top: 12px;
         font-size: 14px;
+    }
+
+    /* Canvas Actions */
+    .canvas-actions {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 100;
+    }
+
+    .export-button,
+    .template-button,
+    .run-button {
+        background: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: background-color 0.2s, transform 0.2s;
+    }
+
+    .export-button:hover,
+    .template-button:hover,
+    .run-button:hover {
+        background: #f1f1f1;
+        transform: scale(1.05);
+    }
+
+    .dark-mode .export-button,
+    .dark-mode .template-button,
+    .dark-mode .run-button {
+        background: #333;
+    }
+
+    .dark-mode .export-button:hover,
+    .dark-mode .template-button:hover,
+    .dark-mode .run-button:hover {
+        background: #444;
+    }
+
+    .dark-mode .export-button img,
+    .dark-mode .template-button svg,
+    .dark-mode .run-button img {
+        filter: invert(1);
     }
     </style>
     
@@ -561,6 +657,84 @@
                     }
                 };
             }
+        });
+    </script>
+
+    <!-- Additional template button handler -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Canvas buttons
+            document.getElementById('save-template')?.addEventListener('click', () => {
+                if (window.templateHandler) {
+                    window.templateHandler.saveTemplateModal();
+                }
+            });
+            
+            document.getElementById('load-template')?.addEventListener('click', () => {
+                if (window.templateHandler) {
+                    window.templateHandler.showLoadTemplateModal();
+                }
+            });
+
+            // Populate recent templates list in sidebar
+            const populateRecentTemplates = () => {
+                if (window.templateHandler) {
+                    const templates = window.templateHandler.loadSavedTemplates();
+                    const templatesList = document.getElementById('recent-templates-list');
+                    
+                    if (!templatesList) return;
+                    
+                    if (templates.length === 0) {
+                        templatesList.innerHTML = '<p class="no-templates">No saved templates found</p>';
+                        return;
+                    }
+                    
+                    // Sort templates by creation date (newest first)
+                    templates.sort((a, b) => {
+                        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+                    });
+                    
+                    // Display only the 3 most recent templates
+                    const recentTemplates = templates.slice(0, 3);
+                    
+                    // Generate HTML for each template
+                    let templatesHtml = '';
+                    recentTemplates.forEach(template => {
+                        const date = template.created_at 
+                            ? new Date(template.created_at).toLocaleDateString() 
+                            : 'Unknown date';
+                            
+                        templatesHtml += `
+                            <div class="template-item" data-id="${template.id}">
+                                <div class="template-info">
+                                    <h4>${escapeHtml(template.name)}</h4>
+                                    <p class="template-date">${date}</p>
+                                </div>
+                                <div class="template-actions">
+                                    <button class="load-template-btn" data-id="${template.id}">Load</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    templatesList.innerHTML = templatesHtml;
+                }
+            };
+            
+            // Helper function for HTML escaping
+            window.escapeHtml = function(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+            
+            // Initially populate recent templates
+            setTimeout(populateRecentTemplates, 500);
+            
+            // Update recent templates whenever the templates tab is shown
+            document.querySelector('.menu-item[data-menu="templates"]')?.addEventListener('click', () => {
+                setTimeout(populateRecentTemplates, 100);
+            });
         });
     </script>
 </body>
