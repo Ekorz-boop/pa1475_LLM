@@ -746,28 +746,3 @@
     font-size: 0.9em;
     line-height: 1.5;
 }
-
-/* Add icons for different code block contexts */
-#custom-block-modal .code-blocks-section h4::before {
-    font-size: 1.2em;
-}
-
-#custom-block-modal .code-blocks-section h4[data-context="Setup"]::before {
-    content: "⚙️";
-}
-
-#custom-block-modal .code-blocks-section h4[data-context="Instantiate"]::before {
-    content: "🔨";
-}
-
-#custom-block-modal .code-blocks-section h4[data-context="Load"]::before {
-    content: "📂";
-}
-
-#custom-block-modal .code-blocks-section h4[data-context="Async load"]::before {
-    content: "⚡";
-}
-
-#custom-block-modal .code-blocks-section h4[data-context="Lazy load"]::before {
-    content: "🔄";
-}
