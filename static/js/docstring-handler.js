@@ -6,7 +6,7 @@ class DocstringHandler {
     constructor() {
         this.patterns = {
             // Section headers (Google-style and custom)
-            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Attributes|Note|Warning|Setup):\s*$/gm,
+            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Attributes|Note|Warning|Setup|Instantiate|Load|Async load|Lazy load|Output Example):\s*$/gm,
             
             // Add pattern for pre-formatted parameter tables
             parameterTable: /Parameters:\s*\nName\s*\nType\s*\nDescription\s*\n([\s\S]*?)(?=\n\n|\n[A-Z]|$)/,
@@ -168,28 +168,43 @@ class DocstringHandler {
             }
         }
 
-        // Extract code blocks
+        // Extract code blocks with their context
         let codeBlockId = 0;
+        const codeBlockContexts = new Map(); // Map to store code block context
         
         // Handle RST-style code blocks
-        docstring = docstring.replace(this.patterns.codeBlocks.rst, (_, lang, code) => {
+        docstring = docstring.replace(this.patterns.codeBlocks.rst, (_, lang, code, offset) => {
             const id = `__CODE_${codeBlockId++}__`;
+            // Find the nearest section header before this code block
+            const beforeText = docstring.slice(0, offset);
+            const headerMatch = beforeText.match(/(?:^|\n)(Setup|Instantiate|Load|Async load|Lazy load|Output Example):\s*$/);
+            const context = headerMatch ? headerMatch[1] : 'Other';
+            
             sections.codeBlocks.push({
                 id,
                 language: lang || 'python',
-                code: code.trim()
+                code: code.trim(),
+                context: context
             });
+            codeBlockContexts.set(id, context);
             return id;
         });
 
         // Handle triple backtick code blocks
-        docstring = docstring.replace(this.patterns.codeBlocks.triple, (_, lang, code) => {
+        docstring = docstring.replace(this.patterns.codeBlocks.triple, (_, lang, code, offset) => {
             const id = `__CODE_${codeBlockId++}__`;
+            // Find the nearest section header before this code block
+            const beforeText = docstring.slice(0, offset);
+            const headerMatch = beforeText.match(/(?:^|\n)(Setup|Instantiate|Load|Async load|Lazy load|Output Example):\s*$/);
+            const context = headerMatch ? headerMatch[1] : 'Other';
+            
             sections.codeBlocks.push({
                 id,
                 language: lang || 'python',
-                code: code.trim()
+                code: code.trim(),
+                context: context
             });
+            codeBlockContexts.set(id, context);
             return id;
         });
         
@@ -215,6 +230,15 @@ class DocstringHandler {
     formatDocstring(sections) {
         let html = '';
 
+        // Group code blocks by context
+        const codeBlocksByContext = new Map();
+        sections.codeBlocks.forEach(block => {
+            if (!codeBlocksByContext.has(block.context)) {
+                codeBlocksByContext.set(block.context, []);
+            }
+            codeBlocksByContext.get(block.context).push(block);
+        });
+
         // Setup section
         if (sections.setup) {
             html += `<div class="docstring-section setup-section">
@@ -228,24 +252,52 @@ class DocstringHandler {
             html += `</div></div>`;
         }
 
-        // Description section with code blocks
+        // Description section - replace placeholders with code blocks
+        const contextOrder = ['Output Example', 'Instantiate', 'Load', 'Async load', 'Lazy load', 'Setup'];
+        const usedBlockIds = new Set();
         if (sections.description) {
             let description = sections.description;
-            
-            // Replace code block placeholders with formatted code
-            sections.codeBlocks.forEach(block => {
-                const formatted = this._formatCodeBlock(block.code, block.language);
-                description = description.replace(
-                    block.id,
-                    `<pre class="${block.language}"><code>${formatted}</code></pre>`
-                );
+            // For each context, replace placeholder with code block if available
+            contextOrder.forEach(context => {
+                const regex = new RegExp(`^${context}:\s*$`, 'm');
+                const blocks = codeBlocksByContext.get(context);
+                if (blocks && blocks.length > 0) {
+                    // Only use the first block for this context in the description
+                    const block = blocks[0];
+                    const formatted = `<div class=\"docstring-section code-blocks-section\"><h4 data-context=\"${context}\">${this.sectionIcons[context] || '💻'} ${context}</h4><div class=\"code-blocks-content\"><pre class=\"${block.language}\"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre></div></div>`;
+                    description = description.replace(regex, formatted);
+                    usedBlockIds.add(block.id);
+                } else {
+                    // If no code block, remove the placeholder line
+                    description = description.replace(regex, '');
+                }
             });
+            // Remove any code block placeholders that remain
+            sections.codeBlocks.forEach(block => {
+                description = description.replace(block.id, '');
+            });
+            // Clean up any resulting empty lines
+            description = description.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
+            if (description) {
+                html += `<div class="docstring-section">
+                            <div class="section-content description">
+                                ${this._formatText(description)}
+                            </div>
+                        </div>`;
+            }
+        }
 
-            html += `<div class="docstring-section">
-                        <div class="section-content description">
-                            ${this._formatText(description)}
-                        </div>
-                    </div>`;
+        // Add code blocks grouped by context, only if not already used
+        for (const context of contextOrder) {
+            const blocks = codeBlocksByContext.get(context);
+            if (blocks && blocks.length > 0) {
+                // Only show blocks that were not used in the description
+                blocks.forEach(block => {
+                    if (!usedBlockIds.has(block.id)) {
+                        html += `<div class=\"docstring-section code-blocks-section\"><h4 data-context=\"${context}\">${this.sectionIcons[context] || '💻'} ${context}</h4><div class=\"code-blocks-content\"><pre class=\"${block.language}\"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre></div></div>`;
+                    }
+                });
+            }
         }
 
         // Parameters section

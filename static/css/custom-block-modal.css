@@ -703,3 +703,71 @@
         font-size: 14px;
     }
 }
+
+/* Code blocks section styling */
+#custom-block-modal .code-blocks-section {
+    margin-top: 20px;
+    border: 1px solid var(--langchain-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#custom-block-modal .code-blocks-section h4 {
+    margin: 0;
+    padding: 12px 15px;
+    background-color: var(--langchain-light);
+    border-bottom: 1px solid var(--langchain-border);
+    color: var(--langchain-primary);
+    font-size: 1.1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#custom-block-modal .code-blocks-content {
+    padding: 15px;
+    background-color: white;
+}
+
+#custom-block-modal .code-blocks-content pre {
+    margin: 0 0 15px 0;
+    border: 1px solid var(--langchain-border);
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+#custom-block-modal .code-blocks-content pre:last-child {
+    margin-bottom: 0;
+}
+
+#custom-block-modal .code-blocks-content code {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+/* Add icons for different code block contexts */
+#custom-block-modal .code-blocks-section h4::before {
+    font-size: 1.2em;
+}
+
+#custom-block-modal .code-blocks-section h4[data-context="Setup"]::before {
+    content: "⚙️";
+}
+
+#custom-block-modal .code-blocks-section h4[data-context="Instantiate"]::before {
+    content: "🔨";
+}
+
+#custom-block-modal .code-blocks-section h4[data-context="Load"]::before {
+    content: "📂";
+}
+
+#custom-block-modal .code-blocks-section h4[data-context="Async load"]::before {
+    content: "⚡";
+}
+
+#custom-block-modal .code-blocks-section h4[data-context="Lazy load"]::before {
+    content: "🔄";
+}
