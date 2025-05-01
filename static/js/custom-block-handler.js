@@ -901,11 +901,11 @@ class CustomBlockHandler {
             // Determine if parameter is required
             const isRequired = param.required;
             const requiredMark = isRequired ? '<span class="required">*</span>' : '';
-            
+
             // Determine if the parameter is likely a file path
-            const isFilePath = param.name.toLowerCase().includes('file') || 
+            const isFilePath = param.name.toLowerCase().includes('file') ||
                                param.name.toLowerCase().includes('path');
-            
+
             // Create input field with parameter details
             html += `
                 <div class="param-row ${isFilePath ? 'file-param-row' : ''}">
@@ -922,9 +922,9 @@ class CustomBlockHandler {
                             value="${storedValue}"
                             placeholder="${param.default || ''}">
                         ${isFilePath ? `
-                        <button type="button" 
-                            class="file-upload-btn" 
-                            data-method="${methodName}" 
+                        <button type="button"
+                            class="file-upload-btn"
+                            data-method="${methodName}"
                             data-param="${param.name}"
                             title="Upload files">
                             <span>📁</span>
@@ -1298,7 +1298,7 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
     if (dragHandle) {
         // Store the original class name as a data attribute
         dragHandle.setAttribute('data-original-name', className);
-        
+
         // Add click event to make it editable
         dragHandle.addEventListener('click', (e) => {
             // Only make editable on direct click (not during drag)
@@ -1312,24 +1312,24 @@ function addCustomBlockToMenu(className, blockId, inputNodes, outputNodes) {
                 selection.addRange(range);
             }
         });
-        
+
         // Save the new name when focus is lost
         dragHandle.addEventListener('blur', () => {
             const newName = dragHandle.textContent.trim();
             if (newName && newName !== className) {
                 // Update the block's class name attribute
                 blockTemplate.setAttribute('data-class-name', newName);
-                
+
                 // Update the className variable for future reference
                 className = newName;
-                
+
                 // Update the block in sessionStorage
                 updateBlockNameInStorage(blockId, newName);
-                
+
                 console.log(`Block name changed from "${className}" to "${newName}"`);
             }
         });
-        
+
         // Prevent drag when editing
         dragHandle.addEventListener('mousedown', (e) => {
             // If the user is editing (has focus), don't start dragging
@@ -1434,7 +1434,7 @@ function updateBlockNodes(blockElement, className, inputNodes, outputNodes) {
         if (document.activeElement !== dragHandle) {
             dragHandle.textContent = className;
         }
-        
+
         // Update the data-original-name attribute
         dragHandle.setAttribute('data-original-name', className);
     }
@@ -1625,7 +1625,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     if (dragHandle) {
         // Store the original class name as a data attribute
         dragHandle.setAttribute('data-original-name', className);
-        
+
         // Add click event to make it editable
         dragHandle.addEventListener('click', (e) => {
             // Only make editable on direct click (not during drag)
@@ -1639,7 +1639,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                 selection.addRange(range);
             }
         });
-        
+
         // Save the new name when focus is lost
         dragHandle.addEventListener('blur', () => {
             const newName = dragHandle.textContent.trim();
@@ -1649,7 +1649,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                 console.log(`Block name changed from "${className}" to "${newName}"`);
             }
         });
-        
+
         // Prevent drag when editing
         dragHandle.addEventListener('mousedown', (e) => {
             // If the user is editing (has focus), don't start dragging
@@ -1671,8 +1671,16 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
             const selectedMethod = methodSelect.value;
             console.log(`Method selected: ${selectedMethod}`);
 
+            // Add a method row for the selected method
+            if (selectedMethod && selectedMethod !== '__init__') {
+                addMethodRow(block, selectedMethod, blockId);
+            }
+
             // Update block parameters based on selected method
             updateBlockParameters(block, selectedMethod);
+
+            // Reset method select to the default option
+            methodSelect.selectedIndex = 0;
         });
     }
 
@@ -1718,6 +1726,15 @@ function populateMethodsForBlock(block, className, blockId) {
         }
     }
 
+    // Also check for saved method selections for this block
+    let savedMethodSelections = [];
+    try {
+        const methodsKey = `blockMethods-${blockId}`;
+        savedMethodSelections = JSON.parse(localStorage.getItem(methodsKey) || '[]');
+    } catch (e) {
+        console.warn('Error reading methods from localStorage:', e);
+    }
+
     if (blockData && blockData.methods && blockData.methods.length > 0) {
         console.log(`Found ${blockData.methods.length} methods for ${blockId || className}: ${blockData.methods.join(', ')}`);
 
@@ -1735,6 +1752,12 @@ function populateMethodsForBlock(block, className, blockId) {
             // Trigger change event to update parameters
             const changeEvent = new Event('change');
             methodSelect.dispatchEvent(changeEvent);
+        }
+
+        // Add saved method rows if any
+        if (savedMethodSelections.length > 0) {
+            // Update method rows display
+            updateMethodsDisplay(block, savedMethodSelections, blockId);
         }
     } else {
         // If no methods found, fetch them from the server or use defaults
@@ -2206,6 +2229,7 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
     paramRow.setAttribute('data-param-name', paramName);
+    console.log("this is happening")
 
     // Create param name label
     const paramNameLabel = document.createElement('div');
@@ -2329,19 +2353,19 @@ const FilePathHandler = {
             const button = e.target.closest('.file-upload-btn');
             if (button) {
                 e.preventDefault();
-                
+
                 // Get the method name and parameter name
                 const methodName = button.getAttribute('data-method') || '__init__';
                 const paramName = button.getAttribute('data-param');
-                
+
                 // Find the input element - try multiple selectors to ensure we find it
                 let inputElement = null;
-                
+
                 // First try to find by data attributes
                 if (methodName && paramName) {
                     inputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
                 }
-                
+
                 // If not found, try to find it within the parameter row
                 if (!inputElement) {
                     const paramRow = button.closest('.parameter-row');
@@ -2349,40 +2373,40 @@ const FilePathHandler = {
                         inputElement = paramRow.querySelector('.param-value') || paramRow.querySelector('input[type="text"]');
                     }
                 }
-                
+
                 // Get current value (comma-separated paths)
                 const currentValue = inputElement ? inputElement.value : '';
-                
+
                 console.log('File upload clicked:', { methodName, paramName, currentValue });
-                
+
                 // Show file selection modal
                 this.showFileSelectionModal(methodName, paramName, currentValue);
             }
         });
     },
-    
+
     // Extract file paths from a string which might contain filenames in various formats
     // such as "files/file1.pdf", "[files/file1.pdf, files/file2.pdf]", etc.
     extractFilePaths(inputString) {
         if (!inputString || typeof inputString !== 'string') {
             return [];
         }
-    
+
         const paths = [];
-        
+
         // Clean up the input string
         let cleaned = inputString.trim();
-        
+
         // Check if it's an array format
         if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
             // Remove brackets and split by commas
             cleaned = cleaned.substring(1, cleaned.length - 1);
             const items = cleaned.split(',').map(item => item.trim());
-            
+
             for (const item of items) {
                 // Extract file name from various formats
                 let filename = item;
-                
+
                 // If it looks like "files/filename.ext"
                 if (item.includes('files/')) {
                     filename = item.substring(item.indexOf('files/') + 6);
@@ -2405,14 +2429,14 @@ const FilePathHandler = {
                     }
                 }
             }
-        } 
+        }
         // If it's comma-separated paths like "files/file1.pdf, files/file2.pdf"
         else if (cleaned.includes(',')) {
             const items = cleaned.split(',').map(item => item.trim());
-            
+
             for (const item of items) {
                 let filename = item;
-                
+
                 // If it looks like "files/filename.ext"
                 if (item.includes('files/')) {
                     filename = item.substring(item.indexOf('files/') + 6);
@@ -2445,7 +2469,7 @@ const FilePathHandler = {
                 paths.push(filename);
             }
         }
-        
+
         return paths;
     },
 
@@ -2456,18 +2480,18 @@ const FilePathHandler = {
         if (existingModal) {
             document.body.removeChild(existingModal);
         }
-    
+
         // Generate a unique key for this parameter
         const paramKey = `${methodName}_${paramName}`;
-        
+
         // Store the current input element reference for when we save
         let targetInputElement = null;
-        
+
         // Try to find by data attributes
         if (methodName && paramName) {
             targetInputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
         }
-        
+
         // Try to find by parameter row
         if (!targetInputElement) {
             const paramRows = document.querySelectorAll(`.parameter-row[data-param-name="${paramName}"]`);
@@ -2475,7 +2499,7 @@ const FilePathHandler = {
                 targetInputElement = paramRows[0].querySelector('.param-value');
             }
         }
-        
+
         // Initialize selected files for this parameter if not already done
         if (!this.selectedFiles[paramKey]) {
             // Parse any existing files from the current input value
@@ -2528,11 +2552,11 @@ const FilePathHandler = {
         // Add event listeners
         closeBtn.addEventListener('click', () => this.closeModal(modal));
         cancelBtn.addEventListener('click', () => this.closeModal(modal));
-        
+
         saveBtn.addEventListener('click', () => {
             // Find the corresponding input element using the stored reference
             let inputElement = targetInputElement;
-            
+
             // If we still can't find it, use more aggressive DOM search
             if (!inputElement) {
                 // Look for any input that matches this parameter name
@@ -2541,39 +2565,39 @@ const FilePathHandler = {
                     const paramAttr = input.getAttribute('data-param');
                     const paramRow = input.closest('.parameter-row');
                     const rowParamName = paramRow?.getAttribute('data-param-name');
-                    
+
                     if ((paramAttr === paramName) || (rowParamName === paramName)) {
                         inputElement = input;
                         break;
                     }
                 }
             }
-            
+
             if (inputElement) {
                 // Get file paths and make them relative to the 'files' directory
-                const filePaths = this.selectedFiles[paramKey].map(file => 
+                const filePaths = this.selectedFiles[paramKey].map(file =>
                     `files/${file.name}`
                 );
-                
+
                 // Update input value with comma-space separated file paths
                 // This ensures proper formatting for both visual display and parsing
                 inputElement.value = filePaths.join(', ');
-                
+
                 // Trigger change event to save the value
                 const event = new Event('change', { bubbles: true });
                 inputElement.dispatchEvent(event);
-                
+
                 console.log('Updated input with file paths:', inputElement.value);
             } else {
                 console.warn('Could not find input element to update with file paths');
             }
-            
+
             this.closeModal(modal);
         });
 
         // File selection handling
         fileUploadArea.addEventListener('click', () => fileInput.click());
-        
+
         fileInput.addEventListener('change', () => {
             const files = fileInput.files;
             if (files.length > 0) {
@@ -2584,10 +2608,10 @@ const FilePathHandler = {
                         name: files[i].name
                     });
                 }
-                
+
                 // Update the file list UI
                 this.updateFileList(fileList, paramKey);
-                
+
                 // Reset the file input
                 fileInput.value = '';
             }
@@ -2606,7 +2630,7 @@ const FilePathHandler = {
         fileUploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             fileUploadArea.classList.remove('drag-over');
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 // Add dropped files to the list
@@ -2615,7 +2639,7 @@ const FilePathHandler = {
                         name: files[i].name
                     });
                 }
-                
+
                 // Update the file list UI
                 this.updateFileList(fileList, paramKey);
             }
@@ -2625,10 +2649,10 @@ const FilePathHandler = {
     // Update the file list UI
     updateFileList(fileListElement, paramKey) {
         if (!fileListElement || !this.selectedFiles[paramKey]) return;
-        
+
         // Clear the current list
         fileListElement.innerHTML = '';
-        
+
         // Add each file to the list
         this.selectedFiles[paramKey].forEach((file, index) => {
             const li = document.createElement('li');
@@ -2638,14 +2662,14 @@ const FilePathHandler = {
                 <button type="button" class="remove-file" data-index="${index}">×</button>
             `;
             fileListElement.appendChild(li);
-            
+
             // Add event listener for remove button
             li.querySelector('.remove-file').addEventListener('click', () => {
                 this.selectedFiles[paramKey].splice(index, 1);
                 this.updateFileList(fileListElement, paramKey);
             });
         });
-        
+
         // Show message if no files selected
         if (this.selectedFiles[paramKey].length === 0) {
             const li = document.createElement('li');
@@ -2674,14 +2698,14 @@ function updateBlockNameInStorage(blockId, newName) {
     try {
         // Get existing blocks from sessionStorage
         const existingBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-        
+
         // Find the block with matching ID
         const blockIndex = existingBlocks.findIndex(block => block.id === blockId);
-        
+
         if (blockIndex >= 0) {
             // Update the block's class name
             existingBlocks[blockIndex].className = newName;
-            
+
             // Save back to sessionStorage
             sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
             console.log(`Updated block name in storage for ${blockId} to "${newName}"`);
@@ -2690,6 +2714,223 @@ function updateBlockNameInStorage(blockId, newName) {
         }
     } catch (error) {
         console.error('Error updating block name in storage:', error);
+    }
+}
+
+/**
+ * Add a method row to the block for a selected method
+ * @param {HTMLElement} block - The block element to add the method row to
+ * @param {string} methodName - The name of the method
+ * @param {string} blockId - The ID of the block
+ * @returns {HTMLElement} - The created method row
+ */
+function addMethodRow(block, methodName, blockId = '') {
+    // Get or create the method container
+    let methodsContainer = block.querySelector('.block-methods');
+    if (!methodsContainer) {
+        methodsContainer = document.createElement('div');
+        methodsContainer.className = 'block-methods';
+        
+        // Insert methods container before parameters container
+        const blockContent = block.querySelector('.block-content');
+        if (blockContent) {
+            const parametersContainer = block.querySelector('.block-parameters');
+            if (parametersContainer) {
+                blockContent.insertBefore(methodsContainer, parametersContainer);
+            } else {
+                blockContent.appendChild(methodsContainer);
+            }
+        }
+    }
+
+    // Check if method row already exists
+    const existingMethodRow = methodsContainer.querySelector(`.method-row[data-method="${methodName}"]`);
+    if (existingMethodRow) {
+        return existingMethodRow;
+    }
+
+    // Create a new method row
+    const methodRow = document.createElement('div');
+    methodRow.className = 'method-row';
+    methodRow.setAttribute('data-method', methodName);
+
+    // Create method name label
+    const methodNameLabel = document.createElement('div');
+    methodNameLabel.className = 'method-name-label';
+    methodNameLabel.textContent = methodName;
+
+    // Create remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-method-btn';
+    removeBtn.innerHTML = '×';
+    removeBtn.addEventListener('click', () => {
+        // When removing, also remove from saved methods
+        removeMethodSelection(blockId, methodName);
+        methodRow.remove();
+        
+        // Update input/output nodes
+        updateBlockNodesForMethods(block);
+    });
+
+    // Create input node for this method
+    const inputNode = document.createElement('div');
+    inputNode.className = 'input-node';
+    inputNode.setAttribute('data-input', `${methodName}_input`);
+    inputNode.innerHTML = `
+        <div class="tooltip-container">
+            <div class="node-label">${methodName}_input</div>
+        </div>
+    `;
+
+    // Create output node for this method
+    const outputNode = document.createElement('div');
+    outputNode.className = 'output-node';
+    outputNode.setAttribute('data-output', `${methodName}_output`);
+    outputNode.innerHTML = `
+        <div class="tooltip-container">
+            <div class="node-label">${methodName}_output</div>
+        </div>
+    `;
+
+    // Add method elements to row
+    methodRow.appendChild(methodNameLabel);
+    methodRow.appendChild(removeBtn);
+
+    // Add row to container
+    methodsContainer.appendChild(methodRow);
+
+    // Add input node to the input-node-group
+    const inputNodeGroup = block.querySelector('.input-node-group');
+    if (inputNodeGroup) {
+        inputNodeGroup.appendChild(inputNode);
+    }
+
+    // Add output node to the output-node-group
+    const outputNodeGroup = block.querySelector('.output-node-group');
+    if (outputNodeGroup) {
+        outputNodeGroup.appendChild(outputNode);
+    }
+
+    // Update node positions for even spacing
+    updateBlockNodesForMethods(block);
+
+    // Save the method selection
+    saveMethodSelection(blockId, methodName);
+
+    return methodRow;
+}
+
+/**
+ * Update the methods display for a block
+ * @param {HTMLElement} block - The block element to update
+ * @param {Array} methods - Array of method names to display
+ * @param {string} blockId - The ID of the block
+ */
+function updateMethodsDisplay(block, methods, blockId = '') {
+    if (!block || !methods || !Array.isArray(methods)) return;
+
+    // Clear existing method rows
+    const existingMethodsContainer = block.querySelector('.block-methods');
+    if (existingMethodsContainer) {
+        existingMethodsContainer.innerHTML = '';
+    }
+
+    // Add rows for each method
+    methods.forEach(methodName => {
+        if (methodName && methodName !== '__init__') { // Skip init method which is always included
+            addMethodRow(block, methodName, blockId);
+        }
+    });
+
+    // Update node positions
+    updateBlockNodesForMethods(block);
+}
+
+/**
+ * Save method selection to storage
+ * @param {string} blockId - The ID of the block
+ * @param {string} methodName - The method name to save
+ */
+function saveMethodSelection(blockId, methodName) {
+    if (!blockId || !methodName) return;
+
+    try {
+        // Get existing methods for this block
+        const methodsKey = `blockMethods-${blockId}`;
+        const savedMethods = JSON.parse(localStorage.getItem(methodsKey) || '[]');
+        
+        // Add method if not already in the list
+        if (!savedMethods.includes(methodName)) {
+            savedMethods.push(methodName);
+            localStorage.setItem(methodsKey, JSON.stringify(savedMethods));
+        }
+    } catch (e) {
+        console.warn('Error saving method selection:', e);
+    }
+}
+
+/**
+ * Remove method selection from storage
+ * @param {string} blockId - The ID of the block
+ * @param {string} methodName - The method name to remove
+ */
+function removeMethodSelection(blockId, methodName) {
+    if (!blockId || !methodName) return;
+
+    try {
+        // Get existing methods for this block
+        const methodsKey = `blockMethods-${blockId}`;
+        let savedMethods = JSON.parse(localStorage.getItem(methodsKey) || '[]');
+        
+        // Remove method if in the list
+        savedMethods = savedMethods.filter(m => m !== methodName);
+        localStorage.setItem(methodsKey, JSON.stringify(savedMethods));
+    } catch (e) {
+        console.warn('Error removing method selection:', e);
+    }
+}
+
+/**
+ * Update input and output nodes for methods to ensure even spacing
+ * @param {HTMLElement} block - The block element to update
+ */
+function updateBlockNodesForMethods(block) {
+    if (!block) return;
+
+    // Get all input nodes and output nodes
+    const inputNodes = block.querySelectorAll('.input-node');
+    const outputNodes = block.querySelectorAll('.output-node');
+
+    // Calculate positions for input nodes
+    if (inputNodes.length > 0) {
+        const inputNodeGroup = block.querySelector('.input-node-group');
+        if (inputNodeGroup) {
+            const groupHeight = inputNodeGroup.offsetHeight;
+            const nodeHeight = 20; // Approximate height of a node
+            const spacing = groupHeight / (inputNodes.length + 1);
+
+            // Set positions for input nodes
+            inputNodes.forEach((node, index) => {
+                const top = spacing * (index + 1) - nodeHeight / 2;
+                node.style.top = `${top}px`;
+            });
+        }
+    }
+
+    // Calculate positions for output nodes
+    if (outputNodes.length > 0) {
+        const outputNodeGroup = block.querySelector('.output-node-group');
+        if (outputNodeGroup) {
+            const groupHeight = outputNodeGroup.offsetHeight;
+            const nodeHeight = 20; // Approximate height of a node
+            const spacing = groupHeight / (outputNodes.length + 1);
+
+            // Set positions for output nodes
+            outputNodes.forEach((node, index) => {
+                const top = spacing * (index + 1) - nodeHeight / 2;
+                node.style.top = `${top}px`;
+            });
+        }
     }
 }
 

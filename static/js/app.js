@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     const savedTheme = localStorage.getItem('theme') || 'system';
-    
+
     // Set initial dark mode state
     if (savedDarkMode || (!localStorage.getItem('darkMode') && prefersDarkMode)) {
         document.body.classList.add('dark-mode');
@@ -836,11 +836,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (draggingConnection) {
             // Get the element under the mouse - be more thorough in checking for input nodes
             let elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
-            
+
             // Search up for an input-node parent if element is a child of input-node
             let inputNodeFound = null;
             let currentElem = elemUnderMouse;
-            
+
             // Check if it's directly an input-node or traverse up to find one
             while (currentElem && !inputNodeFound) {
                 if (currentElem.classList && currentElem.classList.contains('input-node')) {
@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     }
                     // Check for tooltip-container parent
-                    if (parent.classList && parent.classList.contains('tooltip-container') && 
+                    if (parent.classList && parent.classList.contains('tooltip-container') &&
                         parent.parentElement && parent.parentElement.classList.contains('input-node')) {
                         inputNodeFound = parent.parentElement;
                         break;
@@ -863,12 +863,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 currentElem = currentElem.parentElement;
             }
-            
+
             // If we found an input node and have a source node, create the connection
             if (inputNodeFound && sourceNode) {
                 const sourceBlock = sourceNode.closest('.block');
                 const targetBlock = inputNodeFound.closest('.block');
-                
+
                 if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                     const inputId = inputNodeFound.getAttribute('data-input');
                     if (inputId) {
@@ -1364,7 +1364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasContainer.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${zoom})`;
         zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
         updateConnections();
-        
+
         // Update miniature map viewport
         const miniMap = document.querySelector('.mini-map');
         const miniMapViewport = document.querySelector('.mini-map-viewport');
@@ -1374,11 +1374,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const canvasHeight = 10000; // Total canvas height
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
-            
+
             // Calculate the scale factor for the miniature map
             const scaleX = miniMap.offsetWidth / canvasWidth;
             const scaleY = miniMap.offsetHeight / canvasHeight;
-            
+
             // Calculate the viewport position and size in the miniature map
             let viewportX = (-currentTranslate.x / zoom) * scaleX;
             let viewportY = (-currentTranslate.y / zoom) * scaleY;
@@ -1798,6 +1798,50 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * Set up event delegation for handling method row interactions
+     * @param {HTMLElement} block - The block to set up method row handling for
+     */
+    function setupBlockMethodRowsHandling(block) {
+        // Use event delegation for method select changes
+        const methodSelect = block.querySelector('.method-select');
+        if (methodSelect) {
+            // Event listener is likely already set in createCustomBlock
+            // But we'll add a handler to ensure node connections are properly set up
+            methodSelect.addEventListener('change', () => {
+                // After a short delay to allow DOM to update
+                setTimeout(() => {
+                    // Setup node connections for any new nodes added by method row
+                    setupNodeConnections(block);
+                    // Update connections display
+                    updateConnections();
+                }, 100);
+            });
+        }
+
+        // Use event delegation for the block content to handle method row removals
+        const blockContent = block.querySelector('.block-content');
+        if (blockContent) {
+            blockContent.addEventListener('click', (e) => {
+                // Find if clicked element is a remove method button
+                const removeBtn = e.target.closest('.remove-method-btn');
+                if (removeBtn) {
+                    // After a short delay to allow DOM to update after removal
+                    setTimeout(() => {
+                        // Setup node connections for any remaining nodes
+                        setupNodeConnections(block);
+                        // Update connections display
+                        updateConnections();
+                        // Update the block's layout to ensure evenly spaced nodes
+                        if (typeof updateBlockNodesForMethods === 'function') {
+                            updateBlockNodesForMethods(block);
+                        }
+                    }, 100);
+                }
+            });
+        }
+    }
+
     // Function to handle block deletion and clean up connections
     function deleteBlockConnections(block) {
         const blockId = block.id;
@@ -2053,6 +2097,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Set up node connections
         setupNodeConnections(block);
+
+        // Set up method row handling for the block
+        setupBlockMethodRowsHandling(block);
 
         // Position block on canvas if not already positioned
         if (!block.style.transform) {
