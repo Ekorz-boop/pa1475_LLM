@@ -746,3 +746,93 @@
     font-size: 0.9em;
     line-height: 1.5;
 }
+
+/* RST directive and important note styling */
+#custom-block-modal .class-description .rst-versionchanged {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    color: #1565c0;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-dropdown {
+    background: #f3e5f5;
+    border-left: 4px solid #8e24aa;
+    color: #6a1b9a;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-note {
+    background: #fffde7;
+    border-left: 4px solid #fbc02d;
+    color: #795548;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-warning {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+    color: #e65100;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-deprecated {
+    background: #fbe9e7;
+    border-left: 4px solid #d84315;
+    color: #b71c1c;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+    font-style: italic;
+}
+#custom-block-modal .class-description .rst-icon {
+    margin-right: 8px;
+    font-size: 1.1em;
+    vertical-align: middle;
+}
+
+/* RST Dropdown Collapsible Styles */
+#custom-block-modal .class-description .rst-dropdown-collapsible {
+    margin: 12px 0;
+    border: 1px solid #8e24aa;
+    border-radius: 5px;
+    background: #f3e5f5;
+    box-shadow: 0 1px 2px rgba(142,36,170,0.07);
+}
+#custom-block-modal .class-description .rst-dropdown-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 1em;
+    color: #6a1b9a;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 5px 5px 0 0;
+    transition: background 0.2s;
+}
+#custom-block-modal .class-description .rst-dropdown-toggle:hover {
+    background: #e1bee7;
+}
+#custom-block-modal .class-description .rst-dropdown-content {
+    padding: 12px 18px 14px 32px;
+    background: #faf6fb;
+    border-top: 1px solid #8e24aa;
+    color: #4a148c;
+    font-size: 0.97em;
+    border-radius: 0 0 5px 5px;
+}

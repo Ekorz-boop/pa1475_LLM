@@ -259,7 +259,7 @@ class DocstringHandler {
             let description = sections.description;
             // For each context, replace placeholder with code block if available
             contextOrder.forEach(context => {
-                const regex = new RegExp(`^${context}:\s*$`, 'm');
+                const regex = new RegExp(`^\s*${context}:\s*$`, 'im');
                 const blocks = codeBlocksByContext.get(context);
                 if (blocks && blocks.length > 0) {
                     // Only use the first block for this context in the description
@@ -380,6 +380,16 @@ class DocstringHandler {
     _formatText(text) {
         if (!text) return '';
 
+        // Handle RST dropdowns as real collapsible sections
+        text = this._extractAndFormatDropdowns(text);
+
+        // RST directives and important notes (except dropdown)
+        text = text.replace(/^\s*\.\.\s*versionchanged::(.*)$/gim, '<div class="rst-versionchanged"><span class="rst-icon">ℹ️</span> <strong>Version changed:</strong>$1</div>');
+        text = text.replace(/^\s*\.\.\s*note::(.*)$/gim, '<div class="rst-note"><span class="rst-icon">💡</span> <strong>Note:</strong>$1</div>');
+        text = text.replace(/^\s*\.\.\s*warning::(.*)$/gim, '<div class="rst-warning"><span class=\"rst-icon\">⚠️</span> <strong>Warning:</strong>$1</div>');
+        text = text.replace(/^\s*\.\.\s*deprecated::(.*)$/gim, '<div class="rst-deprecated"><span class="rst-icon">🛑</span> <strong>Deprecated:</strong>$1</div>');
+        text = text.replace(/^\s*Deprecated(.*)$/gim, '<div class="rst-deprecated"><span class="rst-icon">🛑</span> <strong>Deprecated:</strong>$1</div>');
+
         // Replace inline code with potential class references
         text = text.replace(/`([^`]+)`/g, (_, code) => {
             if (this._looksLikeClass(code)) {
@@ -396,11 +406,33 @@ class DocstringHandler {
 
         // Replace line breaks with paragraphs
         text = text.split(/\n\s*\n/).map(p => `<p>${p.trim()}</p>`).join('');
-        
         // Replace single line breaks with <br>
         text = text.replace(/\n/g, '<br>');
-        
         return text;
+    }
+
+    // Helper to extract and format .. dropdown:: blocks as collapsible sections
+    _extractAndFormatDropdowns(text) {
+        let dropdownId = 0;
+        // Regex to match .. dropdown:: and its indented content
+        const dropdownRegex = /(^|\n)\s*\.\.\s*dropdown::(.*?)(\n(?:(?: {2,}|\t).+\n?)*)/g;
+        return text.replace(dropdownRegex, (match, pre, summary, content) => {
+            dropdownId++;
+            // Clean up summary and content
+            let summaryText = summary.trim();
+            // Remove leading code>, text>, or similar prefixes
+            summaryText = summaryText.replace(/^(code|text|output|example|note|tip|info|warning|danger|important)\s*>\s*/i, '');
+            const contentText = (content || '').replace(/^( {2,}|\t)/gm, '').trim();
+            const id = `rst-dropdown-${Date.now()}-${dropdownId}`;
+            return `
+                <div class="rst-dropdown-collapsible">
+                    <button class="rst-dropdown-toggle" type="button" data-target="${id}">▼ <strong>${summaryText}</strong></button>
+                    <div class="rst-dropdown-content" id="${id}" style="display:none;">
+                        ${this._formatText(contentText)}
+                    </div>
+                </div>
+            `;
+        });
     }
 
     /**
