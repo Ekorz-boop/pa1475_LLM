@@ -54,6 +54,20 @@ class DocstringHandler {
                 google: /Raises:\s*\n\s*([A-Za-z0-9_]+):\s*([^\n]*(?:\n\s+[^\n]*)*)/g
             }
         };
+
+        // Add icons for different sections
+        this.sectionIcons = {
+            'Args': '📝',
+            'Parameters': '📝',
+            'Returns': '↩️',
+            'Raises': '⚠️',
+            'Example': '💡',
+            'Examples': '💡',
+            'Attributes': '🔍',
+            'Note': '📌',
+            'Warning': '⚠️',
+            'Setup': '⚙️'
+        };
     }
 
     /**
@@ -204,7 +218,7 @@ class DocstringHandler {
         // Setup section
         if (sections.setup) {
             html += `<div class="docstring-section setup-section">
-                        <h4>Setup:</h4>
+                        <h4>${this.sectionIcons['Setup']} Setup</h4>
                         <div class="setup-content">`;
             
             for (const command of sections.setup.commands) {
@@ -237,7 +251,7 @@ class DocstringHandler {
         // Parameters section
         if (sections.parameters && sections.parameters.length > 0) {
             html += `<div class="docstring-section parameters-section">
-                        <h4>Parameters:</h4>
+                        <h4>${this.sectionIcons['Parameters']} Parameters</h4>
                         <div class="parameter-table">
                             <div class="parameter-table-header">
                                 <div class="param-name-header">Name</div>
@@ -266,7 +280,7 @@ class DocstringHandler {
         // Returns section
         if (sections.returns && sections.returns.description) {
             html += `<div class="docstring-section returns-section">
-                        <h4>Returns:</h4>
+                        <h4>${this.sectionIcons['Returns']} Returns</h4>
                         <div class="returns-content">
                             ${sections.returns.description}
                         </div>
@@ -276,13 +290,28 @@ class DocstringHandler {
         // Raises section
         if (sections.raises && sections.raises.length > 0) {
             html += `<div class="docstring-section raises-section">
-                        <h4>Raises:</h4>
+                        <h4>${this.sectionIcons['Raises']} Raises</h4>
                         <div class="raises-content">`;
             
             sections.raises.forEach(raise => {
                 html += `<div class="raise-item">
                             <span class="raise-type">${raise.type}</span>
                             <span class="raise-desc">${raise.description}</span>
+                        </div>`;
+            });
+            
+            html += `</div></div>`;
+        }
+
+        // Examples section
+        if (sections.examples && sections.examples.length > 0) {
+            html += `<div class="docstring-section examples-section">
+                        <h4>${this.sectionIcons['Examples']} Examples</h4>
+                        <div class="example-content">`;
+            
+            sections.examples.forEach(example => {
+                html += `<div class="example-item">
+                            ${this._formatText(example)}
                         </div>`;
             });
             
@@ -306,6 +335,12 @@ class DocstringHandler {
             }
             return `<code>${code}</code>`;
         });
+
+        // Replace URLs with clickable links
+        text = text.replace(
+            /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g,
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
 
         // Replace line breaks with paragraphs
         text = text.split(/\n\s*\n/).map(p => `<p>${p.trim()}</p>`).join('');
