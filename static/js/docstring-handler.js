@@ -171,14 +171,123 @@ class DocstringHandler {
         // Extract code blocks with their context
         let codeBlockId = 0;
         const codeBlockContexts = new Map(); // Map to store code block context
+        const seenCodeBlocks = new Set(); // Track unique code blocks
         
+        // Helper function to check if code block is unique
+        const isUniqueCodeBlock = (code) => {
+            const normalizedCode = code.trim().replace(/\s+/g, ' ');
+            if (seenCodeBlocks.has(normalizedCode)) {
+                return false;
+            }
+            seenCodeBlocks.add(normalizedCode);
+            return true;
+        };
+
+        // Helper function to determine context
+        const determineContext = (beforeText, code) => {
+            // First check for explicit section headers
+            const headerMatch = beforeText.match(/(?:^|\n)(Setup|Instantiate|Load|Async load|Lazy load|Output Example|Usage Example):\s*$/);
+            if (headerMatch) {
+                return headerMatch[1];
+            }
+
+            // Analyze code content to determine context
+            const normalizedCode = code.toLowerCase().trim();
+            
+            // Check for setup/installation related code
+            if (normalizedCode.includes('pip install') || 
+                normalizedCode.includes('requirements.txt') ||
+                normalizedCode.includes('setup.py')) {
+                return 'Setup';
+            }
+
+            // Check for instantiation code
+            if (normalizedCode.includes(' = ') && 
+                (normalizedCode.includes('loader') || 
+                 normalizedCode.includes('model') || 
+                 normalizedCode.includes('client'))) {
+                return 'Instantiate';
+            }
+
+            // Check for load/async load code
+            if (normalizedCode.includes('.load()') || 
+                normalizedCode.includes('.aload()')) {
+                return normalizedCode.includes('async') ? 'Async load' : 'Load';
+            }
+
+            // Check for lazy load code
+            if (normalizedCode.includes('lazy_load') || 
+                normalizedCode.includes('alazy_load')) {
+                return 'Lazy load';
+            }
+
+            // Check for output/result code
+            if (normalizedCode.includes('print(') || 
+                normalizedCode.includes('result') || 
+                normalizedCode.includes('output')) {
+                return 'Output Example';
+            }
+
+            // If no specific context is found, try to group with previous block
+            const lastBlock = sections.codeBlocks.length > 0 ? sections.codeBlocks[sections.codeBlocks.length - 1] : null;
+            if (lastBlock) {
+                // If the previous block was an Example, keep the same context
+                if (lastBlock.context === 'Example' || lastBlock.context === 'Usage Example') {
+                    return lastBlock.context;
+                }
+                // If the code looks like a continuation of the previous block
+                if (normalizedCode.includes('doc') || 
+                    normalizedCode.includes('result') || 
+                    normalizedCode.includes('output')) {
+                    return lastBlock.context;
+                }
+            }
+
+            return 'Usage Example';
+        };
+
+        // Helper function to group related code blocks
+        const groupRelatedBlocks = (blocks) => {
+            const groups = [];
+            let currentGroup = [];
+            let currentContext = null;
+
+            blocks.forEach(block => {
+                // Start a new group if context changes, or if context is 'Usage Example' and previous was not
+                if (block.context !== currentContext || (block.context === 'Usage Example' && currentContext !== 'Usage Example')) {
+                    if (currentGroup.length > 0) {
+                        groups.push({
+                            context: currentContext,
+                            blocks: [...currentGroup]
+                        });
+                    }
+                    currentGroup = [block];
+                    currentContext = block.context;
+                } else {
+                    // Add to current group if context is the same
+                    currentGroup.push(block);
+                }
+            });
+
+            // Add the last group
+            if (currentGroup.length > 0) {
+                groups.push({
+                    context: currentContext,
+                    blocks: currentGroup
+                });
+            }
+
+            return groups;
+        };
+
         // Handle RST-style code blocks
         docstring = docstring.replace(this.patterns.codeBlocks.rst, (_, lang, code, offset) => {
+            if (!isUniqueCodeBlock(code)) {
+                return ''; // Skip duplicate code blocks
+            }
             const id = `__CODE_${codeBlockId++}__`;
-            // Find the nearest section header before this code block
             const beforeText = docstring.slice(0, offset);
-            const headerMatch = beforeText.match(/(?:^|\n)(Setup|Instantiate|Load|Async load|Lazy load|Output Example):\s*$/);
-            const context = headerMatch ? headerMatch[1] : 'Other';
+            const context = determineContext(beforeText, code);
             
             sections.codeBlocks.push({
                 id,
@@ -192,11 +301,12 @@ class DocstringHandler {
 
         // Handle triple backtick code blocks
         docstring = docstring.replace(this.patterns.codeBlocks.triple, (_, lang, code, offset) => {
+            if (!isUniqueCodeBlock(code)) {
+                return ''; // Skip duplicate code blocks
+            }
             const id = `__CODE_${codeBlockId++}__`;
-            // Find the nearest section header before this code block
             const beforeText = docstring.slice(0, offset);
-            const headerMatch = beforeText.match(/(?:^|\n)(Setup|Instantiate|Load|Async load|Lazy load|Output Example):\s*$/);
-            const context = headerMatch ? headerMatch[1] : 'Other';
+            const context = determineContext(beforeText, code);
             
             sections.codeBlocks.push({
                 id,
@@ -207,7 +317,10 @@ class DocstringHandler {
             codeBlockContexts.set(id, context);
             return id;
         });
-        
+
+        // Group related code blocks
+        sections.codeBlocks = groupRelatedBlocks(sections.codeBlocks);
+
         // Extract description (everything before the first section header or remaining text)
         const firstSectionMatch = docstring.match(this.patterns.sectionHeaders);
         if (firstSectionMatch) {
@@ -232,11 +345,13 @@ class DocstringHandler {
 
         // Group code blocks by context
         const codeBlocksByContext = new Map();
-        sections.codeBlocks.forEach(block => {
-            if (!codeBlocksByContext.has(block.context)) {
-                codeBlocksByContext.set(block.context, []);
+        sections.codeBlocks.forEach(group => {
+            if (!codeBlocksByContext.has(group.context)) {
+                codeBlocksByContext.set(group.context, []);
             }
-            codeBlocksByContext.get(block.context).push(block);
+            group.blocks.forEach(block => {
+                codeBlocksByContext.get(group.context).push(block);
+            });
         });
 
         // Setup section
@@ -253,7 +368,7 @@ class DocstringHandler {
         }
 
         // Description section - replace placeholders with code blocks
-        const contextOrder = ['Output Example', 'Instantiate', 'Load', 'Async load', 'Lazy load', 'Setup'];
+        const contextOrder = ['Output Example', 'Instantiate', 'Load', 'Async load', 'Lazy load', 'Setup', 'Usage Example', 'Example'];
         const usedBlockIds = new Set();
         if (sections.description) {
             let description = sections.description;
@@ -264,7 +379,12 @@ class DocstringHandler {
                 if (blocks && blocks.length > 0) {
                     // Only use the first block for this context in the description
                     const block = blocks[0];
-                    const formatted = `<div class=\"docstring-section code-blocks-section\"><h4 data-context=\"${context}\">${this.sectionIcons[context] || '💻'} ${context}</h4><div class=\"code-blocks-content\"><pre class=\"${block.language}\"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre></div></div>`;
+                    const formatted = `<div class="docstring-section code-blocks-section">
+                        <h4 data-context="${context}">${this.sectionIcons[context] || '💻'} ${context}</h4>
+                        <div class="code-blocks-content">
+                            <pre class="${block.language}"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre>
+                        </div>
+                    </div>`;
                     description = description.replace(regex, formatted);
                     usedBlockIds.add(block.id);
                 } else {
@@ -272,9 +392,12 @@ class DocstringHandler {
                     description = description.replace(regex, '');
                 }
             });
+
             // Remove any code block placeholders that remain
-            sections.codeBlocks.forEach(block => {
-                description = description.replace(block.id, '');
+            sections.codeBlocks.forEach(group => {
+                group.blocks.forEach(block => {
+                    description = description.replace(block.id, '');
+                });
             });
             // Clean up any resulting empty lines
             description = description.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
@@ -287,16 +410,33 @@ class DocstringHandler {
             }
         }
 
-        // Add code blocks grouped by context, only if not already used
+        // Add code blocks grouped by context
         for (const context of contextOrder) {
             const blocks = codeBlocksByContext.get(context);
             if (blocks && blocks.length > 0) {
-                // Only show blocks that were not used in the description
-                blocks.forEach(block => {
-                    if (!usedBlockIds.has(block.id)) {
-                        html += `<div class=\"docstring-section code-blocks-section\"><h4 data-context=\"${context}\">${this.sectionIcons[context] || '💻'} ${context}</h4><div class=\"code-blocks-content\"><pre class=\"${block.language}\"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre></div></div>`;
-                    }
-                });
+                // Show all blocks for this context that weren't used in the description
+                // If context is 'Usage Example', group all blocks together in one code block
+                if (context === 'Usage Example' && blocks.length > 1) {
+                    const combinedCode = blocks.map(block => block.code).join('\n\n');
+                    html += `<div class="docstring-section code-blocks-section">
+                        <h4 data-context="${context}">💻 ${context}</h4>
+                        <div class="code-blocks-content">
+                            <pre class="${blocks[0].language}"><code>${this._formatCodeBlock(combinedCode, blocks[0].language)}</code></pre>
+                        </div>
+                    </div>`;
+                    blocks.forEach(block => usedBlockIds.add(block.id));
+                } else {
+                    blocks.forEach(block => {
+                        if (!usedBlockIds.has(block.id)) {
+                            html += `<div class="docstring-section code-blocks-section">
+                                <h4 data-context="${context}">${this.sectionIcons[context] || '💻'} ${context}</h4>
+                                <div class="code-blocks-content">
+                                    <pre class="${block.language}"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre>
+                                </div>
+                            </div>`;
+                        }
+                    });
+                }
             }
         }
 
@@ -511,14 +651,48 @@ class DocstringHandler {
      * @private
      */
     _formatCodeBlock(code, language) {
-        switch (language.toLowerCase()) {
+        // Only escape HTML for code content, not for highlighting tags
+        // Store string literals to prevent processing their contents
+        const strings = [];
+        code = code.replace(/(["'])((?:\\.|[^\\])*?)\1/g, (match) => {
+            strings.push(match);
+            return `__STRING_${strings.length - 1}__`;
+        });
+
+        // Process different parts based on language
+        switch (language ? language.toLowerCase() : '') {
             case 'python':
-                return this._formatPythonCode(code);
+                code = code
+                    // Keywords
+                    .replace(/\b(import|from|class|def|return|None|True|False|self)\b/g, '<span class="code-keyword">$1</span>')
+                    // Class names
+                    .replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, '<span class="code-class">$1</span>')
+                    // Variable assignments
+                    .replace(/\b([a-z_][a-z0-9_]*)\s*=/g, '<span class="code-variable">$1</span> =')
+                    // Function calls
+                    .replace(/\b([a-z_][a-z0-9_]*)\s*\(/g, '<span class="code-function">$1</span>(')
+                    // Comments
+                    .replace(/(#[^\n]*)/g, '<span class="code-comment">$1</span>');
+                break;
             case 'bash':
-                return this._formatBashCode(code);
-            default:
-                return this._escapeHtml(code);
+                code = code
+                    // Highlight pip command
+                    .replace(/\b(pip)\b/g, '<span class="code-keyword">$1</span>')
+                    // Command flags
+                    .replace(/\s(-[uU])\b/g, ' <span class="code-flag">$1</span>')
+                    // Package names
+                    .replace(/\b(langchain[\w-]*|pypdf\d*|chromadb|openai|tiktoken)\b/g, '<span class="code-package">$1</span>')
+                    // Install command
+                    .replace(/\b(install)\b/g, '<span class="code-keyword">$1</span>');
+                break;
         }
+
+        // Restore string literals (escaped)
+        strings.forEach((str, i) => {
+            code = code.replace(`__STRING_${i}__`, `<span class="code-string">${this._escapeHtml(str)}</span>`);
+        });
+
+        return code;
     }
 
     /**
