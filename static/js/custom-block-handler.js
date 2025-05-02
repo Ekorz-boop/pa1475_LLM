@@ -516,13 +516,13 @@ class CustomBlockHandler {
             this.initCollapsibleSections();
 
             // Add common input/output nodes based on the component type
-            if (data.component_type) {
-                console.log(`Auto-suggesting nodes for component type: ${data.component_type}`);
-                this.suggestDefaultNodesForType(data.component_type);
-            } else {
-                // If no component_type, use the class name to guess
-                this.suggestDefaultNodes();
-            }
+            // if (data.component_type) {
+            //     console.log(`Auto-suggesting nodes for component type: ${data.component_type}`);
+            //     this.suggestDefaultNodesForType(data.component_type);
+            // } else {
+            //     // If no component_type, use the class name to guess
+            //     this.suggestDefaultNodes();
+            // }
 
             // Update methods container
             this.updateMethodsContainer();
@@ -568,114 +568,114 @@ class CustomBlockHandler {
      * Suggest default input/output nodes based on component type from API
      * @param {string} componentType - The component type from the API
      */
-    suggestDefaultNodesForType(componentType) {
-        // Clear previous suggestions
-        this.inputNodes = [];
-        this.outputNodes = [];
+    // suggestDefaultNodesForType(componentType) {
+    //     // Clear previous suggestions
+    //     this.inputNodes = [];
+    //     this.outputNodes = [];
 
-        // Set nodes based on component type
-        switch(componentType) {
-            case 'document_loaders':
-                this.outputNodes.push('Documents');
-                break;
+    //     // Set nodes based on component type
+    //     switch(componentType) {
+    //         case 'document_loaders':
+    //             this.outputNodes.push('Documents');
+    //             break;
 
-            case 'text_splitters':
-                this.inputNodes.push('Documents');
-                this.outputNodes.push('Chunks');
-                break;
+    //         case 'text_splitters':
+    //             this.inputNodes.push('Documents');
+    //             this.outputNodes.push('Chunks');
+    //             break;
 
-            case 'embeddings':
-                this.inputNodes.push('Text');
-                this.outputNodes.push('Embeddings');
-                break;
+    //         case 'embeddings':
+    //             this.inputNodes.push('Text');
+    //             this.outputNodes.push('Embeddings');
+    //             break;
 
-            case 'vectorstores':
-                this.inputNodes.push('Embeddings');
-                this.inputNodes.push('Query');
-                this.outputNodes.push('Results');
-                break;
+    //         case 'vectorstores':
+    //             this.inputNodes.push('Embeddings');
+    //             this.inputNodes.push('Query');
+    //             this.outputNodes.push('Results');
+    //             break;
 
-            case 'retrievers':
-                this.inputNodes.push('Query');
-                this.outputNodes.push('Documents');
-                break;
+    //         case 'retrievers':
+    //             this.inputNodes.push('Query');
+    //             this.outputNodes.push('Documents');
+    //             break;
 
-            case 'llms':
-            case 'chat_models':
-                this.inputNodes.push('Prompt');
-                this.outputNodes.push('Completion');
-                break;
+    //         case 'llms':
+    //         case 'chat_models':
+    //             this.inputNodes.push('Prompt');
+    //             this.outputNodes.push('Completion');
+    //             break;
 
-            case 'chains':
-                this.inputNodes.push('Input');
-                this.outputNodes.push('Output');
-                break;
+    //         case 'chains':
+    //             this.inputNodes.push('Input');
+    //             this.outputNodes.push('Output');
+    //             break;
 
-            default:
-                // If no specific type matches, fall back to the name-based approach
-                this.suggestDefaultNodes();
-                return;
-        }
+    //         default:
+    //             // If no specific type matches, fall back to the name-based approach
+    //             this.suggestDefaultNodes();
+    //             return;
+    //     }
 
-        // Update nodes display
-        this.updateNodesDisplay();
-    }
+    //     // Update nodes display
+    //     this.updateNodesDisplay();
+    // }
 
     /**
      * Suggest default input/output nodes based on class type
      */
-    suggestDefaultNodes() {
-        // Clear previous suggestions
-        this.inputNodes = [];
-        this.outputNodes = [];
+    // suggestDefaultNodes() {
+    //     // Clear previous suggestions
+    //     this.inputNodes = [];
+    //     this.outputNodes = [];
 
-        // Check if this.selectedClass exists before using it
-        if (!this.selectedClass) {
-            console.warn('No class selected when attempting to suggest default nodes');
-            return;
-        }
+    //     // Check if this.selectedClass exists before using it
+    //     if (!this.selectedClass) {
+    //         console.warn('No class selected when attempting to suggest default nodes');
+    //         return;
+    //     }
 
-        const className = this.selectedClass.toLowerCase();
+    //     const className = this.selectedClass.toLowerCase();
 
-        // Document loaders generally have a document output
-        if (className.includes('loader') || className.includes('reader') || className.includes('parser')) {
-            this.outputNodes.push('Documents');
-        }
+    //     // Document loaders generally have a document output
+    //     if (className.includes('loader') || className.includes('reader') || className.includes('parser')) {
+    //         this.outputNodes.push('Documents');
+    //     }
 
-        // Text splitters have document inputs and chunk outputs
-        if (className.includes('splitter')) {
-            this.inputNodes.push('Documents');
-            this.outputNodes.push('Chunks');
-        }
+    //     // Text splitters have document inputs and chunk outputs
+    //     if (className.includes('splitter')) {
+    //         this.inputNodes.push('Documents');
+    //         this.outputNodes.push('Chunks');
+    //     }
 
-        // Embedding models have text input and vector output
-        if (className.includes('embedding')) {
-            this.inputNodes.push('Text');
-            this.outputNodes.push('Embeddings');
-        }
+    //     // Embedding models have text input and vector output
+    //     if (className.includes('embedding')) {
+    //         this.inputNodes.push('Text');
+    //         this.outputNodes.push('Embeddings');
+    //     }
 
-        // Vector stores have vector inputs and search outputs
-        if (className.includes('vectorstore') || className.includes('vector_store')) {
-            this.inputNodes.push('Embeddings');
-            this.inputNodes.push('Query');
-            this.outputNodes.push('Results');
-        }
+    //     // Vector stores have vector inputs and search outputs
+    //     if (className.includes('vectorstore') || className.includes('vector_store')) {
+    //         this.inputNodes.push('Embeddings');
+    //         this.inputNodes.push('Query');
+    //         this.outputNodes.push('Results');
+    //     }
 
-        // LLMs have prompt inputs and completion outputs
-        if (className.includes('llm') || className.includes('model') || className.includes('chat')) {
-            this.inputNodes.push('Prompt');
-            this.outputNodes.push('Completion');
-        }
+    //     // LLMs have prompt inputs and completion outputs
+    //     if (className.includes('llm') || className.includes('model') || className.includes('chat')) {
+    //         this.inputNodes.push('Prompt');
+    //         this.outputNodes.push('Completion');
+    //     }
 
-        // Chains have various inputs and outputs depending on type
-        if (className.includes('chain')) {
-            this.inputNodes.push('Input');
-            this.outputNodes.push('Output');
-        }
+    //     // Chains have various inputs and outputs depending on type
+    //     if (className.includes('chain')) {
+    //         this.inputNodes.push('Input');
+    //         this.outputNodes.push('Output');
+    //     }
 
-        // Update nodes display
-        this.updateNodesDisplay();
-    }
+    //     // Update nodes display
+    //     this.updateNodesDisplay();
+    // }
 
     /**
      * Update the methods container with available methods
@@ -1025,10 +1025,10 @@ class CustomBlockHandler {
             return false;
         }
 
-        if (this.inputNodes.length === 0 && this.outputNodes.length === 0) {
-            showToast('Please add at least one input or output node', 'error');
-            return false;
-        }
+        // if (this.inputNodes.length === 0 && this.outputNodes.length === 0) {
+        //     showToast('Please add at least one input or output node', 'error');
+        //     return false;
+        // }
 
         return true;
     }
@@ -1568,9 +1568,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                 <div class="block-drag-handle" contenteditable="true">${blockName}</div>
             </div>
             <div class="node-container">
-                ${inputNodes && inputNodes.length > 0 ?
-                    `<div class="input-node-group">
-
+                    <div class="input-node-group">
                         ${inputNodes.map(node =>
                             `<div class="input-node" data-input="${typeof node === 'string' ? node : node.name}">
                                 <div class="tooltip-container">
@@ -1578,11 +1576,8 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                                 </div>
                             </div>`
                         ).join('')}
-                    </div>`
-                    : ''
-                }
-                ${outputNodes && outputNodes.length > 0 ?
-                    `<div class="output-node-group">
+                    </div>
+                    <div class="output-node-group">
                         ${outputNodes.map(node =>
                             `<div class="output-node" data-output="${typeof node === 'string' ? node : node.name}">
                                 <div class="tooltip-container">
@@ -1590,9 +1585,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                                 </div>
                             </div>`
                         ).join('')}
-                    </div>`
-                    : ''
-                }
+                    </div>
             </div>
             <div class="block-content">
                 <select class="method-select" title="Select method to execute">
