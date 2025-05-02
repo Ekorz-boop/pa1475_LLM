@@ -126,6 +126,40 @@ class DocstringHandler {
                 arrays: /^\s*\[/m
             }
         };
+
+        // Add method-specific section icons
+        this.methodSectionIcons = {
+            ...this.sectionIcons,
+            'Args': '📝',
+            'Parameters': '📝',
+            'Returns': '↩️',
+            'Raises': '⚠️',
+            'Example': '💡',
+            'Examples': '💡',
+            'Note': '📌',
+            'Warning': '⚠️',
+            'Deprecated': '🚫',
+            'Usage': '🎯',
+            'Beta': '🧪',
+            'Output Example': '📤'
+        };
+
+        // Add method-specific patterns
+        this.methodPatterns = {
+            ...this.patterns,
+            // Method-specific section headers
+            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Note|Warning|Deprecated|Usage|Beta|Output Example):\s*$/gm,
+            
+            // Method-specific parameter patterns
+            parameters: {
+                ...this.patterns.parameters,
+                // Add method-specific parameter patterns
+                decorator: /@\w+(?:\([^)]*\))?/g,
+                async: /\basync\b/g,
+                yield: /\byield\b/g,
+                generator: /\byield\s+from\b/g
+            }
+        };
     }
 
     /**
@@ -899,6 +933,241 @@ class DocstringHandler {
 
         return button;
     }
+
+    /**
+     * Parse a method docstring into structured sections
+     * @param {string} docstring - The raw method docstring text
+     * @param {Object} methodInfo - Additional method information
+     * @returns {Object} - Structured method docstring data
+     */
+    parseMethodDocstring(docstring, methodInfo = {}) {
+        if (!docstring || typeof docstring !== 'string') {
+            return {
+                description: 'No description available.',
+                parameters: [],
+                returns: { type: '', description: '' },
+                raises: [],
+                examples: [],
+                isAsync: methodInfo.isAsync || false,
+                isGenerator: methodInfo.isGenerator || false,
+                decorators: methodInfo.decorators || []
+            };
+        }
+
+        const sections = {
+            description: '',
+            parameters: [],
+            returns: { type: '', description: '' },
+            raises: [],
+            examples: [],
+            isAsync: methodInfo.isAsync || false,
+            isGenerator: methodInfo.isGenerator || false,
+            decorators: methodInfo.decorators || []
+        };
+
+        // Extract method-specific information
+        const decoratorMatches = docstring.matchAll(this.methodPatterns.parameters.decorator);
+        sections.decorators = Array.from(decoratorMatches).map(match => match[0].trim());
+        
+        sections.isAsync = this.methodPatterns.parameters.async.test(docstring);
+        sections.isGenerator = this.methodPatterns.parameters.yield.test(docstring) || 
+                             this.methodPatterns.parameters.generator.test(docstring);
+
+        // Parse parameters with method-specific handling
+        const tableMatch = docstring.match(this.methodPatterns.parameterTable);
+        if (tableMatch) {
+            const tableContent = tableMatch[1];
+            let paramMatch;
+            while ((paramMatch = this.methodPatterns.tableParameter.exec(tableContent)) !== null) {
+                const [_, name, type, description] = paramMatch;
+                sections.parameters.push({
+                    name: name.trim(),
+                    type: type.trim(),
+                    description: description.trim(),
+                    isOptional: this.methodPatterns.parameters.optionalMarker.test(description),
+                    isRequired: this.methodPatterns.parameters.requiredMarker.test(description),
+                    defaultValue: this._extractDefaultValue(description)
+                });
+            }
+            docstring = docstring.replace(tableMatch[0], '');
+        } else {
+            // Parse traditional parameter format
+            const params = new Map();
+            let match;
+            
+            while ((match = this.methodPatterns.parameters.sphinx.exec(docstring)) !== null) {
+                const name = match[1].trim();
+                const description = match[2].trim();
+                params.set(name, {
+                    name,
+                    description,
+                    type: '',
+                    isOptional: this.methodPatterns.parameters.optionalMarker.test(description),
+                    isRequired: this.methodPatterns.parameters.requiredMarker.test(description),
+                    defaultValue: this._extractDefaultValue(description)
+                });
+            }
+
+            while ((match = this.methodPatterns.parameters.types.exec(docstring)) !== null) {
+                const name = match[1].trim();
+                const type = match[2].trim();
+                if (params.has(name)) {
+                    params.get(name).type = type;
+                }
+            }
+            sections.parameters = Array.from(params.values());
+        }
+
+        // Extract returns section with method-specific handling
+        const returnsMatch = docstring.match(this.methodPatterns.returns.google);
+        if (returnsMatch) {
+            sections.returns = {
+                description: returnsMatch[1].trim(),
+                type: this._extractReturnType(returnsMatch[1])
+            };
+        }
+
+        // Extract raises section
+        const raisesMatches = Array.from(docstring.matchAll(this.methodPatterns.raises.google));
+        sections.raises = raisesMatches.map(match => ({
+            type: match[1].trim(),
+            description: match[2].trim()
+        }));
+
+        // Extract examples
+        const exampleMatches = docstring.matchAll(/Examples?:\s*\n([\s\S]*?)(?=\n\s*\n|\n[A-Z]|$)/g);
+        sections.examples = Array.from(exampleMatches).map(match => ({
+            description: match[1].trim(),
+            codeBlocks: this._extractCodeBlocks(match[1])
+        }));
+
+        // Get main description
+        const firstSection = docstring.match(/\n\s*[A-Z][a-z]+:/);
+        sections.description = firstSection 
+            ? docstring.slice(0, firstSection.index).trim()
+            : docstring.trim();
+
+        return sections;
+    }
+
+    /**
+     * Format a method docstring for display
+     * @param {Object} sections - The parsed method docstring sections
+     * @returns {string} - HTML formatted method docstring
+     */
+    formatMethodDocstring(sections) {
+        let html = '';
+
+        // Add method metadata
+        if (sections.isAsync || sections.isGenerator || sections.decorators.length > 0) {
+            html += '<div class="method-metadata">';
+            if (sections.isAsync) {
+                html += '<span class="method-badge async">async</span>';
+            }
+            if (sections.isGenerator) {
+                html += '<span class="method-badge generator">generator</span>';
+            }
+            sections.decorators.forEach(decorator => {
+                html += `<span class="method-badge decorator">${this._escapeHtml(decorator)}</span>`;
+            });
+            html += '</div>';
+        }
+
+        // Add description
+        if (sections.description) {
+            html += `<div class="method-description">${this._formatText(sections.description)}</div>`;
+        }
+
+        // Add parameters
+        if (sections.parameters.length > 0) {
+            html += '<div class="method-parameters">';
+            html += '<h4>📝 Parameters</h4>';
+            html += '<ul>';
+            sections.parameters.forEach(param => {
+                html += '<li>';
+                html += `<strong>${this._escapeHtml(param.name)}</strong>`;
+                if (param.type) {
+                    html += ` <span class="param-type">${this._escapeHtml(param.type)}</span>`;
+                }
+                if (param.isOptional) {
+                    html += ' <span class="param-optional">(optional)</span>';
+                }
+                if (param.isRequired) {
+                    html += ' <span class="param-required">(required)</span>';
+                }
+                if (param.defaultValue) {
+                    html += ` <span class="param-default">default: ${this._escapeHtml(param.defaultValue)}</span>`;
+                }
+                html += `<p>${this._formatText(param.description)}</p>`;
+                html += '</li>';
+            });
+            html += '</ul>';
+            html += '</div>';
+        }
+
+        // Add returns
+        if (sections.returns.description) {
+            html += '<div class="method-returns">';
+            html += '<h4>↩️ Returns</h4>';
+            if (sections.returns.type) {
+                html += `<div class="return-type">${this._escapeHtml(sections.returns.type)}</div>`;
+            }
+            html += `<div class="return-description">${this._formatText(sections.returns.description)}</div>`;
+            html += '</div>';
+        }
+
+        // Add raises
+        if (sections.raises.length > 0) {
+            html += '<div class="method-raises">';
+            html += '<h4>⚠️ Raises</h4>';
+            html += '<ul>';
+            sections.raises.forEach(raise => {
+                html += '<li>';
+                html += `<strong>${this._escapeHtml(raise.type)}</strong>`;
+                html += `<p>${this._formatText(raise.description)}</p>`;
+                html += '</li>';
+            });
+            html += '</ul>';
+            html += '</div>';
+        }
+
+        // Add examples
+        if (sections.examples.length > 0) {
+            html += '<div class="method-examples">';
+            html += '<h4>💡 Examples</h4>';
+            sections.examples.forEach(example => {
+                html += `<div class="example">`;
+                if (example.description) {
+                    html += `<div class="example-description">${this._formatText(example.description)}</div>`;
+                }
+                example.codeBlocks.forEach(block => {
+                    html += this._formatCodeBlock(block.code, block.language);
+                });
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        return html;
+    }
+
+    /**
+     * Extract default value from parameter description
+     * @private
+     */
+    _extractDefaultValue(description) {
+        const match = description.match(this.methodPatterns.parameters.defaultMarker);
+        return match ? match[1].trim() : null;
+    }
+
+    /**
+     * Extract return type from return description
+     * @private
+     */
+    _extractReturnType(description) {
+        const typeMatch = description.match(/(?:^|\n)\s*:rtype:\s*([^\n]*)/);
+        return typeMatch ? typeMatch[1].trim() : '';
+    }
 }
 
 // Add CSS styles for the enhanced features
@@ -1058,6 +1327,87 @@ style.textContent = `
     .configuration-comment {
         color: #666;
         font-style: italic;
+    }
+
+    .method-metadata {
+        margin-bottom: 1em;
+    }
+
+    .method-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        margin-right: 8px;
+        border-radius: 3px;
+        font-size: 0.9em;
+        font-weight: 500;
+    }
+
+    .method-badge.async {
+        background: #e8f4f8;
+        color: #007acc;
+    }
+
+    .method-badge.generator {
+        background: #f0f8ff;
+        color: #0066cc;
+    }
+
+    .method-badge.decorator {
+        background: #f5f5f5;
+        color: #666;
+    }
+
+    .method-description {
+        margin-bottom: 1.5em;
+    }
+
+    .method-parameters,
+    .method-returns,
+    .method-raises,
+    .method-examples {
+        margin: 1.5em 0;
+    }
+
+    .param-type {
+        color: #007acc;
+        font-family: monospace;
+    }
+
+    .param-optional {
+        color: #666;
+        font-style: italic;
+    }
+
+    .param-required {
+        color: #d73a49;
+        font-weight: 500;
+    }
+
+    .param-default {
+        color: #098658;
+        font-family: monospace;
+    }
+
+    .return-type {
+        font-family: monospace;
+        color: #007acc;
+        margin-bottom: 0.5em;
+    }
+
+    .return-description {
+        color: #333;
+    }
+
+    .example {
+        margin: 1em 0;
+        padding: 1em;
+        background: #f8f8f8;
+        border-radius: 4px;
+    }
+
+    .example-description {
+        margin-bottom: 1em;
+        color: #666;
     }
 `;
 
