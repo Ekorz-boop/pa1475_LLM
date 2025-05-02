@@ -5,8 +5,8 @@
 class DocstringHandler {
     constructor() {
         this.patterns = {
-            // Section headers (Google-style and custom)
-            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Attributes|Note|Warning|Setup|Instantiate|Load|Async load|Lazy load|Output Example):\s*$/gm,
+            // Section headers (Enhanced based on LangChain analysis)
+            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Attributes|Note|Warning|Setup|Instantiate|Load|Async load|Lazy load|Output Example|References|See Also|Parameters|Deprecated|Usage|Configuration|Migration|Beta):\s*$/gm,
             
             // Add pattern for pre-formatted parameter tables
             parameterTable: /Parameters:\s*\nName\s*\nType\s*\nDescription\s*\n([\s\S]*?)(?=\n\n|\n[A-Z]|$)/,
@@ -20,11 +20,12 @@ class DocstringHandler {
                 pipInstall: /pip\s+install\s+(?:-[uU]\s+)?[^\n]+/g
             },
             
-            // Code block patterns
+            // Enhanced code block patterns based on LangChain analysis
             codeBlocks: {
                 rst: /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n\S|\n\s*\.\.|$)/g,
                 triple: /```(\w+)?\n([\s\S]*?)```/g,
-                indented: /(?:^|\n)( {4}|\t)([^\n]+(?:\n(?:[ \t]+[^\n]+)*)*)/g
+                indented: /(?:^|\n)( {4}|\t)([^\n]+(?:\n(?:[ \t]+[^\n]+)*)*)/g,
+                output: /Output:\s*\n\s*([\s\S]*?)(?=\n\s*\n|\n[A-Z]|$)/g
             },
             
             // Installation patterns
@@ -34,11 +35,20 @@ class DocstringHandler {
                 multiPackage: /(?:langchain[\w-]*|pypdf\d*|chromadb|openai|tiktoken)(?:\s*,\s*[\w-]+)*/g
             },
             
-            // Parameter patterns
+            // Enhanced parameter patterns
             parameters: {
                 sphinx: /(?:^|\n)\s*:param\s+([^:]+):\s*([^\n]*(?:\n\s+[^\n:]*)*)/g,
                 google: /(?:^|\n)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\):\s*([^\n]*(?:\n\s+[^\n]*)*)/g,
-                types: /(?:^|\n)\s*:type\s+([^:]+):\s*([^\n]*)/g
+                types: /(?:^|\n)\s*:type\s+([^:]+):\s*([^\n]*)/g,
+                // New patterns for better type detection
+                unionTypes: /Union\[([^\]]+)\]/g,
+                listTypes: /List\[([^\]]+)\]/g,
+                dictTypes: /Dict\[([^\]]+)\]/g,
+                optionalMarker: /Optional\[([^\]]+)\]/g,
+                // New patterns for parameter metadata
+                requiredMarker: /required\s*[,.]/i,
+                optionalMarker: /optional\s*[,.]/i,
+                defaultMarker: /defaults?\s+to\s+([^,\n]+)/i
             },
             
             // Return value patterns
@@ -52,10 +62,29 @@ class DocstringHandler {
             raises: {
                 sphinx: /(?:^|\n)\s*:raises?\s+([^:]+):\s*([^\n]*(?:\n\s+[^\n:]*)*)/g,
                 google: /Raises:\s*\n\s*([A-Za-z0-9_]+):\s*([^\n]*(?:\n\s+[^\n]*)*)/g
+            },
+            
+            // New patterns for references and links
+            references: {
+                classRef: /:class:`([^`]+)`/g,
+                funcRef: /:func:`([^`]+)`/g,
+                methRef: /:meth:`([^`]+)`/g,
+                modRef: /:mod:`([^`]+)`/g,
+                extLink: /`([^`]+)\s+<([^>]+)>`_/g,
+                apiRef: /https?:\/\/api\.python\.langchain\.com\/en\/latest\/([^\s]+)/g,
+                migrationGuide: /https?:\/\/python\.langchain\.com\/docs\/versions\/migrating[^\s]+/g
+            },
+
+            // New patterns for special markers
+            markers: {
+                beta: /\.\.\s*beta::/g,
+                deprecated: /\.\.\s*deprecated::\s*([^\n]+)/g,
+                versionChanged: /\.\.\s*versionchanged::\s*([^\n]+)/g,
+                versionAdded: /\.\.\s*versionadded::\s*([^\n]+)/g
             }
         };
 
-        // Add icons for different sections
+        // Enhanced section icons
         this.sectionIcons = {
             'Args': '📝',
             'Parameters': '📝',
@@ -66,7 +95,36 @@ class DocstringHandler {
             'Attributes': '🔍',
             'Note': '📌',
             'Warning': '⚠️',
-            'Setup': '⚙️'
+            'Setup': '⚙️',
+            'References': '📚',
+            'See Also': '👉',
+            'Deprecated': '🚫',
+            'Usage': '🎯',
+            'Configuration': '⚙️',
+            'Migration': '🔄',
+            'Beta': '🧪',
+            'Output Example': '📤'
+        };
+
+        // Language detection patterns
+        this.languagePatterns = {
+            python: {
+                keywords: /\b(def|class|import|from|return|if|else|for|while|try|except|with|as|lambda|async|await)\b/,
+                builtins: /\b(print|len|str|int|dict|list|tuple|set|bool|None|True|False)\b/,
+                imports: /\b(os|sys|json|requests|numpy|pandas|torch|tensorflow)\b/
+            },
+            bash: {
+                keywords: /\b(echo|cd|ls|mkdir|rm|cp|mv|chmod|chown|sudo|apt|pip|python|git)\b/,
+                flags: /\s-[a-zA-Z]+|\s--[a-zA-Z-]+/
+            },
+            yaml: {
+                patterns: /^\s*[a-zA-Z_][a-zA-Z0-9_]*:\s*$/m,
+                lists: /^\s*-\s+/m
+            },
+            json: {
+                patterns: /^\s*[{"]/m,
+                arrays: /^\s*\[/m
+            }
         };
     }
 
@@ -510,6 +568,17 @@ class DocstringHandler {
             html += `</div></div>`;
         }
 
+        // Add copy buttons to all code blocks
+        setTimeout(() => {
+            document.querySelectorAll('pre code').forEach(block => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-block-wrapper';
+                block.parentNode.insertBefore(wrapper, block);
+                wrapper.appendChild(block);
+                wrapper.appendChild(this._addCopyButton(block));
+            });
+        }, 0);
+
         return html;
     }
 
@@ -522,6 +591,26 @@ class DocstringHandler {
 
         // Handle RST dropdowns as real collapsible sections
         text = this._extractAndFormatDropdowns(text);
+
+        // Handle special markers
+        text = text.replace(this.patterns.markers.beta, '<div class="rst-beta"><span class="rst-icon">🧪</span> <strong>Beta Feature</strong></div>');
+        text = text.replace(this.patterns.markers.deprecated, (_, version) => 
+            `<div class="rst-deprecated"><span class="rst-icon">🛑</span> <strong>Deprecated:</strong> ${version}</div>`
+        );
+        text = text.replace(this.patterns.markers.versionChanged, (_, note) => 
+            `<div class="rst-versionchanged"><span class="rst-icon">ℹ️</span> <strong>Version changed:</strong> ${note}</div>`
+        );
+        text = text.replace(this.patterns.markers.versionAdded, (_, note) => 
+            `<div class="rst-versionadded"><span class="rst-icon">✨</span> <strong>New in version:</strong> ${note}</div>`
+        );
+
+        // Handle API references and migration guides
+        text = text.replace(this.patterns.references.apiRef, (_, path) => 
+            `<a href="https://api.python.langchain.com/en/latest/${path}" target="_blank" class="api-ref">API Reference</a>`
+        );
+        text = text.replace(this.patterns.references.migrationGuide, (_, path) => 
+            `<a href="https://python.langchain.com/docs/versions/migrating${path}" target="_blank" class="migration-guide">Migration Guide</a>`
+        );
 
         // RST directives and important notes (except dropdown)
         text = text.replace(/^\s*\.\.\s*versionchanged::(.*)$/gim, '<div class="rst-versionchanged"><span class="rst-icon">ℹ️</span> <strong>Version changed:</strong>$1</div>');
@@ -647,52 +736,122 @@ class DocstringHandler {
     }
 
     /**
-     * Format a code block with syntax highlighting
+     * Enhanced code block formatting with better language detection and syntax highlighting
      * @private
      */
     _formatCodeBlock(code, language) {
-        // Only escape HTML for code content, not for highlighting tags
-        // Store string literals to prevent processing their contents
+        // First detect/verify language if not specified
+        if (!language || language === 'text') {
+            language = this._detectLanguage(code);
+        }
+
+        // Escape HTML
+        code = this._escapeHtml(code);
+
+        switch (language.toLowerCase()) {
+            case 'python':
+            case 'py':
+            case 'python3':
+                return this._formatPythonCode(code);
+            case 'bash':
+            case 'shell':
+            case 'sh':
+                return this._formatBashCode(code);
+            case 'yaml':
+            case 'yml':
+                return this._formatYamlCode(code);
+            default:
+                return code;
+        }
+    }
+
+    /**
+     * Enhanced language detection based on code content
+     * @private
+     */
+    _detectLanguage(code) {
+        // Python detection
+        if (this.languagePatterns.python.keywords.test(code) ||
+            this.languagePatterns.python.builtins.test(code) ||
+            this.languagePatterns.python.imports.test(code)) {
+            return 'python';
+        }
+
+        // Bash detection
+        if (this.languagePatterns.bash.keywords.test(code) ||
+            this.languagePatterns.bash.flags.test(code)) {
+            return 'bash';
+        }
+
+        // YAML detection
+        if (this.languagePatterns.yaml.patterns.test(code) &&
+            this.languagePatterns.yaml.lists.test(code)) {
+            return 'yaml';
+        }
+
+        return 'text';
+    }
+
+    /**
+     * Enhanced Python code formatting
+     * @private
+     */
+    _formatPythonCode(code) {
+        // Store string literals
         const strings = [];
         code = code.replace(/(["'])((?:\\.|[^\\])*?)\1/g, (match) => {
             strings.push(match);
             return `__STRING_${strings.length - 1}__`;
         });
 
-        // Process different parts based on language
-        switch (language ? language.toLowerCase() : '') {
-            case 'python':
-                code = code
-                    // Keywords
-                    .replace(/\b(import|from|class|def|return|None|True|False|self)\b/g, '<span class="code-keyword">$1</span>')
-                    // Class names
-                    .replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, '<span class="code-class">$1</span>')
-                    // Variable assignments
-                    .replace(/\b([a-z_][a-z0-9_]*)\s*=/g, '<span class="code-variable">$1</span> =')
-                    // Function calls
-                    .replace(/\b([a-z_][a-z0-9_]*)\s*\(/g, '<span class="code-function">$1</span>(')
-                    // Comments
-                    .replace(/(#[^\n]*)/g, '<span class="code-comment">$1</span>');
-                break;
-            case 'bash':
-                code = code
-                    // Highlight pip command
-                    .replace(/\b(pip)\b/g, '<span class="code-keyword">$1</span>')
-                    // Command flags
-                    .replace(/\s(-[uU])\b/g, ' <span class="code-flag">$1</span>')
-                    // Package names
-                    .replace(/\b(langchain[\w-]*|pypdf\d*|chromadb|openai|tiktoken)\b/g, '<span class="code-package">$1</span>')
-                    // Install command
-                    .replace(/\b(install)\b/g, '<span class="code-keyword">$1</span>');
-                break;
-        }
+        // Highlight keywords
+        code = code.replace(
+            /\b(def|class|import|from|return|if|else|elif|for|in|while|try|except|with|as|lambda|async|await)\b/g,
+            '<span class="keyword">$1</span>'
+        );
 
-        // Restore string literals (escaped)
-        strings.forEach((str, i) => {
-            code = code.replace(`__STRING_${i}__`, `<span class="code-string">${this._escapeHtml(str)}</span>`);
-        });
+        // Highlight built-in functions and types
+        code = code.replace(
+            /\b(print|len|str|int|dict|list|tuple|set|bool|None|True|False)\b/g,
+            '<span class="builtin">$1</span>'
+        );
 
-        return code;
+        // Highlight decorators
+        code = code.replace(
+            /(@[\w.]+)/g,
+            '<span class="decorator">$1</span>'
+        );
+
+        // Highlight function calls
+        code = code.replace(
+            /(\w+)\(/g,
+            '<span class="function">$1</span>('
+        );
+
+        // Restore strings with highlighting
+        code = code.replace(/__STRING_(\d+)__/g, (_, i) => 
+            `<span class="string">${strings[i]}</span>`
+        );
+
+        // Add line numbers
+        const lines = code.split('\n');
+        return lines.map((line, i) => 
+            `<span class="line-number">${i + 1}</span>${line}`
+        ).join('\n');
+    }
+
+    /**
+     * Enhanced YAML code formatting
+     * @private
+     */
+    _formatYamlCode(code) {
+        return code
+            // Highlight keys
+            .replace(/^(\s*)([\w-]+):/gm, '$1<span class="yaml-key">$2</span>:')
+            // Highlight values
+            .replace(/:\s*(.+)$/gm, ': <span class="yaml-value">$1</span>')
+            // Highlight lists
+            .replace(/^(\s*)-\s+/gm, '$1<span class="yaml-list">-</span> ');
     }
 
     /**
@@ -717,4 +876,189 @@ class DocstringHandler {
         };
         return text.replace(/[&<>"']/g, m => map[m]);
     }
-} 
+
+    /**
+     * Add copy button to code blocks
+     * @private
+     */
+    _addCopyButton(codeElement) {
+        const button = document.createElement('button');
+        button.className = 'copy-button';
+        button.innerHTML = '📋';
+        button.title = 'Copy to clipboard';
+        
+        button.addEventListener('click', () => {
+            const code = codeElement.textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                button.innerHTML = '✓';
+                setTimeout(() => {
+                    button.innerHTML = '📋';
+                }, 2000);
+            });
+        });
+
+        return button;
+    }
+}
+
+// Add CSS styles for the enhanced features
+const style = document.createElement('style');
+style.textContent = `
+    .code-block-wrapper {
+        position: relative;
+        margin: 1em 0;
+    }
+
+    .copy-button {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        padding: 5px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .copy-button:hover {
+        opacity: 1;
+    }
+
+    .line-number {
+        color: #999;
+        margin-right: 1em;
+        user-select: none;
+    }
+
+    .keyword { color: #007acc; }
+    .builtin { color: #0000ff; }
+    .string { color: #a31515; }
+    .decorator { color: #af00db; }
+    .function { color: #795e26; }
+    
+    .yaml-key { color: #007acc; }
+    .yaml-value { color: #a31515; }
+    .yaml-list { color: #0000ff; }
+
+    .parameter-row:hover {
+        background-color: #f5f5f5;
+    }
+
+    .rst-dropdown-collapsible {
+        margin: 1em 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .rst-dropdown-toggle {
+        width: 100%;
+        text-align: left;
+        padding: 10px;
+        background: #f5f5f5;
+        border: none;
+        cursor: pointer;
+    }
+
+    .rst-dropdown-content {
+        padding: 10px;
+        border-top: 1px solid #ddd;
+    }
+
+    .rst-note, .rst-warning, .rst-deprecated {
+        margin: 1em 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+
+    .rst-note { background: #e8f4f8; }
+    .rst-warning { background: #fff3cd; }
+    .rst-deprecated { background: #ffe6e6; }
+
+    .parameter-table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    .parameter-row {
+        border-bottom: 1px solid #eee;
+    }
+
+    .param-name {
+        font-weight: bold;
+        color: #007acc;
+    }
+
+    .param-type {
+        color: #795e26;
+        font-family: monospace;
+    }
+
+    .default-value {
+        color: #098658;
+        font-style: italic;
+    }
+
+    .rst-beta {
+        margin: 1em 0;
+        padding: 10px;
+        background: #e8f4f8;
+        border-radius: 4px;
+        border-left: 4px solid #007acc;
+    }
+
+    .rst-versionadded {
+        margin: 1em 0;
+        padding: 10px;
+        background: #e8f4f8;
+        border-radius: 4px;
+        border-left: 4px solid #098658;
+    }
+
+    .api-ref, .migration-guide {
+        display: inline-block;
+        padding: 2px 6px;
+        background: #f5f5f5;
+        border-radius: 3px;
+        text-decoration: none;
+        color: #007acc;
+        font-size: 0.9em;
+    }
+
+    .api-ref:hover, .migration-guide:hover {
+        background: #e8f4f8;
+    }
+
+    .output-block {
+        background: #f8f8f8;
+        border-left: 4px solid #666;
+        padding: 10px;
+        margin: 1em 0;
+        font-family: monospace;
+    }
+
+    .configuration-block {
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 1em 0;
+    }
+
+    .configuration-key {
+        color: #007acc;
+        font-weight: bold;
+    }
+
+    .configuration-value {
+        color: #098658;
+    }
+
+    .configuration-comment {
+        color: #666;
+        font-style: italic;
+    }
+`;
+
+document.head.appendChild(style); 
