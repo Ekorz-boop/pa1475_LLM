@@ -1,5 +1,6 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
+from flask_login import login_required, current_user
 import importlib
 import inspect
 import pkgutil
@@ -9,16 +10,44 @@ from blocks import (
     Block,
 )
 import os
+from extensions import db, login_manager, mail, init_app
+from models import AdminPanel
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder="static", template_folder="static/html")
 CORS(app)
+
+# Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-please-change')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', True)
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+
+# Initialize extensions
+init_app(app)
+
+# Import models after db initialization
+from models import User
+
+@login_manager.user_loader
+def load_user(id):
+    return User.query.get(int(id))
+
+# Register blueprints
+from auth import auth as auth_blueprint
+app.register_blueprint(auth_blueprint)
+
+from admin import admin as admin_blueprint
+app.register_blueprint(admin_blueprint, url_prefix='/admin')
 
 # Global canvas instance
 canvas = Canvas()
 
 # Dictionary to store block connections and their associated functions
 block_connections = {}
-
 
 # Set up cache for expensive operations
 class SimpleCache:
@@ -38,16 +67,14 @@ class SimpleCache:
     def clear(self):
         self.cache.clear()
 
-
 # Initialize caches
 module_classes_cache = SimpleCache(max_size=50)
 class_details_cache = SimpleCache(max_size=50)
 
-
-@app.route("/")
-def serve_static():
-    return app.send_static_file("html/index.html")
-
+@app.route('/')
+@login_required
+def index():
+    return render_template('index.html')
 
 @app.route("/api/connect", methods=["POST"])
 def connect_blocks():
@@ -67,11 +94,9 @@ def connect_blocks():
 
     return jsonify({"status": "success", "connection_id": connection_id})
 
-
 @app.route("/api/connections", methods=["GET"])
 def get_connections():
     return jsonify(block_connections)
-
 
 @app.route("/api/blocks/create", methods=["POST"])
 def create_block():
@@ -86,7 +111,6 @@ def create_block():
         jsonify({"error": "Invalid block type. Only custom blocks are allowed."}),
         400,
     )
-
 
 @app.route("/api/blocks/connect", methods=["POST"])
 def connect_block_nodes():
@@ -107,7 +131,6 @@ def connect_block_nodes():
             return jsonify({"error": "Invalid connection"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/blocks/export", methods=["POST"])
 def export_blocks():
@@ -267,7 +290,6 @@ def export_blocks():
         print(f"Export error: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
 
 def generate_python_code(blocks, connections):
     """Generate Python code for blocks and connections similar to block_sim.py logic."""
@@ -653,7 +675,6 @@ def generate_python_code(blocks, connections):
 
     return "\n".join(final_code)
 
-
 def determine_execution_order(blocks, connections):
     """Determine the order in which blocks should be executed using topological sort."""
     # Calculate in-degree for each block
@@ -686,7 +707,6 @@ def determine_execution_order(blocks, connections):
 
     return execution_order
 
-
 @app.route("/api/blocks/list", methods=["GET"])
 def list_blocks():
     try:
@@ -696,7 +716,6 @@ def list_blocks():
         return jsonify({"blocks": blocks, "connections": canvas.connections})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/blocks/process", methods=["POST"])
 def process_block():
@@ -732,7 +751,6 @@ def process_block():
         print(f"[ERROR] Block processing error: {str(e)}")
         return jsonify({"error": str(e), "status": "error"}), 500
 
-
 # New API endpoints for custom blocks
 @app.route("/api/langchain/libraries", methods=["GET"])
 def list_langchain_libraries():
@@ -760,7 +778,6 @@ def list_langchain_libraries():
 
     return jsonify({"libraries": available_libraries})
 
-
 @app.route("/api/langchain/modules", methods=["GET"])
 def list_langchain_modules():
     """List available modules within a LangChain library."""
@@ -787,7 +804,6 @@ def list_langchain_modules():
         return jsonify({"modules": modules})
     except ImportError:
         return jsonify({"error": f"Could not import {library}"}), 400
-
 
 @app.route("/api/langchain/classes", methods=["GET"])
 def list_langchain_classes():
@@ -918,7 +934,6 @@ def list_langchain_classes():
         return jsonify({"error": f"Could not import {module_path}: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": f"Error scanning classes: {str(e)}"}), 500
-
 
 @app.route("/api/langchain/class_details", methods=["GET"])
 def get_langchain_class_details():
@@ -1100,7 +1115,6 @@ def get_langchain_class_details():
         print(f"Error getting class details: {error_traceback}")
         return jsonify({"error": f"Error getting class details: {str(e)}"}), 500
 
-
 @app.route("/api/blocks/create_custom", methods=["POST"])
 def create_custom_block():
     """Create a custom block based on a LangChain class."""
@@ -1173,7 +1187,22 @@ def create_custom_block():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.before_request
+def check_maintenance_mode():
+    settings = AdminPanel.query.first()
+    if settings and settings.maintenance_mode:
+        # Allow admins to access everything
+        if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+            return
+        # Allow access to login/logout routes
+        if request.endpoint in ['auth.login', 'auth.logout']:
+            return
+        # Show maintenance page to everyone else
+        return render_template('maintenance.html', message=settings.maintenance_message), 503
 
-if __name__ == "__main__":
-    canvas.clear()  # Clear the canvas to prevent custom blocks from persisting
+# Create database tables
+with app.app_context():
+    db.create_all()
+
+if __name__ == '__main__':
     app.run(debug=True)

@@ -84,6 +84,21 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- User Menu Section -->
+                        <div class="menu-section">
+                            <div class="section-title">User</div>
+                            {% if current_user.is_admin %}
+                            <a href="/admin" class="menu-item" id="admin-button">
+                                <img src="/static/images/icons/admin.svg" alt="Admin">
+                                <span>Admin Panel</span>
+                            </a>
+                            {% endif %}
+                            <a href="/logout" class="menu-item" id="logout-button">
+                                <img src="/static/images/icons/logout.svg" alt="Logout">
+                                <span>Logout</span>
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Blocks Content -->
