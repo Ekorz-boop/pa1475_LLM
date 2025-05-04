@@ -781,17 +781,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
             draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+            // IMPORTANT: Update connections in real-time during dragging
             updateConnections();
             e.preventDefault();
         }
 
         if (draggingConnection && tempConnection && sourceNode) {
             const canvasRect = canvas.getBoundingClientRect();
+            
+            // IMPROVED: Calculate more accurately using node center
             const sourceRect = sourceNode.getBoundingClientRect();
+            const sourceCenterX = sourceRect.left + (sourceRect.width / 2);
+            const sourceCenterY = sourceRect.top + (sourceRect.height / 2);
 
             // Calculate connection points accounting for canvas transform
-            const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
-            const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
+            const x1 = ((sourceCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y1 = ((sourceCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
             const x2 = ((e.clientX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
             const y2 = ((e.clientY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
@@ -811,10 +816,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     hoveredInputNode = elemUnderMouse;
                     hoveredInputNode.classList.add('input-node-hover');
+                    
+                    // Add hover effect to connection
+                    tempConnection.classList.add('connection-hover');
                 }
             } else if (hoveredInputNode) {
                 hoveredInputNode.classList.remove('input-node-hover');
                 hoveredInputNode = null;
+                tempConnection.classList.remove('connection-hover');
             }
         }
     });
@@ -1041,13 +1050,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggingConnection = true;
                 sourceNode = outputNode;
 
-                const rect = outputNode.getBoundingClientRect();
+                const nodeRect = outputNode.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
 
-                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
-                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
+                // Calculate node center in ABSOLUTE document coordinates
+                const nodeCenterX = nodeRect.left + (nodeRect.width / 2);
+                const nodeCenterY = nodeRect.top + (nodeRect.height / 2);
+                
+                // Convert to SVG coordinates with zoom compensation
+                const x1 = ((nodeCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((nodeCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
+                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 tempConnection.setAttribute('x1', x1);
                 tempConnection.setAttribute('y1', y1);
                 tempConnection.setAttribute('x2', x1);
@@ -1308,7 +1322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Update the updateConnections function
+    // Update the updateConnections function and make it globally accessible
     function updateConnections() {
         if (!connectionsContainer) return;
 
@@ -1328,11 +1342,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetRect = targetNode.getBoundingClientRect();
             const canvasRect = canvas.getBoundingClientRect();
 
-            // Calculate positions accounting for canvas transform
-            const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
-            const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
-            const x2 = ((targetRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
-            const y2 = ((targetRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight / 2;
+            // Calculate node centers in document coordinates
+            const sourceCenterX = sourceRect.left + (sourceRect.width / 2);
+            const sourceCenterY = sourceRect.top + (sourceRect.height / 2);
+            const targetCenterX = targetRect.left + (targetRect.width / 2);
+            const targetCenterY = targetRect.top + (targetRect.height / 2);
+            
+            // Convert to canvas coordinates with zoom compensation
+            const x1 = ((sourceCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y1 = ((sourceCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+            const x2 = ((targetCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y2 = ((targetCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', x1);
@@ -1364,6 +1384,9 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionsContainer.appendChild(line);
         });
     }
+    
+    // Make updateConnections available globally
+    window.updateConnections = updateConnections;
 
     // Update the canvas transform function
     function updateCanvasTransform() {
@@ -1753,13 +1776,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggingConnection = true;
                 sourceNode = outputNode;
 
-                const rect = outputNode.getBoundingClientRect();
+                const nodeRect = outputNode.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
 
-                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
-                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
+                // Calculate node center in ABSOLUTE document coordinates
+                const nodeCenterX = nodeRect.left + (nodeRect.width / 2);
+                const nodeCenterY = nodeRect.top + (nodeRect.height / 2);
+                
+                // Convert to SVG coordinates with zoom compensation
+                const x1 = ((nodeCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((nodeCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
+                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 tempConnection.setAttribute('x1', x1);
                 tempConnection.setAttribute('y1', y1);
                 tempConnection.setAttribute('x2', x1);

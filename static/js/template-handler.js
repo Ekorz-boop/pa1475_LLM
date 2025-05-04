@@ -26,6 +26,9 @@ class TemplateHandler {
         // Make sure the required global functions are available
         this.checkRequiredFunctions();
         
+        // Override the makeBlockDraggable function with our enhanced version
+        this.overrideMakeBlockDraggable();
+        
         // Initialize UI components
         this.displaySavedTemplates();
         
@@ -937,9 +940,17 @@ class TemplateHandler {
                     connectionsContainer.innerHTML = '';
                 }
                 
-                // Reset global connections array if available
+                // CRITICAL FIX: Remove any old div-based connections that might have been created
+                const oldConnectionDivs = document.querySelectorAll('div.connection');
+                oldConnectionDivs.forEach(connDiv => {
+                    console.log(`Removing old connection div: ${connDiv.id}`);
+                    connDiv.remove();
+                });
+                
+                // Reset global connections array if present
                 if (window.connections && Array.isArray(window.connections)) {
                     window.connections.length = 0;
+                    console.log('Cleared global connections array');
                 }
                 
                 // Then create connections
@@ -986,16 +997,28 @@ class TemplateHandler {
                         this.makeBlockDraggableManually(blockEl);
                     }
                     
-                    // Set up node connections if they're not already set up
-                    if (typeof window.setupNodeConnections === 'function') {
-                        window.setupNodeConnections(blockEl);
-                    }
+                    // CRITICAL FIX: Use our improved node connection setup
+                    this.setupNodeConnections(blockEl);
+                    
+                    // Add enhanced drag event listeners
+                    this.addDragEventListeners(blockEl);
                     
                     // Apply setupCustomBlock if it's a custom block
                     if (blockEl.classList.contains('custom-block') && typeof window.setupCustomBlock === 'function') {
                         window.setupCustomBlock(blockEl);
                     }
                 });
+                
+                // CRITICAL FIX: Ensure all global variables are properly set
+                window.draggingConnection = false;
+                window.sourceNode = null;
+                window.hoveredInputNode = null;
+                window.tempConnection = null;
+                
+                // Update connections visualization one final time
+                if (typeof window.updateConnections === 'function') {
+                    window.updateConnections();
+                }
                 
                 // Fit all blocks to view
                 setTimeout(() => {
@@ -1008,6 +1031,14 @@ class TemplateHandler {
                 
                 this.updateProgress(100, 'Template loaded successfully');
                 this.showProgress(false);
+                
+                // Force one final connections update after everything is complete
+                setTimeout(() => {
+                    if (typeof window.updateConnections === 'function') {
+                        console.log('Performing final connections update');
+                        window.updateConnections();
+                    }
+                }, 1000);
                 
                 this.showToast('Pipeline template loaded successfully', 'success');
                 return true;
@@ -1034,6 +1065,12 @@ class TemplateHandler {
         if (connectionsContainer) {
             connectionsContainer.innerHTML = '';
         }
+        
+        // Also remove any div-based connections that might have been created
+        const oldConnectionDivs = document.querySelectorAll('div.connection');
+        oldConnectionDivs.forEach(connDiv => {
+            connDiv.remove();
+        });
         
         // Clear global connections array if available
         if (window.connections && Array.isArray(window.connections)) {
@@ -1121,9 +1158,14 @@ class TemplateHandler {
                     
                     // Add to canvas if not already added
                     if (block && block.parentElement === null) {
-                        const canvasContainer = document.querySelector('.canvas-container');
-                        if (canvasContainer) {
-                            canvasContainer.appendChild(block);
+                        const blockContainer = document.querySelector('.block-container');
+                        if (blockContainer) {
+                            blockContainer.appendChild(block);
+                        } else {
+                            const canvasContainer = document.querySelector('.canvas-container');
+                            if (canvasContainer) {
+                                canvasContainer.appendChild(block);
+                            }
                         }
                     }
                     
@@ -1191,10 +1233,13 @@ class TemplateHandler {
                     }
                 }
                 
-                // Set up node connections
-                if (block && typeof window.setupNodeConnections === 'function') {
-                    window.setupNodeConnections(block);
+                // CRITICAL FIX: Set up node connections with our improved function
+                if (block) {
+                    this.setupNodeConnections(block);
                     console.log(`Set up node connections for block ${blockData.id}`);
+                    
+                    // Add enhanced drag event listeners
+                    this.addDragEventListeners(block);
                 }
                 
                 return block;
@@ -1266,11 +1311,11 @@ class TemplateHandler {
         }
         
         try {
-            // Try to use global createConnection function if available
+            // First check if window.createConnection function exists and use it
             if (typeof window.createConnection === 'function') {
                 console.log("Using global createConnection function");
                 
-                // CRITICAL FIX: Handle inputId properly to ensure connections are correctly reconstructed
+                // Get inputId and find the correct target node
                 const inputId = connectionData.target.inputId;
                 
                 // Find the correct input node index if inputId is specified
@@ -1292,18 +1337,99 @@ class TemplateHandler {
                 return window.createConnection(
                     sourceBlock, 
                     targetBlock, 
-                    connectionData.source.outputIndex || 0, 
-                    targetInputIndex,
                     inputId
                 );
             } else {
-                // Manual connection creation as fallback
-                return this.createConnectionManually(connectionData);
+                // If window.createConnection is not available, create the connection directly in the SVG container
+                console.log("No global createConnection function found, creating connection manually via SVG");
+                
+                // Find the existing SVG connections container
+                const connectionsContainer = document.getElementById('connections');
+                if (!connectionsContainer || !(connectionsContainer instanceof SVGElement)) {
+                    console.error("SVG connections container not found!");
+                    return null;
+                }
+                
+                // Get the source output node
+                const sourceNodeIndex = connectionData.source.outputIndex || 0;
+                const sourceNodes = sourceBlock.querySelectorAll('.output-node');
+                const sourceNode = sourceNodes[sourceNodeIndex] || sourceNodes[0];
+                
+                // Get the target input node
+                let targetNode = null;
+                const inputId = connectionData.target.inputId;
+                
+                if (inputId) {
+                    // Try to find input node with matching data-input
+                    const inputNodes = targetBlock.querySelectorAll('.input-node');
+                    for (let i = 0; i < inputNodes.length; i++) {
+                        if (inputNodes[i].getAttribute('data-input') === inputId) {
+                            targetNode = inputNodes[i];
+                            break;
+                        }
+                    }
+                }
+                
+                // Fallback to index if no inputId match
+                if (!targetNode) {
+                    const targetNodeIndex = connectionData.target.inputIndex || 0;
+                    const targetNodes = targetBlock.querySelectorAll('.input-node');
+                    targetNode = targetNodes[targetNodeIndex] || targetNodes[0];
+                }
+                
+                if (!sourceNode || !targetNode) {
+                    console.error("Could not find source or target node for connection");
+                    return null;
+                }
+                
+                // Calculate positions for the connection line
+                const canvasContainer = document.querySelector('.canvas-container');
+                const canvasRect = canvasContainer.getBoundingClientRect();
+                const sourceRect = sourceNode.getBoundingClientRect();
+                const targetRect = targetNode.getBoundingClientRect();
+                
+                // Calculate positions with zoom and translation
+                const zoom = window.zoom || 1;
+                const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
+                
+                const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
+                const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
+                const x2 = ((targetRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
+                const y2 = ((targetRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight/2;
+                
+                // Create SVG line element
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', '#5d9cec');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('class', 'connection-line');
+                
+                // Set data attributes to track connection info
+                line.setAttribute('data-source-id', sourceBlock.id);
+                line.setAttribute('data-target-id', targetBlock.id);
+                line.setAttribute('data-input-id', inputId || '');
+                
+                // Add to connections container
+                connectionsContainer.appendChild(line);
+                
+                // Add to global connections array 
+                if (window.connections && Array.isArray(window.connections)) {
+                    const connection = {
+                        source: sourceBlock.id,
+                        target: targetBlock.id,
+                        inputId: inputId || ''
+                    };
+                    window.connections.push(connection);
+                }
+                
+                return { source: sourceBlock.id, target: targetBlock.id, inputId: inputId || '' };
             }
         } catch (error) {
             console.error("Error in createConnectionFromTemplate:", error);
-            // Fallback to manual creation
-            return this.createConnectionManually(connectionData);
+            return null;
         }
     }
 
@@ -1481,7 +1607,7 @@ class TemplateHandler {
     createConnectionManually(connectionData) {
         console.log("Creating connection manually:", connectionData);
         
-        // Create a basic connection structure
+        // Create a basic connection structure for tracking
         const connection = {
             id: connectionData.id || "connection_" + Math.random().toString(36).substr(2, 9),
             source: connectionData.source.blockId,
@@ -1490,132 +1616,107 @@ class TemplateHandler {
             data: connectionData.data || {}
         };
         
-        // Add to DOM if needed
-        const flowContainer = document.querySelector('.canvas-container');
-        if (flowContainer) {
+        try {
+            // Find the existing SVG connections container
+            const connectionsContainer = document.getElementById('connections');
+            if (!connectionsContainer || !(connectionsContainer instanceof SVGElement)) {
+                console.error("SVG connections container not found!");
+                return null;
+            }
+            
             // Find source and target elements
             const sourceBlock = document.getElementById(connection.source);
             const targetBlock = document.getElementById(connection.target);
             
-            if (sourceBlock && targetBlock) {
-                // Get the source output node
-                const sourceNodeIndex = connectionData.source.outputIndex || 0;
-                const sourceNodes = sourceBlock.querySelectorAll('.output-node');
-                const sourceNode = sourceNodes[sourceNodeIndex] || sourceNodes[0];
-                
-                // Get the target input node based on inputId if available
-                let targetNode = null;
-                if (connection.inputId) {
-                    // Try to find input node with matching data-input
-                    const inputNodes = targetBlock.querySelectorAll('.input-node');
-                    for (let i = 0; i < inputNodes.length; i++) {
-                        if (inputNodes[i].getAttribute('data-input') === connection.inputId) {
-                            targetNode = inputNodes[i];
-                            break;
-                        }
-                    }
-                }
-                
-                // Fallback to index if no inputId match
-                if (!targetNode) {
-                    const targetNodeIndex = connectionData.target.inputIndex || 0;
-                    const targetNodes = targetBlock.querySelectorAll('.input-node');
-                    targetNode = targetNodes[targetNodeIndex] || targetNodes[0];
-                }
-                
-                if (sourceNode && targetNode) {
-                    // Create the connection element
-                    const connectionElement = document.createElement('div');
-                    connectionElement.id = connection.id;
-                    connectionElement.className = 'connection';
-                    connectionElement.style.position = 'absolute';
-                    connectionElement.style.pointerEvents = 'none';
-                    connectionElement.style.zIndex = '5';
-                    
-                    // Store the source and target information as data attributes
-                    connectionElement.setAttribute('data-source-id', connection.source);
-                    connectionElement.setAttribute('data-target-id', connection.target);
-                    connectionElement.setAttribute('data-input-id', connection.inputId || '');
-                    
-                    // Create the SVG element for the connection line
-                    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                    svg.style.position = 'absolute';
-                    svg.style.width = '100%';
-                    svg.style.height = '100%';
-                    svg.style.top = '0';
-                    svg.style.left = '0';
-                    svg.style.overflow = 'visible';
-                    
-                    // Create the path for the connection
-                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                    path.setAttribute('stroke', '#5d9cec');
-                    path.setAttribute('stroke-width', '2');
-                    path.setAttribute('fill', 'none');
-                    
-                    // Store the same attributes on the path
-                    path.setAttribute('data-source-id', connection.source);
-                    path.setAttribute('data-target-id', connection.target);
-                    path.setAttribute('data-input-id', connection.inputId || '');
-                    
-                    svg.appendChild(path);
-                    connectionElement.appendChild(svg);
-                    flowContainer.appendChild(connectionElement);
-                    
-                    // Function to update the connection position
-                    const updateConnection = () => {
-                        // Find the source and target connectors
-                        if (sourceNode && targetNode) {
-                            // Get source and target positions
-                            const sourceRect = sourceNode.getBoundingClientRect();
-                            const targetRect = targetNode.getBoundingClientRect();
-                            const containerRect = flowContainer.getBoundingClientRect();
-                            
-                            // Calculate positions relative to flow container
-                            const sourceX = sourceRect.left + sourceRect.width/2 - containerRect.left + flowContainer.scrollLeft;
-                            const sourceY = sourceRect.top + sourceRect.height/2 - containerRect.top + flowContainer.scrollTop;
-                            const targetX = targetRect.left + targetRect.width/2 - containerRect.left + flowContainer.scrollLeft;
-                            const targetY = targetRect.top + targetRect.height/2 - containerRect.top + flowContainer.scrollTop;
-                            
-                            // Create a bezier curve path
-                            const dx = Math.abs(targetX - sourceX) * 0.5;
-                            const path_d = `M ${sourceX} ${sourceY} C ${sourceX + dx} ${sourceY}, ${targetX - dx} ${targetY}, ${targetX} ${targetY}`;
-                            path.setAttribute('d', path_d);
-                            
-                            // Set connection element size to cover the entire flow container
-                            connectionElement.style.width = `${flowContainer.scrollWidth}px`;
-                            connectionElement.style.height = `${flowContainer.scrollHeight}px`;
-                        }
-                    };
-                    
-                    // Update the connection initially
-                    updateConnection();
-                    
-                    // Update when window is resized
-                    window.addEventListener('resize', updateConnection);
-                    
-                    // Store the update function with the connection
-                    connection.updatePosition = updateConnection;
-                    
-                    // Also push this connection to the app's connections array
-                    if (window.connections && Array.isArray(window.connections)) {
-                        window.connections.push({
-                            source: connection.source,
-                            target: connection.target,
-                            inputId: connection.inputId
-                        });
-                        
-                        // Update connections visualization if the function exists
-                        if (typeof window.updateConnections === 'function') {
-                            window.updateConnections();
-                        }
+            if (!sourceBlock || !targetBlock) {
+                console.error("Source or target block not found");
+                return null;
+            }
+            
+            // Get the source output node
+            const sourceNodeIndex = connectionData.source.outputIndex || 0;
+            const sourceNodes = sourceBlock.querySelectorAll('.output-node');
+            const sourceNode = sourceNodes[sourceNodeIndex] || sourceNodes[0];
+            
+            // Get the target input node based on inputId if available
+            let targetNode = null;
+            if (connection.inputId) {
+                // Try to find input node with matching data-input
+                const inputNodes = targetBlock.querySelectorAll('.input-node');
+                for (let i = 0; i < inputNodes.length; i++) {
+                    if (inputNodes[i].getAttribute('data-input') === connection.inputId) {
+                        targetNode = inputNodes[i];
+                        break;
                     }
                 }
             }
+            
+            // Fallback to index if no inputId match
+            if (!targetNode) {
+                const targetNodeIndex = connectionData.target.inputIndex || 0;
+                const targetNodes = targetBlock.querySelectorAll('.input-node');
+                targetNode = targetNodes[targetNodeIndex] || targetNodes[0];
+            }
+            
+            if (sourceNode && targetNode) {
+                // Calculate positions for the connection
+                const canvasContainer = document.querySelector('.canvas-container');
+                if (!canvasContainer) {
+                    console.error("Canvas container not found");
+                    return null;
+                }
+                
+                const sourceRect = sourceNode.getBoundingClientRect();
+                const targetRect = targetNode.getBoundingClientRect();
+                const containerRect = canvasContainer.getBoundingClientRect();
+                
+                // Calculate positions relative to canvas - handle zoom and transform correctly
+                const zoom = window.zoom || 1;
+                const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
+                
+                const sourceX = ((sourceRect.left - containerRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
+                const sourceY = ((sourceRect.top - containerRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
+                const targetX = ((targetRect.left - containerRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
+                const targetY = ((targetRect.top - containerRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight/2;
+                
+                // Create the SVG line element and add it to the connections container
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('x1', sourceX);
+                line.setAttribute('y1', sourceY);
+                line.setAttribute('x2', targetX);
+                line.setAttribute('y2', targetY);
+                line.setAttribute('stroke', '#5d9cec');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('class', 'connection-line');
+                
+                // Add data attributes to track this connection
+                line.setAttribute('data-source-id', connection.source);
+                line.setAttribute('data-target-id', connection.target);
+                line.setAttribute('data-input-id', connection.inputId || '');
+                
+                // Add to the SVG connections container
+                connectionsContainer.appendChild(line);
+                
+                // Add to the window.connections array if it exists
+                if (window.connections && Array.isArray(window.connections)) {
+                    window.connections.push({
+                        source: connection.source,
+                        target: connection.target,
+                        inputId: connection.inputId
+                    });
+                }
+                
+                // Update connections visualization if needed
+                if (typeof window.updateConnections === 'function') {
+                    window.updateConnections();
+                }
+            } else {
+                console.error("Source or target node not found");
+                return null;
+            }
+        } catch (error) {
+            console.error("Error creating connection manually:", error);
         }
-        
-        // Store reference to the connection
-        this.createdConnections = this.createdConnections || [];
-        this.createdConnections.push(connection);
         
         return connection;
     }
@@ -1699,7 +1800,15 @@ class TemplateHandler {
             block.innerHTML = blockContent;
             
             // Add to canvas
-            canvasContainer.appendChild(block);
+            const blockContainer = document.querySelector('.block-container');
+            if (blockContainer) {
+                blockContainer.appendChild(block);
+            } else {
+                const canvasContainer = document.querySelector('.canvas-container');
+                if (canvasContainer) {
+                    canvasContainer.appendChild(block);
+                }
+            }
             
             // Make block draggable if the function exists
             if (typeof window.makeBlockDraggable === 'function') {
@@ -1715,6 +1824,9 @@ class TemplateHandler {
             if (blockData.custom && typeof window.setupCustomBlock === 'function') {
                 window.setupCustomBlock(block);
             }
+            
+            // Add enhanced drag event listeners
+            this.addDragEventListeners(block);
             
             // Add to custom blocks list in sidebar if it's a custom block
             if (blockData.custom && blockData.className) {
@@ -1986,12 +2098,14 @@ class TemplateHandler {
                     // Apply new transform with the delta applied
                     block.style.transform = `translate(${translateX + dx}px, ${translateY + dy}px)`;
                     
-                    // Update connections if that function exists
+                    // IMPORTANT: Always update connections with each movement
+                    // This ensures real-time connection updates during dragging
                     if (typeof window.updateConnections === 'function') {
                         window.updateConnections();
                     }
                     
                     e.preventDefault();
+                    e.stopPropagation();
                 }
                 
                 // Handler for mouse up
@@ -2001,6 +2115,11 @@ class TemplateHandler {
                     
                     block.classList.remove('dragging');
                     block.style.zIndex = '1';
+                    
+                    // Update connections one final time
+                    if (typeof window.updateConnections === 'function') {
+                        window.updateConnections();
+                    }
                 }
                 
                 // Add temporary document-level event listeners
@@ -2086,6 +2205,388 @@ class TemplateHandler {
         }
         
         return connections;
+    }
+
+    // Fix the setupNodeConnections function to properly bind events to nodes in loaded blocks
+    setupNodeConnections(block) {
+        if (!block) return;
+        
+        const outputNodes = block.querySelectorAll('.output-node');
+        const inputNodes = block.querySelectorAll('.input-node');
+        
+        // CRITICAL FIX: Remove any existing event listeners by cloning and replacing nodes
+        // This ensures we don't have duplicate event handlers
+        
+        // Process output nodes
+        outputNodes.forEach(outputNode => {
+            // Clone and replace to remove existing listeners
+            const newOutputNode = outputNode.cloneNode(true);
+            outputNode.parentNode.replaceChild(newOutputNode, outputNode);
+            
+            // Add mousedown handler for connection initiation
+            newOutputNode.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                console.log("Starting connection drag from output node");
+                
+                // Set global state
+                window.draggingConnection = true;
+                window.sourceNode = newOutputNode;
+                
+                // Get SVG container for temporary connection
+                const connectionsContainer = document.getElementById('connections');
+                if (!connectionsContainer) {
+                    console.error("Connections container not found!");
+                    return;
+                }
+                
+                // Calculate the starting position for the connection line
+                const nodeRect = newOutputNode.getBoundingClientRect();
+                const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
+                
+                // Get the current zoom and translate values
+                const zoom = window.zoom || 1;
+                const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
+                
+                // Calculate node center in ABSOLUTE document coordinates
+                const nodeCenterX = nodeRect.left + (nodeRect.width / 2);
+                const nodeCenterY = nodeRect.top + (nodeRect.height / 2);
+                
+                // Convert to SVG coordinates with zoom compensation
+                const x1 = ((nodeCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((nodeCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+                
+                // Create temporary connection line
+                const tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                tempConnection.setAttribute('x1', x1);
+                tempConnection.setAttribute('y1', y1);
+                tempConnection.setAttribute('x2', x1);  // Start at same point
+                tempConnection.setAttribute('y2', y1);
+                tempConnection.setAttribute('class', 'connection-line dragging');
+                tempConnection.id = 'temp-connection';
+                
+                // Add to connections container
+                connectionsContainer.appendChild(tempConnection);
+                
+                // Store the temp connection in window for access by mousemove handler
+                window.tempConnection = tempConnection;
+                
+                // Add a mousemove handler to document to update the connection
+                const moveHandler = (e) => {
+                    if (!window.draggingConnection || !window.tempConnection) return;
+                    
+                    // Calculate current mouse position relative to canvas
+                    const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
+                    const zoom = window.zoom || 1;
+                    const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
+                    
+                    // Update the end position of the temporary connection
+                    const x2 = ((e.clientX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                    const y2 = ((e.clientY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+                    
+                    window.tempConnection.setAttribute('x2', x2);
+                    window.tempConnection.setAttribute('y2', y2);
+                    
+                    // Check for potential input nodes under the mouse
+                    const elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+                    if (elemUnderMouse && elemUnderMouse.classList.contains('input-node')) {
+                        const sourceBlock = window.sourceNode.closest('.block');
+                        const targetBlock = elemUnderMouse.closest('.block');
+                        
+                        if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                            if (window.hoveredInputNode && window.hoveredInputNode !== elemUnderMouse) {
+                                window.hoveredInputNode.classList.remove('input-node-hover');
+                            }
+                            window.hoveredInputNode = elemUnderMouse;
+                            window.hoveredInputNode.classList.add('input-node-hover');
+                            
+                            // Add hover effect to connection
+                            window.tempConnection.classList.add('connection-hover');
+                        }
+                    } else if (window.hoveredInputNode) {
+                        window.hoveredInputNode.classList.remove('input-node-hover');
+                        window.hoveredInputNode = null;
+                        window.tempConnection.classList.remove('connection-hover');
+                    }
+                };
+                
+                // Add a mouseup handler to document to finalize the connection
+                const upHandler = (e) => {
+                    // Remove event listeners
+                    document.removeEventListener('mousemove', moveHandler);
+                    document.removeEventListener('mouseup', upHandler);
+                    
+                    if (!window.draggingConnection) return;
+                    
+                    // Get the element under the mouse
+                    let elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+                    let inputNode = null;
+                    
+                    // Find the input node (either directly or a parent)
+                    while (elemUnderMouse && !inputNode) {
+                        if (elemUnderMouse.classList && elemUnderMouse.classList.contains('input-node')) {
+                            inputNode = elemUnderMouse;
+                            break;
+                        }
+                        elemUnderMouse = elemUnderMouse.parentElement;
+                    }
+                    
+                    // If we found an input node, create a connection
+                    if (inputNode && window.sourceNode) {
+                        const sourceBlock = window.sourceNode.closest('.block');
+                        const targetBlock = inputNode.closest('.block');
+                        
+                        if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                            const inputId = inputNode.getAttribute('data-input');
+                            if (inputId) {
+                                // Remove existing connections to this input
+                                if (window.removeConnectionsToInput && typeof window.removeConnectionsToInput === 'function') {
+                                    window.removeConnectionsToInput(targetBlock.id, inputId);
+                                } else if (window.connections && Array.isArray(window.connections)) {
+                                    // Manually remove connections
+                                    window.connections = window.connections.filter(conn => {
+                                        return !(conn.target === targetBlock.id && conn.inputId === inputId);
+                                    });
+                                }
+                                
+                                // Create the new connection
+                                if (window.createConnection && typeof window.createConnection === 'function') {
+                                    window.createConnection(sourceBlock, targetBlock, inputId);
+                                } else if (window.connections && Array.isArray(window.connections)) {
+                                    // Manually create connection
+                                    window.connections.push({
+                                        source: sourceBlock.id,
+                                        target: targetBlock.id,
+                                        inputId: inputId
+                                    });
+                                    
+                                    // Update connections if the function exists
+                                    if (window.updateConnections && typeof window.updateConnections === 'function') {
+                                        window.updateConnections();
+                                    }
+                                }
+                                
+                                console.log(`Created connection from ${sourceBlock.id} to ${targetBlock.id}:${inputId}`);
+                            }
+                        }
+                    }
+                    
+                    // Clean up hover state
+                    if (window.hoveredInputNode) {
+                        window.hoveredInputNode.classList.remove('input-node-hover');
+                        window.hoveredInputNode = null;
+                    }
+                    
+                    // Clean up
+                    window.draggingConnection = false;
+                    window.sourceNode = null;
+                    
+                    if (window.tempConnection) {
+                        window.tempConnection.remove();
+                        window.tempConnection = null;
+                    }
+                };
+                
+                // Add the event listeners to document
+                document.addEventListener('mousemove', moveHandler);
+                document.addEventListener('mouseup', upHandler);
+            });
+        });
+        
+        // Process input nodes
+        inputNodes.forEach(inputNode => {
+            // Clone and replace to remove existing listeners
+            const newInputNode = inputNode.cloneNode(true);
+            inputNode.parentNode.replaceChild(newInputNode, inputNode);
+            
+            // Prevent click on input node from propagating to block
+            newInputNode.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+            
+            // Add hover handling for active connection
+            newInputNode.addEventListener('mouseover', (e) => {
+                if (window.draggingConnection && window.sourceNode) {
+                    const sourceBlock = window.sourceNode.closest('.block');
+                    const targetBlock = newInputNode.closest('.block');
+                    
+                    if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                        window.hoveredInputNode = newInputNode;
+                        newInputNode.classList.add('input-node-hover');
+                        
+                        // Add effect to visualize potential connection
+                        if (window.tempConnection) {
+                            window.tempConnection.classList.add('connection-hover');
+                        }
+                        
+                        e.stopPropagation();
+                    }
+                }
+            });
+            
+            newInputNode.addEventListener('mouseout', (e) => {
+                if (window.hoveredInputNode === newInputNode) {
+                    window.hoveredInputNode = null;
+                    newInputNode.classList.remove('input-node-hover');
+                    
+                    // Remove connection hover effect
+                    if (window.tempConnection) {
+                        window.tempConnection.classList.remove('connection-hover');
+                    }
+                    
+                    e.stopPropagation();
+                }
+            });
+        });
+        
+        console.log(`Set up node connections for block ${block.id}`);
+    }
+
+    // Add this new function to ensure template blocks update connections while dragging
+    addDragEventListeners(block) {
+        // Skip if block doesn't exist
+        if (!block) return;
+        
+        console.log(`Adding enhanced drag event listeners to block ${block.id}`);
+        
+        // Set up a MutationObserver to listen for transform changes
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'style' && 
+                    mutation.target.style.transform &&
+                    typeof window.updateConnections === 'function') {
+                    // Update connections when transform changes
+                    window.updateConnections();
+                }
+            });
+        });
+        
+        // Start observing
+        observer.observe(block, {
+            attributes: true,
+            attributeFilter: ['style']
+        });
+        
+        // Also add event listener for mousedown on the drag handle
+        const dragHandle = block.querySelector('.block-drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', () => {
+                // Set a data attribute to track that this block is being dragged
+                block.setAttribute('data-being-dragged', 'true');
+                
+                // Set up a temporary mousemove listener on document
+                const moveHandler = () => {
+                    if (typeof window.updateConnections === 'function') {
+                        window.updateConnections();
+                    }
+                };
+                
+                document.addEventListener('mousemove', moveHandler);
+                
+                // Clean up on mouseup
+                const upHandler = () => {
+                    document.removeEventListener('mousemove', moveHandler);
+                    document.removeEventListener('mouseup', upHandler);
+                    block.removeAttribute('data-being-dragged');
+                    if (typeof window.updateConnections === 'function') {
+                        window.updateConnections();
+                    }
+                };
+                
+                document.addEventListener('mouseup', upHandler, { once: true });
+            });
+        }
+        
+        return block;
+    }
+
+    // Override the makeBlockDraggable function for template blocks
+    overrideMakeBlockDraggable() {
+        // Store the original function if it exists
+        const originalMakeBlockDraggable = window.makeBlockDraggable;
+        
+        // Create an enhanced version that ensures updates happen in real time
+        window.makeBlockDraggable = (block) => {
+            console.log(`Enhanced makeBlockDraggable called for block ${block.id}`);
+            
+            // First call the original function if it exists
+            if (typeof originalMakeBlockDraggable === 'function') {
+                originalMakeBlockDraggable(block);
+            }
+            
+            // Now add our own enhanced event handling
+            const dragHandle = block.querySelector('.block-drag-handle');
+            if (!dragHandle) return;
+            
+            // Remove existing listeners and replace with new one to prevent duplicates
+            const newDragHandle = dragHandle.cloneNode(true);
+            dragHandle.parentNode.replaceChild(newDragHandle, dragHandle);
+            
+            // Add enhanced mousedown handler
+            newDragHandle.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return; // Only left mouse button
+                
+                // Mark the block as being dragged
+                block.classList.add('dragging');
+                block.setAttribute('data-dragging', 'true');
+                block.style.zIndex = '1000';
+                
+                // Get the initial positions
+                const startX = e.clientX;
+                const startY = e.clientY;
+                
+                // Get the current transform matrix
+                const transform = window.getComputedStyle(block).transform;
+                let translateX = 0, translateY = 0;
+                
+                if (transform && transform !== 'none') {
+                    const matrix = new DOMMatrixReadOnly(transform);
+                    translateX = matrix.m41;
+                    translateY = matrix.m42;
+                }
+                
+                // Enhanced mousemove handler with forced connection updates
+                function mouseMoveHandler(e) {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    
+                    // Apply new position
+                    block.style.transform = `translate(${translateX + dx}px, ${translateY + dy}px)`;
+                    
+                    // CRITICAL: Force connection update on EVERY move
+                    if (typeof window.updateConnections === 'function') {
+                        window.updateConnections();
+                    }
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                
+                // Enhanced mouseup handler
+                function mouseUpHandler() {
+                    document.removeEventListener('mousemove', mouseMoveHandler);
+                    document.removeEventListener('mouseup', mouseUpHandler);
+                    
+                    // Clean up
+                    block.classList.remove('dragging');
+                    block.removeAttribute('data-dragging');
+                    block.style.zIndex = '1';
+                    
+                    // Final connection update
+                    if (typeof window.updateConnections === 'function') {
+                        window.updateConnections();
+                    }
+                }
+                
+                // Add temporary event listeners
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+                
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        };
     }
 }
 
