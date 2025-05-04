@@ -119,6 +119,24 @@ def admin_settings():
     
     return render_template('admin/settings.html', form=form, settings=settings)
 
+@admin.route('/settings/reset', methods=['POST'])
+@login_required
+@admin_required
+def reset_admin_settings():
+    settings = AdminPanel.query.first()
+    if not settings:
+        settings = AdminPanel()
+        db.session.add(settings)
+    # Set defaults
+    settings.maintenance_mode = False
+    settings.maintenance_message = 'System is under maintenance. Please try again later.'
+    settings.max_login_attempts = 5
+    settings.password_reset_timeout = 3600
+    settings.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash('Settings reset to defaults.', 'success')
+    return redirect(url_for('admin.admin_settings'))
+
 @admin.route('/user/<int:user_id>/reset-password', methods=['POST'])
 @login_required
 @admin_required
