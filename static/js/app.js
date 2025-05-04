@@ -749,6 +749,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 x: e.clientX - currentTranslate.x,
                 y: e.clientY - currentTranslate.y
             };
+            // Clear any text selection
+            window.getSelection().removeAllRanges();
             e.preventDefault();
             e.stopPropagation();
         }
@@ -2067,6 +2069,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return block;
     }
+
+    // Click handler to clear text selection when clicking on canvas
+    canvas.addEventListener('mousedown', (e) => {
+        // Only clear selection if clicking directly on canvas (not on a block)
+        if (e.target === canvas) {
+            window.getSelection().removeAllRanges();
+        }
+    });
 
 });
 
