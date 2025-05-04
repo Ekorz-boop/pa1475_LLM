@@ -373,11 +373,25 @@ class TemplateHandler {
                 const blockType = blockEl.dataset.type || blockEl.getAttribute('data-block-type') || 'unknown';
                 
                 // Get accurate position from element style
-                // Parse as integers and default to 0 if not set or invalid
-                const position = {
-                    x: parseInt(blockEl.style.left, 10) || 0,
-                    y: parseInt(blockEl.style.top, 10) || 0
-                };
+                let position = { x: 0, y: 0 };
+                
+                // Extract position from transform property
+                const transform = blockEl.style.transform;
+                if (transform && transform.includes('translate')) {
+                    const match = /translate\(\s*([-\d.]+)px\s*,\s*([-\d.]+)px\s*\)/.exec(transform);
+                    if (match) {
+                        position = {
+                            x: parseFloat(match[1]),
+                            y: parseFloat(match[2])
+                        };
+                    }
+                } else if (blockEl.style.left && blockEl.style.top) {
+                    // Fallback to left/top if transform isn't set
+                    position = {
+                        x: parseInt(blockEl.style.left, 10) || 0,
+                        y: parseInt(blockEl.style.top, 10) || 0
+                    };
+                }
                 
                 // If position values are both 0, try to get from DOM rect as a fallback
                 if (position.x === 0 && position.y === 0) {
@@ -468,46 +482,9 @@ class TemplateHandler {
             
             this.updateProgress(50, 'Gathering connection data');
             
-            // Get all connections from the DOM or global state
-            let connections = [];
-            
-            // Try to get connections from global state if available
-            if (window.getConnections && typeof window.getConnections === 'function') {
-                const globalConnections = window.getConnections();
-                if (Array.isArray(globalConnections)) {
-                    connections = globalConnections.map(conn => {
-                        return {
-                            id: conn.id || 'conn_' + Math.random().toString(36).substr(2, 9),
-                            source: {
-                                blockId: conn.source.id || conn.sourceId,
-                                outputIndex: parseInt(conn.sourceOutput || conn.source.outputIndex || 0, 10)
-                            },
-                            target: {
-                                blockId: conn.target.id || conn.targetId,
-                                inputIndex: parseInt(conn.targetInput || conn.target.inputIndex || 0, 10)
-                            }
-                        };
-                    });
-                }
-            } else {
-                // Fallback to getting connections from the DOM
-                const svgConnections = document.querySelectorAll('#connections path');
-                svgConnections.forEach(path => {
-                    if (path.dataset.sourceId && path.dataset.targetId) {
-                        connections.push({
-                            id: path.id || 'conn_' + Math.random().toString(36).substr(2, 9),
-                            source: {
-                                blockId: path.dataset.sourceId,
-                                outputIndex: parseInt(path.dataset.sourceOutput || 0, 10)
-                            },
-                            target: {
-                                blockId: path.dataset.targetId,
-                                inputIndex: parseInt(path.dataset.targetInput || 0, 10)
-                            }
-                        });
-                    }
-                });
-            }
+            // CRITICAL FIX: Use the helper method to get connections
+            const connections = this.getConnectionsData();
+            console.log(`Found ${connections.length} connections for template`);
             
             this.updateProgress(80, 'Creating template');
             
@@ -926,8 +903,22 @@ class TemplateHandler {
                 
                 this.updateProgress(70, 'Creating connections');
                 
-                // Give DOM time to update and process the block elements
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // CRITICAL FIX: Add a delay to ensure block elements are fully initialized
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Force block transform into translate format on all blocks
+                document.querySelectorAll('.block').forEach(blockEl => {
+                    const transform = blockEl.style.transform;
+                    if (!transform || !transform.includes('translate')) {
+                        // Try to get position from left/top
+                        const left = parseInt(blockEl.style.left) || 0;
+                        const top = parseInt(blockEl.style.top) || 0;
+                        blockEl.style.transform = `translate(${left}px, ${top}px)`;
+                        // Clear left/top to avoid conflicts
+                        blockEl.style.left = '';
+                        blockEl.style.top = '';
+                    }
+                });
                 
                 // Apply draggable to all blocks again to ensure they can be moved
                 const allBlockElements = document.querySelectorAll('.block');
@@ -935,18 +926,36 @@ class TemplateHandler {
                     if (typeof window.makeBlockDraggable === 'function') {
                         window.makeBlockDraggable(blockElement);
                         console.log(`Made block ${blockElement.id} draggable`);
+                    } else {
+                        this.makeBlockDraggableManually(blockElement);
                     }
                 });
+                
+                // Clear all existing connections from the connections container
+                const connectionsContainer = document.getElementById('connections');
+                if (connectionsContainer) {
+                    connectionsContainer.innerHTML = '';
+                }
+                
+                // Reset global connections array if available
+                if (window.connections && Array.isArray(window.connections)) {
+                    window.connections.length = 0;
+                }
                 
                 // Then create connections
                 const connections = template.connections || [];
                 let successfulConnections = 0;
                 
-                // Create connections sequentially to ensure proper order
+                console.log(`Creating ${connections.length} connections`);
+                
+                // Create connections sequentially with slight delay between each to ensure proper initialization
                 for (const connectionData of connections) {
                     try {
                         await this.createConnectionFromTemplate(connectionData);
                         successfulConnections++;
+                        
+                        // Small delay between connections to allow DOM to update
+                        await new Promise(resolve => setTimeout(resolve, 50));
                     } catch (error) {
                         console.error('Failed to create connection:', connectionData, error);
                     }
@@ -957,12 +966,12 @@ class TemplateHandler {
                 this.updateProgress(90, 'Finalizing');
                 
                 // Update connections visualization
-                if (window.updateConnections) {
+                if (typeof window.updateConnections === 'function') {
                     window.updateConnections();
                 }
                 
                 // Update mini-map if exists
-                if (window.updateMiniMap) {
+                if (typeof window.updateMiniMap === 'function') {
                     window.updateMiniMap();
                 }
                 
@@ -973,6 +982,8 @@ class TemplateHandler {
                 document.querySelectorAll('.block').forEach(blockEl => {
                     if (typeof window.makeBlockDraggable === 'function') {
                         window.makeBlockDraggable(blockEl);
+                    } else {
+                        this.makeBlockDraggableManually(blockEl);
                     }
                     
                     // Set up node connections if they're not already set up
@@ -988,8 +999,10 @@ class TemplateHandler {
                 
                 // Fit all blocks to view
                 setTimeout(() => {
-                    if (window.fitBlocksToView) {
+                    if (typeof window.fitBlocksToView === 'function') {
                         window.fitBlocksToView();
+                    } else if (typeof window.fitAllBlocksToView === 'function') {
+                        window.fitAllBlocksToView();
                     }
                 }, 500);
                 
@@ -1014,21 +1027,28 @@ class TemplateHandler {
      * Clears the canvas of all blocks and connections
      */
     clearCanvas() {
+        // Get references to required elements
+        const connectionsContainer = document.getElementById('connections');
+        
+        // Clear connections container first
+        if (connectionsContainer) {
+            connectionsContainer.innerHTML = '';
+        }
+        
+        // Clear global connections array if available
+        if (window.connections && Array.isArray(window.connections)) {
+            window.connections.length = 0;
+        }
+        
         // Remove all blocks
         const blocks = document.querySelectorAll('.block');
         blocks.forEach(block => {
-            if (window.deleteBlock) {
+            if (typeof window.deleteBlock === 'function') {
                 window.deleteBlock(block);
             } else {
                 block.remove();
             }
         });
-        
-        // Clear all connections
-        const connections = document.getElementById('connections');
-        if (connections) {
-            connections.innerHTML = '';
-        }
     }
     
     /**
@@ -1090,11 +1110,13 @@ class TemplateHandler {
                         blockData.id
                     );
                     
-                    // Set position - make sure to apply the saved position
-                    if (block && block.style) {
+                    // Set position - CRITICAL FIX: use translate instead of left/top to ensure draggability
+                    if (block) {
                         console.log(`Setting position for ${blockData.id} to x:${blockData.position.x}, y:${blockData.position.y}`);
-                        block.style.left = `${blockData.position.x}px`;
-                        block.style.top = `${blockData.position.y}px`;
+                        block.style.transform = `translate(${blockData.position.x}px, ${blockData.position.y}px)`;
+                        // Remove any left/top positioning that might interfere with dragging
+                        block.style.left = '';
+                        block.style.top = '';
                     }
                     
                     // Add to canvas if not already added
@@ -1152,10 +1174,21 @@ class TemplateHandler {
                     }
                 }
                 
-                // Make block draggable in the canvas
-                if (block && typeof window.makeBlockDraggable === 'function') {
-                    window.makeBlockDraggable(block);
-                    console.log(`Made block ${blockData.id} draggable`);
+                // Make block draggable in the canvas - CRITICAL FIX: Ensure the drag handler is properly attached
+                if (block) {
+                    // First make sure we have a consistent transform value (use translate, not left/top)
+                    if (!block.style.transform.includes('translate')) {
+                        block.style.transform = `translate(${blockData.position.x}px, ${blockData.position.y}px)`;
+                    }
+                    
+                    // Apply draggable functionality
+                    if (typeof window.makeBlockDraggable === 'function') {
+                        window.makeBlockDraggable(block);
+                        console.log(`Made block ${blockData.id} draggable`);
+                    } else {
+                        // Fallback to manual drag initialization
+                        this.makeBlockDraggableManually(block);
+                    }
                 }
                 
                 // Set up node connections
@@ -1179,11 +1212,13 @@ class TemplateHandler {
                     if (blockElement) {
                         blockElement.id = blockData.id;
                         
-                        // Double-check position is set correctly
+                        // Set position correctly using transform
                         if (blockElement.style) {
                             console.log(`Setting position for ${blockData.id} to x:${blockData.position.x}, y:${blockData.position.y}`);
-                            blockElement.style.left = `${blockData.position.x}px`;
-                            blockElement.style.top = `${blockData.position.y}px`;
+                            blockElement.style.transform = `translate(${blockData.position.x}px, ${blockData.position.y}px)`;
+                            // Remove any left/top positioning that might interfere with dragging
+                            blockElement.style.left = '';
+                            blockElement.style.top = '';
                         }
                         
                         // Make block draggable
@@ -1234,11 +1269,32 @@ class TemplateHandler {
             // Try to use global createConnection function if available
             if (typeof window.createConnection === 'function') {
                 console.log("Using global createConnection function");
+                
+                // CRITICAL FIX: Handle inputId properly to ensure connections are correctly reconstructed
+                const inputId = connectionData.target.inputId;
+                
+                // Find the correct input node index if inputId is specified
+                let targetInputIndex = connectionData.target.inputIndex || 0;
+                
+                if (inputId) {
+                    // Try to find the input node with this inputId
+                    const inputNodes = targetBlock.querySelectorAll('.input-node');
+                    for (let i = 0; i < inputNodes.length; i++) {
+                        if (inputNodes[i].getAttribute('data-input') === inputId) {
+                            targetInputIndex = i;
+                            break;
+                        }
+                    }
+                    console.log(`Found input node with inputId ${inputId} at index ${targetInputIndex}`);
+                }
+                
+                // Create connection with the correct input node
                 return window.createConnection(
                     sourceBlock, 
                     targetBlock, 
-                    connectionData.source.outputIndex, 
-                    connectionData.target.inputIndex
+                    connectionData.source.outputIndex || 0, 
+                    targetInputIndex,
+                    inputId
                 );
             } else {
                 // Manual connection creation as fallback
@@ -1428,8 +1484,9 @@ class TemplateHandler {
         // Create a basic connection structure
         const connection = {
             id: connectionData.id || "connection_" + Math.random().toString(36).substr(2, 9),
-            source: connectionData.source,
-            target: connectionData.target,
+            source: connectionData.source.blockId,
+            target: connectionData.target.blockId,
+            inputId: connectionData.target.inputId,
             data: connectionData.data || {}
         };
         
@@ -1437,82 +1494,122 @@ class TemplateHandler {
         const flowContainer = document.querySelector('.canvas-container');
         if (flowContainer) {
             // Find source and target elements
-            const sourceBlock = document.getElementById(connection.source.blockId);
-            const targetBlock = document.getElementById(connection.target.blockId);
+            const sourceBlock = document.getElementById(connection.source);
+            const targetBlock = document.getElementById(connection.target);
             
             if (sourceBlock && targetBlock) {
-                // Create the connection element
-                const connectionElement = document.createElement('div');
-                connectionElement.id = connection.id;
-                connectionElement.className = 'connection';
-                connectionElement.style.position = 'absolute';
-                connectionElement.style.pointerEvents = 'none';
-                connectionElement.style.zIndex = '5';
+                // Get the source output node
+                const sourceNodeIndex = connectionData.source.outputIndex || 0;
+                const sourceNodes = sourceBlock.querySelectorAll('.output-node');
+                const sourceNode = sourceNodes[sourceNodeIndex] || sourceNodes[0];
                 
-                // Create the SVG element for the connection line
-                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                svg.style.position = 'absolute';
-                svg.style.width = '100%';
-                svg.style.height = '100%';
-                svg.style.top = '0';
-                svg.style.left = '0';
-                svg.style.overflow = 'visible';
-                
-                // Create the path for the connection
-                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                path.setAttribute('stroke', '#5d9cec');
-                path.setAttribute('stroke-width', '2');
-                path.setAttribute('fill', 'none');
-                svg.appendChild(path);
-                
-                connectionElement.appendChild(svg);
-                flowContainer.appendChild(connectionElement);
-                
-                // Function to update the connection position
-                const updateConnection = () => {
-                    // Find the source connector
-                    const sourceConnectorType = '.output-node';
-                    const sourceOutputIndex = connection.source.outputIndex || 0;
-                    const sourceConnectors = sourceBlock.querySelectorAll(sourceConnectorType);
-                    const sourceConnector = sourceConnectors[sourceOutputIndex] || sourceConnectors[0];
-                    
-                    // Find the target connector
-                    const targetConnectorType = '.input-node';
-                    const targetInputIndex = connection.target.inputIndex || 0;
-                    const targetConnectors = targetBlock.querySelectorAll(targetConnectorType);
-                    const targetConnector = targetConnectors[targetInputIndex] || targetConnectors[0];
-                    
-                    if (sourceConnector && targetConnector) {
-                        // Get source and target positions
-                        const sourceRect = sourceConnector.getBoundingClientRect();
-                        const targetRect = targetConnector.getBoundingClientRect();
-                        const containerRect = flowContainer.getBoundingClientRect();
-                        
-                        // Calculate positions relative to flow container
-                        const sourceX = sourceRect.left + sourceRect.width/2 - containerRect.left + flowContainer.scrollLeft;
-                        const sourceY = sourceRect.top + sourceRect.height/2 - containerRect.top + flowContainer.scrollTop;
-                        const targetX = targetRect.left + targetRect.width/2 - containerRect.left + flowContainer.scrollLeft;
-                        const targetY = targetRect.top + targetRect.height/2 - containerRect.top + flowContainer.scrollTop;
-                        
-                        // Create a bezier curve path
-                        const dx = Math.abs(targetX - sourceX) * 0.5;
-                        const path_d = `M ${sourceX} ${sourceY} C ${sourceX + dx} ${sourceY}, ${targetX - dx} ${targetY}, ${targetX} ${targetY}`;
-                        path.setAttribute('d', path_d);
-                        
-                        // Set connection element size to cover the entire flow container
-                        connectionElement.style.width = `${flowContainer.scrollWidth}px`;
-                        connectionElement.style.height = `${flowContainer.scrollHeight}px`;
+                // Get the target input node based on inputId if available
+                let targetNode = null;
+                if (connection.inputId) {
+                    // Try to find input node with matching data-input
+                    const inputNodes = targetBlock.querySelectorAll('.input-node');
+                    for (let i = 0; i < inputNodes.length; i++) {
+                        if (inputNodes[i].getAttribute('data-input') === connection.inputId) {
+                            targetNode = inputNodes[i];
+                            break;
+                        }
                     }
-                };
+                }
                 
-                // Update the connection initially
-                updateConnection();
+                // Fallback to index if no inputId match
+                if (!targetNode) {
+                    const targetNodeIndex = connectionData.target.inputIndex || 0;
+                    const targetNodes = targetBlock.querySelectorAll('.input-node');
+                    targetNode = targetNodes[targetNodeIndex] || targetNodes[0];
+                }
                 
-                // Update when window is resized
-                window.addEventListener('resize', updateConnection);
-                
-                // Store the update function with the connection
-                connection.updatePosition = updateConnection;
+                if (sourceNode && targetNode) {
+                    // Create the connection element
+                    const connectionElement = document.createElement('div');
+                    connectionElement.id = connection.id;
+                    connectionElement.className = 'connection';
+                    connectionElement.style.position = 'absolute';
+                    connectionElement.style.pointerEvents = 'none';
+                    connectionElement.style.zIndex = '5';
+                    
+                    // Store the source and target information as data attributes
+                    connectionElement.setAttribute('data-source-id', connection.source);
+                    connectionElement.setAttribute('data-target-id', connection.target);
+                    connectionElement.setAttribute('data-input-id', connection.inputId || '');
+                    
+                    // Create the SVG element for the connection line
+                    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    svg.style.position = 'absolute';
+                    svg.style.width = '100%';
+                    svg.style.height = '100%';
+                    svg.style.top = '0';
+                    svg.style.left = '0';
+                    svg.style.overflow = 'visible';
+                    
+                    // Create the path for the connection
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute('stroke', '#5d9cec');
+                    path.setAttribute('stroke-width', '2');
+                    path.setAttribute('fill', 'none');
+                    
+                    // Store the same attributes on the path
+                    path.setAttribute('data-source-id', connection.source);
+                    path.setAttribute('data-target-id', connection.target);
+                    path.setAttribute('data-input-id', connection.inputId || '');
+                    
+                    svg.appendChild(path);
+                    connectionElement.appendChild(svg);
+                    flowContainer.appendChild(connectionElement);
+                    
+                    // Function to update the connection position
+                    const updateConnection = () => {
+                        // Find the source and target connectors
+                        if (sourceNode && targetNode) {
+                            // Get source and target positions
+                            const sourceRect = sourceNode.getBoundingClientRect();
+                            const targetRect = targetNode.getBoundingClientRect();
+                            const containerRect = flowContainer.getBoundingClientRect();
+                            
+                            // Calculate positions relative to flow container
+                            const sourceX = sourceRect.left + sourceRect.width/2 - containerRect.left + flowContainer.scrollLeft;
+                            const sourceY = sourceRect.top + sourceRect.height/2 - containerRect.top + flowContainer.scrollTop;
+                            const targetX = targetRect.left + targetRect.width/2 - containerRect.left + flowContainer.scrollLeft;
+                            const targetY = targetRect.top + targetRect.height/2 - containerRect.top + flowContainer.scrollTop;
+                            
+                            // Create a bezier curve path
+                            const dx = Math.abs(targetX - sourceX) * 0.5;
+                            const path_d = `M ${sourceX} ${sourceY} C ${sourceX + dx} ${sourceY}, ${targetX - dx} ${targetY}, ${targetX} ${targetY}`;
+                            path.setAttribute('d', path_d);
+                            
+                            // Set connection element size to cover the entire flow container
+                            connectionElement.style.width = `${flowContainer.scrollWidth}px`;
+                            connectionElement.style.height = `${flowContainer.scrollHeight}px`;
+                        }
+                    };
+                    
+                    // Update the connection initially
+                    updateConnection();
+                    
+                    // Update when window is resized
+                    window.addEventListener('resize', updateConnection);
+                    
+                    // Store the update function with the connection
+                    connection.updatePosition = updateConnection;
+                    
+                    // Also push this connection to the app's connections array
+                    if (window.connections && Array.isArray(window.connections)) {
+                        window.connections.push({
+                            source: connection.source,
+                            target: connection.target,
+                            inputId: connection.inputId
+                        });
+                        
+                        // Update connections visualization if the function exists
+                        if (typeof window.updateConnections === 'function') {
+                            window.updateConnections();
+                        }
+                    }
+                }
             }
         }
         
@@ -1844,6 +1941,151 @@ class TemplateHandler {
         } catch (error) {
             console.error('Error saving custom block to session storage:', error);
         }
+    }
+
+    // Add this new method to help with draggability
+    makeBlockDraggableManually(block) {
+        try {
+            if (!block) return;
+            
+            // Setup drag handling on the block's drag handle
+            const dragHandle = block.querySelector('.block-drag-handle');
+            if (!dragHandle) return;
+            
+            // Remove any existing listeners to prevent duplicates
+            const newDragHandle = dragHandle.cloneNode(true);
+            dragHandle.parentNode.replaceChild(newDragHandle, dragHandle);
+            
+            // Set up new drag handling
+            newDragHandle.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return; // Only left mouse button
+                
+                // Mark as dragging
+                block.classList.add('dragging');
+                block.style.zIndex = '1000';
+                
+                // Get starting positions
+                const startX = e.clientX;
+                const startY = e.clientY;
+                
+                // Get current transform
+                const transform = window.getComputedStyle(block).transform;
+                let translateX = 0, translateY = 0;
+                
+                if (transform && transform !== 'none') {
+                    const matrix = new DOMMatrixReadOnly(transform);
+                    translateX = matrix.m41;
+                    translateY = matrix.m42;
+                }
+                
+                // Handler for mouse movement
+                function mouseMoveHandler(e) {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    
+                    // Apply new transform with the delta applied
+                    block.style.transform = `translate(${translateX + dx}px, ${translateY + dy}px)`;
+                    
+                    // Update connections if that function exists
+                    if (typeof window.updateConnections === 'function') {
+                        window.updateConnections();
+                    }
+                    
+                    e.preventDefault();
+                }
+                
+                // Handler for mouse up
+                function mouseUpHandler() {
+                    document.removeEventListener('mousemove', mouseMoveHandler);
+                    document.removeEventListener('mouseup', mouseUpHandler);
+                    
+                    block.classList.remove('dragging');
+                    block.style.zIndex = '1';
+                }
+                
+                // Add temporary document-level event listeners
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+                
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            console.log(`Block ${block.id} made draggable manually`);
+        } catch (error) {
+            console.error('Error making block draggable:', error);
+        }
+    }
+
+    // Add this new helper function to get connections data
+    getConnectionsData() {
+        let connections = [];
+        
+        // First priority: Use the global window.connections array if it's available and is an array
+        if (window.connections && Array.isArray(window.connections)) {
+            console.log('Using global window.connections array', window.connections.length);
+            
+            connections = window.connections.map((conn, index) => {
+                let sourceId = conn.source;
+                let targetId = conn.target;
+                let inputId = conn.inputId;
+                
+                // Handle different connection formats
+                if (typeof conn.source === 'object' && conn.source.id) {
+                    sourceId = conn.source.id;
+                }
+                
+                if (typeof conn.target === 'object' && conn.target.id) {
+                    targetId = conn.target.id;
+                }
+                
+                return {
+                    id: conn.id || `conn_${index}`,
+                    source: {
+                        blockId: sourceId,
+                        outputIndex: 0
+                    },
+                    target: {
+                        blockId: targetId,
+                        inputIndex: 0,
+                        inputId: inputId
+                    }
+                };
+            });
+        }
+        
+        // If we still don't have connections, try to get them from the SVG container
+        if (connections.length === 0) {
+            const connectionsContainer = document.getElementById('connections');
+            if (connectionsContainer && connectionsContainer instanceof SVGElement) {
+                console.log('Extracting connections from SVG container');
+                
+                const lines = connectionsContainer.querySelectorAll('line, path');
+                lines.forEach((line, index) => {
+                    // Extract source and target IDs from data attributes
+                    const sourceId = line.getAttribute('data-source-id');
+                    const targetId = line.getAttribute('data-target-id');
+                    const inputId = line.getAttribute('data-input-id');
+                    
+                    if (sourceId && targetId) {
+                        connections.push({
+                            id: line.id || `conn_${index}`,
+                            source: {
+                                blockId: sourceId,
+                                outputIndex: 0
+                            },
+                            target: {
+                                blockId: targetId,
+                                inputIndex: 0,
+                                inputId: inputId
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        
+        return connections;
     }
 }
 

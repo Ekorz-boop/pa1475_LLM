@@ -230,7 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const blockTemplates = document.querySelectorAll('.block-template');
     const searchInput = document.getElementById('block-search');
     let blockCounter = 1;
-    let connections = [];
+    // Make connections a global window property so it's accessible to template-handler.js
+    window.connections = [];
     let draggedBlock = null;
     let draggingConnection = false;
     let tempConnection = null;
@@ -421,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     blocks: blockConfigs,
-                    connections: connections,
+                    connections: window.connections,
                     output_file: 'generated_pipeline.py'
                 }),
             });
@@ -605,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Propagating data from ${sourceType} block (${sourceId})`);
 
         // Find all connections where this block is the source
-        const outgoingConnections = connections.filter(conn => conn.source === sourceId);
+        const outgoingConnections = window.connections.filter(conn => conn.source === sourceId);
 
         if (outgoingConnections.length === 0) {
             console.log(`No outgoing connections from ${sourceId}`);
@@ -894,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function deleteBlock(block) {
-        connections = connections.filter(conn => {
+        window.connections = window.connections.filter(conn => {
             if (conn.source === block.id || conn.target === block.id) {
                 const targetBlock = document.getElementById(conn.target);
                 if (targetBlock && targetBlock.getAttribute('data-block-type') === 'display') {
@@ -910,7 +911,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function removeConnectionsToInput(targetBlockId, inputId) {
-        connections = connections.filter(conn => {
+        window.connections = window.connections.filter(conn => {
             if (conn.target === targetBlockId && conn.inputId === inputId) {
                 const targetBlock = document.getElementById(targetBlockId);
                 if (targetBlock && targetBlock.getAttribute('data-block-type') === 'display') {
@@ -931,7 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inputId: inputId
         };
 
-        connections.push(connection);
+        window.connections.push(connection);
         updateConnections();
         processBlock(target);
     }
@@ -1277,7 +1278,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.prompt = block.querySelector('.prompt-template').value;
 
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn =>
+                const queryConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -1289,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn =>
+                const contextConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
@@ -1312,7 +1313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!connectionsContainer) return;
 
         connectionsContainer.innerHTML = '';
-        connections.forEach((conn, index) => {
+        window.connections.forEach((conn, index) => {
             const sourceBlock = document.getElementById(conn.source);
             const targetBlock = document.getElementById(conn.target);
 
@@ -1340,10 +1341,15 @@ document.addEventListener('DOMContentLoaded', () => {
             line.setAttribute('y2', y2);
             line.setAttribute('class', 'connection-line');
             line.setAttribute('data-connection-index', index);
+            
+            // Add source and target info as data attributes to help with template saving
+            line.setAttribute('data-source-id', conn.source);
+            line.setAttribute('data-target-id', conn.target);
+            line.setAttribute('data-input-id', conn.inputId || '');
 
             line.addEventListener('click', (e) => {
                 if (selectedConnection === line) {
-                    connections.splice(index, 1);
+                    window.connections.splice(index, 1);
                     updateConnections();
                     selectedConnection = null;
                 } else {
@@ -1412,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Render live SVG preview of blocks and connections
             miniMapSVG.innerHTML = '';
             // Draw connections
-            connections.forEach(conn => {
+            window.connections.forEach(conn => {
                 const sourceBlock = document.getElementById(conn.source);
                 const targetBlock = document.getElementById(conn.target);
                 if (!sourceBlock || !targetBlock) return;
@@ -1527,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.prompt = block.querySelector('.prompt-template').value;
 
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn =>
+                const queryConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -1539,7 +1545,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn =>
+                const contextConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
@@ -1803,7 +1809,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blockId = block.id;
 
         // Remove all connections to/from this block
-        connections = connections.filter(conn =>
+        window.connections = window.connections.filter(conn =>
             conn.source !== blockId && conn.target !== blockId
         );
 
