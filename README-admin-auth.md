@@ -23,7 +23,7 @@
 
 ### **1. Clone the Repository**
 ```bash
-git clone https://github.com/yourusername/yourrepo.git
+git clone https://github.com/Ekorz-boop/pa1475_LLM
 cd yourrepo
 ```
 
@@ -77,9 +77,9 @@ Visit [http://localhost:5000](http://localhost:5000) in your browser.
 - Only users with admin privileges can access `/admin`.
 - Manage users: add, edit, activate/deactivate, reset password, delete.
 - View user statistics.
-- Change system settings (maintenance mode, security, etc.).
+- Change system settings (maintenance mode, public mode, security, etc.).
 
-### **Public Mode (NEW)**
+### **Public Mode**
 - **What is it?**
   - Public mode allows you to make the main site accessible to everyone, with no login required. This is useful for demos, public-facing tools, or when you want to disable authentication for regular users.
   - The admin panel (`/admin`) always remains protected and requires admin login, regardless of public mode.
