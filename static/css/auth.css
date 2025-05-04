@@ -128,34 +128,46 @@ body {
 }
 
 .alert {
-    padding: 12px;
-    margin-bottom: 20px;
-    border-radius: 4px;
-    font-size: 0.9em;
+    padding: 1rem 1.5rem;
+    border-radius: 6px;
+    margin-bottom: 1.2rem;
+    font-weight: 500;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+    border: 1.5px solid transparent;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .alert-error {
-    background-color: #fee2e2;
-    color: var(--danger-color);
-    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #f87171;
 }
 
 .alert-success {
-    background-color: #d1fae5;
-    color: var(--success-color);
-    border: 1px solid #a7f3d0;
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #10b981;
 }
 
 .alert-info {
-    background-color: #d1ecf1;
-    color: var(--info-color);
-    border: 1px solid #bee5eb;
+    background: #eff6ff;
+    color: #1e40af;
+    border-color: #3b82f6;
 }
 
 .alert-warning {
-    background-color: #fef3c7;
-    color: #b45309;
-    border: 1px solid #fde68a;
+    background: #fef9c3;
+    color: #92400e;
+    border-color: #fbbf24;
+}
+
+.alert svg {
+    flex-shrink: 0;
+    height: 1.2em;
+    width: 1.2em;
 }
 
 .error {
