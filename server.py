@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_cors import CORS
 from flask_login import login_required, current_user
 import importlib
@@ -72,7 +72,6 @@ module_classes_cache = SimpleCache(max_size=50)
 class_details_cache = SimpleCache(max_size=50)
 
 @app.route('/')
-@login_required
 def index():
     return render_template('index.html')
 
@@ -1189,16 +1188,37 @@ def create_custom_block():
 
 @app.before_request
 def check_maintenance_mode():
+    # Skip for static files and auth routes
+    if request.path.startswith('/static') or request.path.startswith('/auth'):
+        return
+        
     settings = AdminPanel.query.first()
     if settings and settings.maintenance_mode:
         # Allow admins to access everything
         if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
             return
-        # Allow access to login/logout routes
-        if request.endpoint in ['auth.login', 'auth.logout']:
-            return
         # Show maintenance page to everyone else
         return render_template('maintenance.html', message=settings.maintenance_message), 503
+
+@app.before_request
+def enforce_public_mode():
+    # Skip for static files and auth routes
+    if request.path.startswith('/static') or request.path.startswith('/auth'):
+        return
+    # Skip for admin routes - they are handled by @login_required and @admin_required
+    if request.path.startswith('/admin'):
+        return
+    # Prevent redirect loop: if already on /login, do not redirect
+    if request.path == '/login':
+        return
+    settings = AdminPanel.query.first()
+    if settings and not settings.public_mode:
+        if not current_user.is_authenticated:
+            # Prevent redirect loop: do not set next to /login or /auth/login
+            if request.path == '/login' or request.path.startswith('/auth/login'):
+                return
+            # Store the current URL as the next parameter only if it's not /login
+            return redirect(url_for('auth.login', next=request.url))
 
 # Create database tables
 with app.app_context():

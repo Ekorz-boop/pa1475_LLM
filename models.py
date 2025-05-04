@@ -31,6 +31,7 @@ class AdminPanel(db.Model):
     maintenance_message = db.Column(db.String(500))
     max_login_attempts = db.Column(db.Integer, default=5)
     password_reset_timeout = db.Column(db.Integer, default=3600)  # in seconds
+    public_mode = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -79,6 +79,19 @@
             </div>
         </div>
 
+        <div class="settings-section">
+            <h3>Site Access</h3>
+            <div class="form-group checkbox-group">
+                {{ form.public_mode(class="form-checkbox") }}
+                <label>
+                    {{ form.public_mode.label.text }}
+                    <span class="info-tooltip" tabindex="0" aria-label="When enabled, the main site is public and does not require login. Admin panel remains protected.">ℹ️
+                        <span class="tooltip-text">When enabled, the main site is public and does not require login. Admin panel remains protected.</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Save Settings</button>
         </div>

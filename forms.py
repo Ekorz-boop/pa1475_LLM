@@ -66,4 +66,5 @@ class AdminSettingsForm(FlaskForm):
     maintenance_message = TextAreaField('Maintenance Message', validators=[Optional(), Length(max=500)])
     max_login_attempts = IntegerField('Max Login Attempts', validators=[DataRequired()])
     password_reset_timeout = IntegerField('Password Reset Timeout (seconds)', validators=[DataRequired()])
+    public_mode = BooleanField('Public Mode (no login required for main site)')
     submit = SubmitField('Save Settings') 

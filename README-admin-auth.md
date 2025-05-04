@@ -8,6 +8,7 @@
 - **Dashboard:** User statistics and user growth analytics.
 - **User Growth Analytics:** Visual chart of user signups over time.
 - **Settings:** Maintenance mode, security settings, and more.
+- **Public Mode:** Toggle to make the main site public (no login required) or private (login required), directly from the admin panel. `/admin` is always protected.
 - **Custom Confirmation Modals:** All destructive/admin actions use branded, accessible confirmation dialogs.
 - **Fixed Sidebar:** Always-visible, modern sidebar for easy navigation.
 - **Modern Card Design:** Soft backgrounds, accent borders, and deep shadows for all admin cards.
@@ -52,7 +53,11 @@ MAIL_DEFAULT_SENDER=your_email@gmail.com
 ```bash
 python init_db.py
 ```
-This will create the database and an initial admin user.
+This will create the database and an initial admin user:
+- **Username:** `admin`
+- **Password:** `admin123`
+
+You can log in with these credentials after setup. (Change the password after first login for security.)
 
 ### **5. Run the Application**
 ```bash
@@ -74,6 +79,17 @@ Visit [http://localhost:5000](http://localhost:5000) in your browser.
 - View user statistics.
 - Change system settings (maintenance mode, security, etc.).
 
+### **Public Mode (NEW)**
+- **What is it?**
+  - Public mode allows you to make the main site accessible to everyone, with no login required. This is useful for demos, public-facing tools, or when you want to disable authentication for regular users.
+  - The admin panel (`/admin`) always remains protected and requires admin login, regardless of public mode.
+- **How to enable/disable:**
+  - Go to the Admin Panel → Settings.
+  - Toggle the "Public Mode" option under "Site Access".
+  - Save settings. Changes take effect immediately.
+- **Behavior:**
+  - **Public Mode ON:** Main site is public, no login required. User/account options are hidden unless logged in. `/admin` is always protected.
+  - **Public Mode OFF:** Main site requires login. Users must authenticate to access any non-admin route. `/admin` is always protected.
 
 ### **Password Reset**
 - Users can request a password reset from the login page.

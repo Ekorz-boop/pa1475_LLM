@@ -24,8 +24,17 @@ def login():
         user.last_login = datetime.utcnow()
         user.login_count = (user.login_count or 0) + 1
         db.session.commit()
+        
+        # Get the next page from the request args
         next_page = request.args.get('next')
+        # If no next page or next page is not safe, redirect to index
         if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('index')
+        # If next page is admin, make sure user is admin
+        if next_page.startswith('/admin') and not user.is_admin:
+            next_page = url_for('index')
+        # Prevent redirect loops by checking if next_page is login
+        if next_page.startswith('/login'):
             next_page = url_for('index')
         return redirect(next_page)
     return render_template('auth/login.html', form=form)
@@ -34,6 +43,7 @@ def login():
 @login_required
 def logout():
     logout_user()
+    flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
 
 @auth.route('/register', methods=['GET', 'POST'])

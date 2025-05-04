@@ -13,9 +13,11 @@ admin = Blueprint('admin', __name__)
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login', next=request.url))
+        if not current_user.is_admin:
             flash('You do not have permission to access this page.', 'error')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -111,6 +113,7 @@ def admin_settings():
         settings.maintenance_message = form.maintenance_message.data
         settings.max_login_attempts = form.max_login_attempts.data
         settings.password_reset_timeout = form.password_reset_timeout.data
+        settings.public_mode = form.public_mode.data
         settings.updated_at = datetime.utcnow()
         
         db.session.commit()
