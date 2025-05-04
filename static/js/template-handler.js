@@ -2527,9 +2527,10 @@ class TemplateHandler {
             newDragHandle.addEventListener('mousedown', function(e) {
                 if (e.button !== 0) return; // Only left mouse button
                 
-                // Mark the block as being dragged
+                // Mark the block as being dragged - critical for connection positioning
                 block.classList.add('dragging');
                 block.setAttribute('data-dragging', 'true');
+                document.body.setAttribute('data-block-dragging', block.id);
                 block.style.zIndex = '1000';
                 
                 // Get the initial positions
@@ -2571,6 +2572,7 @@ class TemplateHandler {
                     // Clean up
                     block.classList.remove('dragging');
                     block.removeAttribute('data-dragging');
+                    document.body.removeAttribute('data-block-dragging');
                     block.style.zIndex = '1';
                     
                     // Final connection update
