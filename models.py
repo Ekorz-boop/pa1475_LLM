@@ -23,7 +23,7 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f"<User {self.username}>"
 
 class AdminPanel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -36,4 +36,4 @@ class AdminPanel(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return f'<AdminPanel {self.id}>' 
+        return f"<AdminPanel {self.id}>" 

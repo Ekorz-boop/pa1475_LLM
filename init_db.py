@@ -8,9 +8,9 @@ def init_database():
     app = Flask(__name__)
     
     # Configure the app
-    app.config['SECRET_KEY'] = 'dev-key-please-change'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config["SECRET_KEY"] = "dev-key-please-change"
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     
     # Initialize the app
     init_app(app)
@@ -25,12 +25,12 @@ def init_database():
         
         # Create admin user if it doesn't exist
         admin = User(
-            username='admin',
-            email='admin@example.com',
+            username="admin",
+            email="admin@example.com",
             is_admin=True,
             created_at=datetime.utcnow()
         )
-        admin.set_password('admin123')
+        admin.set_password("admin123")
         
         # Add admin user to database
         db.session.add(admin)
@@ -38,7 +38,7 @@ def init_database():
         # Create default admin settings
         settings = AdminPanel(
             maintenance_mode=False,
-            maintenance_message='System is under maintenance. Please try again later.',
+            maintenance_message="System is under maintenance. Please try again later.",
             max_login_attempts=5,
             password_reset_timeout=3600
         )
@@ -49,5 +49,5 @@ def init_database():
         
         print("Database initialized successfully!")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     init_database() 
