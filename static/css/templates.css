@@ -1,0 +1,261 @@
+/* Template Feature Styles */
+
+.template-modal {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.template-modal .modal-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.form-description {
+    margin-top: 15px;
+    color: #666;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #eee;
+}
+
+.primary-btn, .secondary-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    outline: none;
+    transition: background-color 0.2s;
+}
+
+.primary-btn {
+    background-color: #2196f3;
+    color: white;
+}
+
+.primary-btn:hover {
+    background-color: #0b7dda;
+}
+
+.secondary-btn {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.secondary-btn:hover {
+    background-color: #e1e1e1;
+}
+
+.upload-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.file-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.file-upload-btn:hover {
+    background-color: #e1e1e1;
+}
+
+.file-upload-btn input {
+    display: none;
+}
+
+.saved-templates-section h4 {
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.saved-templates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.template-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    border-left: 4px solid #2196f3;
+    transition: background-color 0.2s;
+}
+
+.template-item:hover {
+    background-color: #f1f1f1;
+}
+
+.template-info h4 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+}
+
+.template-date {
+    color: #666;
+    font-size: 12px;
+    margin: 0 0 5px 0;
+}
+
+.template-blocks {
+    color: #666;
+    font-size: 12px;
+    margin: 0;
+}
+
+.template-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.load-template-btn {
+    padding: 6px 12px;
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.load-template-btn:hover {
+    background-color: #0b7dda;
+}
+
+.no-templates {
+    color: #666;
+    font-style: italic;
+}
+
+/* Templates tab in sidebar */
+.templates-section {
+    margin-top: 20px;
+}
+
+.template-actions-menu {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.template-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background-color: #f5f5f5;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.template-action-btn img {
+    width: 16px;
+    height: 16px;
+}
+
+.template-action-btn:hover {
+    background-color: #e1e1e1;
+}
+
+/* Toast fade-out animation */
+.toast.fade-out {
+    opacity: 0;
+    transform: translateX(10%);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+/* Dark mode styles */
+.dark-mode .template-modal {
+    background-color: #2d2d2d;
+    color: #f1f1f1;
+}
+
+.dark-mode .modal-header {
+    border-bottom-color: #444;
+}
+
+.dark-mode .modal-footer {
+    border-top-color: #444;
+}
+
+.dark-mode .form-control {
+    background-color: #333;
+    border-color: #555;
+    color: #f1f1f1;
+}
+
+.dark-mode .form-description {
+    color: #bbb;
+}
+
+.dark-mode .secondary-btn {
+    background-color: #444;
+    color: #f1f1f1;
+}
+
+.dark-mode .secondary-btn:hover {
+    background-color: #555;
+}
+
+.dark-mode .file-upload-btn {
+    background-color: #444;
+    color: #f1f1f1;
+}
+
+.dark-mode .file-upload-btn:hover {
+    background-color: #555;
+}
+
+.dark-mode .template-item {
+    background-color: #333;
+    border-left-color: #1976d2;
+}
+
+.dark-mode .template-item:hover {
+    background-color: #444;
+}
+
+.dark-mode .template-date,
+.dark-mode .template-blocks,
+.dark-mode .no-templates {
+    color: #bbb;
+} 

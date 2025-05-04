@@ -233,7 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const blockTemplates = document.querySelectorAll('.block-template');
     const searchInput = document.getElementById('block-search');
     let blockCounter = 1;
-    let connections = [];
+    // Make connections a global window property so it's accessible to template-handler.js
+    window.connections = [];
     let draggedBlock = null;
     let draggingConnection = false;
     let tempConnection = null;
@@ -424,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     blocks: blockConfigs,
-                    connections: connections,
+                    connections: window.connections,
                     output_file: 'generated_pipeline.py'
                 }),
             });
@@ -608,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Propagating data from ${sourceType} block (${sourceId})`);
 
         // Find all connections where this block is the source
-        const outgoingConnections = connections.filter(conn => conn.source === sourceId);
+        const outgoingConnections = window.connections.filter(conn => conn.source === sourceId);
 
         if (outgoingConnections.length === 0) {
             console.log(`No outgoing connections from ${sourceId}`);
@@ -783,13 +784,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
             draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+            // IMPORTANT: Update connections in real-time during dragging
             updateConnections();
             e.preventDefault();
         }
 
         if (draggingConnection && tempConnection && sourceNode) {
             const canvasRect = canvas.getBoundingClientRect();
+            
+            // IMPROVED: Calculate more accurately using node center
             const sourceRect = sourceNode.getBoundingClientRect();
+            const sourceCenterX = sourceRect.left + (sourceRect.width / 2);
+            const sourceCenterY = sourceRect.top + (sourceRect.height / 2);
 
             // Calculate connection points accounting for canvas transform
             const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
@@ -813,10 +819,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     hoveredInputNode = elemUnderMouse;
                     hoveredInputNode.classList.add('input-node-hover');
+                    
+                    // Add hover effect to connection
+                    tempConnection.classList.add('connection-hover');
                 }
             } else if (hoveredInputNode) {
                 hoveredInputNode.classList.remove('input-node-hover');
                 hoveredInputNode = null;
+                tempConnection.classList.remove('connection-hover');
             }
         }
     });
@@ -897,7 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function deleteBlock(block) {
-        connections = connections.filter(conn => {
+        window.connections = window.connections.filter(conn => {
             if (conn.source === block.id || conn.target === block.id) {
                 const targetBlock = document.getElementById(conn.target);
                 if (targetBlock && targetBlock.getAttribute('data-block-type') === 'display') {
@@ -913,7 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function removeConnectionsToInput(targetBlockId, inputId) {
-        connections = connections.filter(conn => {
+        window.connections = window.connections.filter(conn => {
             if (conn.target === targetBlockId && conn.inputId === inputId) {
                 const targetBlock = document.getElementById(targetBlockId);
                 if (targetBlock && targetBlock.getAttribute('data-block-type') === 'display') {
@@ -934,7 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inputId: inputId
         };
 
-        connections.push(connection);
+        window.connections.push(connection);
         updateConnections();
         processBlock(target);
     }
@@ -1043,13 +1053,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggingConnection = true;
                 sourceNode = outputNode;
 
-                const rect = outputNode.getBoundingClientRect();
+                const nodeRect = outputNode.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
 
-                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
-                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
+                // Calculate node center in ABSOLUTE document coordinates
+                const nodeCenterX = nodeRect.left + (nodeRect.width / 2);
+                const nodeCenterY = nodeRect.top + (nodeRect.height / 2);
+                
+                // Convert to SVG coordinates with zoom compensation
+                const x1 = ((nodeCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((nodeCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
+                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 tempConnection.setAttribute('x1', x1);
                 tempConnection.setAttribute('y1', y1);
                 tempConnection.setAttribute('x2', x1);
@@ -1280,7 +1295,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.prompt = block.querySelector('.prompt-template').value;
 
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn =>
+                const queryConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -1292,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn =>
+                const contextConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
@@ -1310,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Update the updateConnections function
+    // Revert to the original approach that worked for normal blocks
     function updateConnections() {
         if (!connectionsContainer) return;
 
@@ -1321,21 +1336,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!sourceBlock || !targetBlock) return;
 
+            // Find the exact output node and input node we need to connect
             const sourceNode = sourceBlock.querySelector('.output-node');
             const targetNode = targetBlock.querySelector(`[data-input="${conn.inputId}"]`);
 
             if (!sourceNode || !targetNode) return;
 
+            // Get accurate SVG coordinates for each node
+            const canvasRect = canvasContainer.getBoundingClientRect();
             const sourceRect = sourceNode.getBoundingClientRect();
             const targetRect = targetNode.getBoundingClientRect();
-            const canvasRect = canvas.getBoundingClientRect();
-
-            // Calculate positions accounting for canvas transform
-            const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
-            const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
-            const x2 = ((targetRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
-            const y2 = ((targetRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight / 2;
-
+            
+            // Calculate positions with respect to the SVG canvas and zoom level
+            const x1 = (sourceRect.left + sourceRect.width/2 - canvasRect.left) / zoom;
+            const y1 = (sourceRect.top + sourceRect.height/2 - canvasRect.top) / zoom;
+            const x2 = (targetRect.left + targetRect.width/2 - canvasRect.left) / zoom;
+            const y2 = (targetRect.top + targetRect.height/2 - canvasRect.top) / zoom;
+            
+            // Create the SVG line
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', x1);
             line.setAttribute('y1', y1);
@@ -1361,6 +1379,9 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionsContainer.appendChild(line);
         });
     }
+    
+    // Make updateConnections available globally
+    window.updateConnections = updateConnections;
 
     // Update the canvas transform function
     function updateCanvasTransform() {
@@ -1530,7 +1551,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.prompt = block.querySelector('.prompt-template').value;
 
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn =>
+                const queryConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -1542,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn =>
+                const contextConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
@@ -1706,36 +1727,67 @@ document.addEventListener('DOMContentLoaded', () => {
     // Make a block draggable
     function makeBlockDraggable(block) {
         const dragHandle = block.querySelector('.block-drag-handle');
-        if (dragHandle) {
-            dragHandle.addEventListener('mousedown', (e) => {
-                if (e.button !== 0) return; // Only left mouse button
-                isDraggingBlock = true;
-                draggedBlock = block;
-
-                // Calculate offset from the mouse to the block's top-left corner
-                // This is critical for the block to stay at the correct position relative to cursor
-                const rect = block.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-
-                // Get the block's transform to find its real position
-                const transform = window.getComputedStyle(block).transform;
+        if (!dragHandle) return;
+        
+        dragHandle.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; // Only left mouse button
+            
+            block.classList.add('dragging');
+            block.style.zIndex = '1000';
+            
+            const startX = e.clientX;
+            const startY = e.clientY;
+            
+            // Calculate block's current position from transform
+            const transform = window.getComputedStyle(block).transform;
+            let translateX = 0, translateY = 0;
+            
+            if (transform !== 'none') {
                 const matrix = new DOMMatrixReadOnly(transform);
-                const blockX = matrix.m41;
-                const blockY = matrix.m42;
-
-                // Get mouse position in canvas coordinates
-                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
-                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
-
-                // Calculate offset between mouse and block origin
-                dragOffset.x = mouseX - blockX;
-                dragOffset.y = mouseY - blockY;
-
-                block.style.zIndex = '1000';
+                translateX = matrix.m41;
+                translateY = matrix.m42;
+            }
+            
+            // Create a throttled update function to prevent too many updates
+            const throttledUpdate = throttle(() => {
+                // Force browser to recalculate layout before updating connections
+                void document.body.offsetHeight; 
+                
+                // Use requestAnimationFrame for smooth updating
+                requestAnimationFrame(() => {
+                    updateConnections();
+                });
+            }, 16); // ~60fps
+            
+            const mouseMoveHandler = (e) => {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                
+                block.style.transform = `translate(${translateX + dx}px, ${translateY + dy}px)`;
+                
+                // Update connections in real-time during drag with throttling for performance
+                throttledUpdate();
+                
                 e.preventDefault();
-                e.stopPropagation();
-            });
-        }
+            };
+            
+            const mouseUpHandler = () => {
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+                
+                block.classList.remove('dragging');
+                block.style.zIndex = '1';
+                
+                // Final update without throttling to ensure accuracy
+                void document.body.offsetHeight; // Force reflow
+                updateConnections();
+            };
+            
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+            
+            e.preventDefault();
+        });
     }
 
     // Setup node connections for a block
@@ -1750,13 +1802,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggingConnection = true;
                 sourceNode = outputNode;
 
-                const rect = outputNode.getBoundingClientRect();
+                const nodeRect = outputNode.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
 
-                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
-                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
+                // Calculate node center in ABSOLUTE document coordinates
+                const nodeCenterX = nodeRect.left + (nodeRect.width / 2);
+                const nodeCenterY = nodeRect.top + (nodeRect.height / 2);
+                
+                // Convert to SVG coordinates with zoom compensation
+                const x1 = ((nodeCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((nodeCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
+                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 tempConnection.setAttribute('x1', x1);
                 tempConnection.setAttribute('y1', y1);
                 tempConnection.setAttribute('x2', x1);
@@ -1806,7 +1863,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blockId = block.id;
 
         // Remove all connections to/from this block
-        connections = connections.filter(conn =>
+        window.connections = window.connections.filter(conn =>
             conn.source !== blockId && conn.target !== blockId
         );
 
@@ -1980,6 +2037,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Start dragging
             isDragging = true;
             currentBlock = block;
+            
+            // Mark the block as being dragged - critical for connection positioning
+            block.classList.add('dragging');
+            block.setAttribute('data-dragging', 'true');
+            document.body.setAttribute('data-block-dragging', block.id);
 
             // Get current block position from its transform style
             const transform = window.getComputedStyle(block).transform;
@@ -1993,7 +2055,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Set cursor and add dragging class
             document.body.style.cursor = 'grabbing';
-            block.classList.add('dragging');
             block.style.zIndex = '1000';
 
             // Prevent default to avoid text selection
@@ -2015,7 +2076,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply the new position
             currentBlock.style.transform = `translate(${newX}px, ${newY}px)`;
 
-            // Update connections
+            // Update connections with every move to keep them accurate
             updateConnections();
         });
 
@@ -2026,8 +2087,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isDragging = false;
             if (currentBlock) {
                 currentBlock.classList.remove('dragging');
+                currentBlock.removeAttribute('data-dragging');
+                document.body.removeAttribute('data-block-dragging');
                 currentBlock.style.zIndex = '1';
                 currentBlock = null;
+                
+                // Final update to ensure connections are correct
+                updateConnections();
             }
             document.body.style.cursor = '';
         });
