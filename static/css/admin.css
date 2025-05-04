@@ -27,22 +27,23 @@ body, .admin-container {
 }
 
 .admin-sidebar {
-    width: var(--sidebar-width);
-    background-color: #f9fafb;
-    color: var(--text-color);
-    padding: 1.5rem 0.5rem 1rem 1rem;
-    border-right: 1px solid var(--border-color);
-    height: 100vh;
     position: fixed;
-    overflow-y: auto;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 100;
+    background: #f9fafb;
+    border-right: 2px solid #e5e7eb;
+    padding: 2rem 1rem 1rem 1.5rem;
+    min-width: 220px;
+    box-shadow: 2px 0 12px rgba(16,185,129,0.04);
     display: flex;
     flex-direction: column;
-    min-height: 500px;
 }
 
 .admin-content {
     flex: 1;
-    margin-left: var(--sidebar-width);
+    margin-left: 220px;
     padding: 2rem;
 }
 
@@ -82,32 +83,22 @@ body, .admin-container {
 .sidebar-link {
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1.2rem;
     color: var(--text-color);
     text-decoration: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-weight: 500;
-    transition: background 0.2s, color 0.2s;
+    transition: background 0.2s, color 0.2s, border-left 0.2s;
     position: relative;
     gap: 0.75em;
+    margin-bottom: 0.25rem;
 }
 
 .sidebar-link.active {
     background: #e6f9f2;
     color: #10b981;
+    border-left: 4px solid #10b981;
     font-weight: 700;
-    box-shadow: 0 2px 8px rgba(16,185,129,0.04);
-}
-
-.sidebar-link.active::before {
-    content: '';
-    position: absolute;
-    left: -1.5rem;
-    top: 0.5rem;
-    bottom: 0.5rem;
-    width: 4px;
-    border-radius: 4px;
-    background: #10b981;
 }
 
 .sidebar-link:hover {
@@ -140,18 +131,19 @@ body, .admin-container {
     margin-bottom: 2rem;
 }
 
-.dashboard-card {
-    background-color: white;
-    border-radius: 8px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    color: var(--text-color);
+.dashboard-card, .user-info-card, .settings-info-card {
+    background: #f9fafb;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(16,24,40,0.10);
+    border: 1.5px solid #e5e7eb;
+    padding: 2rem 1.5rem;
+    margin-bottom: 2rem;
 }
 
 .dashboard-card h3 {
-    margin-top: 0;
+    color: #10b981;
+    font-size: 1.2rem;
     margin-bottom: 1rem;
-    color: var(--dark-color);
 }
 
 .dashboard-card-header {
