@@ -2242,13 +2242,13 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     paramNameLabel.textContent = displayName;
 
     // Check if this parameter might be a file path
-    const isFilePath = paramName.toLowerCase().includes('file') || 
+    const isFilePath = paramName.toLowerCase().includes('file') ||
                        paramName.toLowerCase().includes('path');
 
     // Create input container for file path parameters
     const inputContainer = document.createElement('div');
     inputContainer.className = isFilePath ? 'input-container' : '';
-    
+
     // Create value input
     const valueInput = document.createElement('input');
     valueInput.type = 'text';
@@ -2277,7 +2277,7 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
         fileUploadBtn.title = 'Upload files';
         fileUploadBtn.setAttribute('data-param', paramName);
         fileUploadBtn.innerHTML = '<span>📁</span>';
-        
+
         inputContainer.appendChild(fileUploadBtn);
         paramRow.classList.add('file-param-row');
     }
@@ -2723,7 +2723,7 @@ function addMethodRow(block, methodName, blockId = '') {
     if (!methodsContainer) {
         methodsContainer = document.createElement('div');
         methodsContainer.className = 'block-methods';
-        
+
         // Insert methods container before parameters container
         const blockContent = block.querySelector('.block-content');
         if (blockContent) {
@@ -2760,7 +2760,30 @@ function addMethodRow(block, methodName, blockId = '') {
         // When removing, also remove from saved methods
         removeMethodSelection(blockId, methodName);
         methodRow.remove();
-        
+
+        // Remove any nodes associated with this method
+        const inputNode = block.querySelector(`.input-node[data-input="${methodName}_input"]`);
+        const outputNode = block.querySelector(`.output-node[data-output="${methodName}_output"]`);
+
+        if (inputNode) inputNode.remove();
+        if (outputNode) outputNode.remove();
+
+        // Clean up any connections to/from these nodes
+        if (typeof connections !== 'undefined' && Array.isArray(connections)) {
+            connections = connections.filter(conn => {
+                const keepConnection = !(
+                    (conn.target === block.id && conn.inputId === `${methodName}_input`) ||
+                    (conn.source === block.id && conn.source_node === `${methodName}_output`)
+                );
+                return keepConnection;
+            });
+
+            // Update visual connections
+            if (typeof updateConnections === 'function') {
+                updateConnections();
+            }
+        }
+
         // Update input/output nodes
         updateBlockNodesForMethods(block);
     });
@@ -2804,6 +2827,14 @@ function addMethodRow(block, methodName, blockId = '') {
         outputNodeGroup.appendChild(outputNode);
     }
 
+    // Set up connection handling for the new nodes
+    if (typeof setupNodeConnections === 'function') {
+        // Instead of calling setupNodeConnections for the whole block,
+        // just set up the event listeners for these specific nodes
+        setupNodeListener(inputNode);
+        setupNodeListener(outputNode, true);
+    }
+
     // Update node positions for even spacing
     updateBlockNodesForMethods(block);
 
@@ -2814,28 +2845,145 @@ function addMethodRow(block, methodName, blockId = '') {
 }
 
 /**
- * Update the methods display for a block
+ * Set up event listeners for a single node
+ * @param {HTMLElement} node - The node to set up listeners for
+ * @param {boolean} isOutput - Whether the node is an output node
+ */
+function setupNodeListener(node, isOutput = false) {
+    if (!node) return;
+
+    if (isOutput) {
+        // For output nodes, set up drag start
+        node.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (typeof draggingConnection !== 'undefined') {
+                window.draggingConnection = true;
+            }
+            if (typeof sourceNode !== 'undefined') {
+                window.sourceNode = node;
+            }
+
+            // Create the temporary connection line
+            try {
+                const rect = node.getBoundingClientRect();
+                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                const zoom = window.zoom || 1;
+                const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
+
+                let tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + node.offsetWidth/2;
+                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + node.offsetHeight/2;
+
+                tempConnection.setAttribute('x1', x1);
+                tempConnection.setAttribute('y1', y1);
+                tempConnection.setAttribute('x2', x1);
+                tempConnection.setAttribute('y2', y1);
+                tempConnection.setAttribute('class', 'connection-line dragging');
+
+                const connectionsContainer = document.getElementById('connections');
+                if (connectionsContainer) {
+                    connectionsContainer.appendChild(tempConnection);
+                    if (typeof window.tempConnection !== 'undefined') {
+                        window.tempConnection = tempConnection;
+                    }
+                }
+            } catch (e) {
+                console.error('Error setting up output node listener:', e);
+            }
+        });
+    } else {
+        // For input nodes
+        node.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+        });
+
+        node.addEventListener('mouseover', (e) => {
+            if (typeof draggingConnection !== 'undefined' &&
+                typeof sourceNode !== 'undefined' &&
+                draggingConnection && sourceNode) {
+
+                const sourceBlock = sourceNode.closest('.block');
+                const targetBlock = node.closest('.block');
+
+                if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                    if (typeof hoveredInputNode !== 'undefined') {
+                        window.hoveredInputNode = node;
+                    }
+                    node.classList.add('input-node-hover');
+
+                    // Add effect to visualize potential connection
+                    if (typeof tempConnection !== 'undefined' && tempConnection) {
+                        tempConnection.classList.add('connection-hover');
+                    }
+                    e.stopPropagation();
+                }
+            }
+        });
+
+        node.addEventListener('mouseout', (e) => {
+            if (typeof hoveredInputNode !== 'undefined' && hoveredInputNode === node) {
+                window.hoveredInputNode = null;
+                node.classList.remove('input-node-hover');
+
+                // Remove hover effect
+                if (typeof tempConnection !== 'undefined' && tempConnection) {
+                    tempConnection.classList.remove('connection-hover');
+                }
+                e.stopPropagation();
+            }
+        });
+    }
+}
+
+/**
+ * Update the display of methods for a block
  * @param {HTMLElement} block - The block element to update
- * @param {Array} methods - Array of method names to display
+ * @param {Array} methods - The methods to display
  * @param {string} blockId - The ID of the block
  */
 function updateMethodsDisplay(block, methods, blockId = '') {
-    if (!block || !methods || !Array.isArray(methods)) return;
+    if (!block || !Array.isArray(methods)) return;
 
-    // Clear existing method rows
-    const existingMethodsContainer = block.querySelector('.block-methods');
-    if (existingMethodsContainer) {
-        existingMethodsContainer.innerHTML = '';
+    // Get or create the methods container
+    let methodsContainer = block.querySelector('.block-methods');
+    if (!methodsContainer) {
+        methodsContainer = document.createElement('div');
+        methodsContainer.className = 'block-methods';
+
+        // Insert methods container before parameters container
+        const blockContent = block.querySelector('.block-content');
+        if (blockContent) {
+            const parametersContainer = block.querySelector('.block-parameters');
+            if (parametersContainer) {
+                blockContent.insertBefore(methodsContainer, parametersContainer);
+            } else {
+                blockContent.appendChild(methodsContainer);
+            }
+        }
     }
 
-    // Add rows for each method
-    methods.forEach(methodName => {
-        if (methodName && methodName !== '__init__') { // Skip init method which is always included
-            addMethodRow(block, methodName, blockId);
+    // Clear existing method rows - keep those that match our methods array
+    const existingRows = Array.from(methodsContainer.querySelectorAll('.method-row'));
+    existingRows.forEach(row => {
+        const rowMethod = row.getAttribute('data-method');
+        if (!methods.includes(rowMethod)) {
+            row.remove();
         }
     });
 
-    // Update node positions
+    // Add rows for methods that don't already have them
+    methods.forEach(method => {
+        if (method === '__init__') return; // Skip __init__ method as it's not displayed
+
+        // Check if row already exists
+        const existingRow = methodsContainer.querySelector(`.method-row[data-method="${method}"]`);
+        if (!existingRow) {
+            addMethodRow(block, method, blockId);
+        }
+    });
+
+    // Update the node positions after changing method rows
     updateBlockNodesForMethods(block);
 }
 
@@ -2848,82 +2996,102 @@ function saveMethodSelection(blockId, methodName) {
     if (!blockId || !methodName) return;
 
     try {
-        // Get existing methods for this block
+        // Save to sessionStorage first (for current session)
+        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        const blockData = customBlocks.find(b => b.id === blockId);
+
+        if (blockData) {
+            if (!blockData.methods) {
+                blockData.methods = [];
+            }
+
+            if (!blockData.methods.includes(methodName)) {
+                blockData.methods.push(methodName);
+                sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
+            }
+        }
+
+        // Also save to localStorage (for persistence between sessions)
         const methodsKey = `blockMethods-${blockId}`;
         const savedMethods = JSON.parse(localStorage.getItem(methodsKey) || '[]');
-        
-        // Add method if not already in the list
+
         if (!savedMethods.includes(methodName)) {
             savedMethods.push(methodName);
             localStorage.setItem(methodsKey, JSON.stringify(savedMethods));
         }
+
+        console.log(`Saved method ${methodName} for block ${blockId}`);
     } catch (e) {
-        console.warn('Error saving method selection:', e);
+        console.error('Error saving method selection:', e);
     }
 }
 
 /**
- * Remove method selection from storage
- * @param {string} blockId - The ID of the block
+ * Remove a method selection for a block
+ * @param {string} blockId - The block ID to remove the method from
  * @param {string} methodName - The method name to remove
  */
 function removeMethodSelection(blockId, methodName) {
     if (!blockId || !methodName) return;
 
     try {
-        // Get existing methods for this block
+        // Remove from sessionStorage
+        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        const blockData = customBlocks.find(b => b.id === blockId);
+
+        if (blockData && blockData.methods) {
+            blockData.methods = blockData.methods.filter(m => m !== methodName);
+            sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
+        }
+
+        // Remove from localStorage
         const methodsKey = `blockMethods-${blockId}`;
-        let savedMethods = JSON.parse(localStorage.getItem(methodsKey) || '[]');
-        
-        // Remove method if in the list
-        savedMethods = savedMethods.filter(m => m !== methodName);
-        localStorage.setItem(methodsKey, JSON.stringify(savedMethods));
+        const savedMethods = JSON.parse(localStorage.getItem(methodsKey) || '[]');
+
+        if (savedMethods.includes(methodName)) {
+            const updatedMethods = savedMethods.filter(m => m !== methodName);
+            localStorage.setItem(methodsKey, JSON.stringify(updatedMethods));
+        }
+
+        console.log(`Removed method ${methodName} for block ${blockId}`);
     } catch (e) {
-        console.warn('Error removing method selection:', e);
+        console.error('Error removing method selection:', e);
     }
 }
 
 /**
- * Update input and output nodes for methods to ensure even spacing
- * @param {HTMLElement} block - The block element to update
+ * Update the spacing and positioning of nodes for methods
+ * @param {HTMLElement} block - The block to update node positions for
  */
 function updateBlockNodesForMethods(block) {
-    if (!block) return;
-
-    // Get all input nodes and output nodes
+    // Update spacing for input nodes
     const inputNodes = block.querySelectorAll('.input-node');
-    const outputNodes = block.querySelectorAll('.output-node');
+    const inputNodeCount = inputNodes.length;
 
-    // Calculate positions for input nodes
-    if (inputNodes.length > 0) {
+    if (inputNodeCount > 0) {
         const inputNodeGroup = block.querySelector('.input-node-group');
-        if (inputNodeGroup) {
-            const groupHeight = inputNodeGroup.offsetHeight;
-            const nodeHeight = 20; // Approximate height of a node
-            const spacing = groupHeight / (inputNodes.length + 1);
+        const blockHeight = block.offsetHeight;
 
-            // Set positions for input nodes
-            inputNodes.forEach((node, index) => {
-                const top = spacing * (index + 1) - nodeHeight / 2;
-                node.style.top = `${top}px`;
-            });
-        }
+        // Distribute input nodes evenly
+        inputNodes.forEach((node, index) => {
+            const position = (blockHeight / (inputNodeCount + 1)) * (index + 1);
+            node.style.top = `${position}px`;
+        });
     }
 
-    // Calculate positions for output nodes
-    if (outputNodes.length > 0) {
-        const outputNodeGroup = block.querySelector('.output-node-group');
-        if (outputNodeGroup) {
-            const groupHeight = outputNodeGroup.offsetHeight;
-            const nodeHeight = 20; // Approximate height of a node
-            const spacing = groupHeight / (outputNodes.length + 1);
+    // Update spacing for output nodes
+    const outputNodes = block.querySelectorAll('.output-node');
+    const outputNodeCount = outputNodes.length;
 
-            // Set positions for output nodes
-            outputNodes.forEach((node, index) => {
-                const top = spacing * (index + 1) - nodeHeight / 2;
-                node.style.top = `${top}px`;
-            });
-        }
+    if (outputNodeCount > 0) {
+        const outputNodeGroup = block.querySelector('.output-node-group');
+        const blockHeight = block.offsetHeight;
+
+        // Distribute output nodes evenly
+        outputNodes.forEach((node, index) => {
+            const position = (blockHeight / (outputNodeCount + 1)) * (index + 1);
+            node.style.top = `${position}px`;
+        });
     }
 }
 

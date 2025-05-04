@@ -76,6 +76,7 @@ def get_connections():
 @app.route("/api/blocks/create", methods=["POST"])
 def create_block():
     data = request.json
+    print(f"Creating block with data: {data}")
     block_type = data.get("type")
     block_id = data.get("id")
 
@@ -112,6 +113,7 @@ def connect_block_nodes():
 @app.route("/api/blocks/export", methods=["POST"])
 def export_blocks():
     data = request.json
+    print(f"Exporting blocks with data: {data}")
     output_file = data.get("output_file", "generated_pipeline.py")
     blocks_data = data.get("blocks", {})
     connections_data = data.get("connections", [])  # Array of connection objects
@@ -131,7 +133,7 @@ def export_blocks():
                     super().__init__()
                     self.block_type = block_type
                     self.class_name = None  # Will be set properly based on block_type
-                    self.module_path = ""  # Default empty module path
+                    self.module_path = request.args.get("module", "")  # Default empty module path
                     self.config = config
                     self.component_type = ""  # Default empty component type
                     self.selected_methods = []
@@ -139,23 +141,28 @@ def export_blocks():
 
                     # Extract module path and class name from block_type
                     if block_type.startswith("custom_"):
+                        print(f"Processing custom block: {block_type}")
                         # Remove 'custom_' prefix to get the full class path
                         full_class_path = block_type[
                             7:
                         ]  # e.g. "langchain_community.llms.OpenAI"
 
                         # Split the path to get module and class name
+                        print(f"Full class path: {full_class_path}, module path: {self.module_path}, class name: {self.class_name}")
                         parts = full_class_path.split(".")
                         if len(parts) > 1:
                             self.class_name = parts[-1]  # Last part is class name
                             self.module_path = ".".join(
                                 parts[:-1]
                             )  # Rest is module path
+
+                            # Set import string for custom classes
+                            self.import_string = f"from {self.module_path} import {self.class_name}"
+                            print(f"Custom block import: {self.import_string}")
                         else:
                             self.class_name = full_class_path  # If no dots, use as is
-                    else:
-                        # For non-custom blocks, use the block_type as class name
-                        self.class_name = block_type
+                            self.import_string = f"# Import for {self.class_name}"
+
 
                     # Determine component type based on module path and class name
                     if (
@@ -183,14 +190,6 @@ def export_blocks():
                     else:
                         # Default to a generic type
                         self.component_type = "error"
-
-                    # Set import string and function string
-                    if self.module_path:
-                        self.import_string = (
-                            f"from {self.module_path} import {self.class_name}"
-                        )
-                    else:
-                        self.import_string = f"# Import for {self.class_name}"
 
                     self.function_string = (
                         f"# Placeholder for {self.class_name} function"
@@ -220,26 +219,84 @@ def export_blocks():
 
             temp_canvas.add_block(block_id, CustomPipelineBlock())
 
-        # Convert connections array to dictionary format
-        # canvas.connections format: {source_id: [target_id1, target_id2, ...]}
-        canvas_connections = {}
+        # Now, for special connections between blocks with specific method nodes
+        reverse_connection_map = {}
+        method_connection_map = {}  # Maps block_id -> input_node -> source blocks
 
+        # Create a plain connections dict format for execution order
+        canvas_connections = {}
         for conn in connections_data:
             source_id = conn.get("source")
             target_id = conn.get("target")
 
-            if (
-                source_id
-                and target_id
-                and source_id in temp_canvas.blocks
-                and target_id in temp_canvas.blocks
-            ):
+            if (source_id and target_id and source_id in temp_canvas.blocks
+                and target_id in temp_canvas.blocks):
                 if source_id not in canvas_connections:
                     canvas_connections[source_id] = []
                 if target_id not in canvas_connections[source_id]:
                     canvas_connections[source_id].append(target_id)
 
-        # Set the connections on the temp canvas
+        # Determine execution order
+        execution_order = determine_execution_order(temp_canvas.blocks, canvas_connections)
+
+        # Initialize connection maps
+        for block_id in execution_order:
+            if block_id not in reverse_connection_map:
+                reverse_connection_map[block_id] = []
+
+            if block_id not in method_connection_map:
+                method_connection_map[block_id] = {}
+
+        # Build reverse connection map
+        for source_id, targets in canvas_connections.items():
+            for target_id in targets:
+                if target_id not in reverse_connection_map:
+                    reverse_connection_map[target_id] = []
+
+                if source_id not in reverse_connection_map[target_id]:
+                    reverse_connection_map[target_id].append(source_id)
+
+        # Look for method-specific connections
+        # This additional loop processes the original connections data
+        # to extract method-specific info
+        for conn in connections_data:
+            source_id = conn.get("source")
+            target_id = conn.get("target")
+            input_id = conn.get("inputId", "")
+            source_method = conn.get("sourceMethod", "")
+            target_method = conn.get("targetMethod", "")
+            source_node = conn.get("sourceNode", "")
+
+            if not (source_id and target_id):
+                continue
+
+            # Skip if either block doesn't exist
+            if source_id not in temp_canvas.blocks or target_id not in temp_canvas.blocks:
+                continue
+
+            # If we don't have explicit method information, try to extract it from input/output nodes
+            if not source_method and source_node and "_output" in source_node:
+                source_method = source_node.split("_")[0]
+
+            if not target_method and input_id and "_input" in input_id:
+                target_method = input_id.split("_")[0]
+
+            # If we have method-specific information
+            if target_method or source_method:
+                if target_id not in method_connection_map:
+                    method_connection_map[target_id] = {}
+
+                # If we have a target method, use it; otherwise use the source method or default
+                method_key = target_method or "default"
+                if method_key not in method_connection_map[target_id]:
+                    method_connection_map[target_id][method_key] = []
+
+                if source_id not in method_connection_map[target_id][method_key]:
+                    method_connection_map[target_id][method_key].append(source_id)
+
+                print(f"Found method-specific connection: {source_id} -> {target_id} (method: {method_key})")
+
+        # Set the connections on the temp canvas - use the standard format for compatibility
         temp_canvas.connections = canvas_connections
 
         # Define the output file path
@@ -247,7 +304,7 @@ def export_blocks():
 
         # Export the code - using custom export logic similar to block_sim.py
         generated_code = generate_python_code(
-            temp_canvas.blocks, temp_canvas.connections
+            temp_canvas.blocks, temp_canvas.connections, method_connection_map, connections_data
         )
 
         # Write the generated code to the file
@@ -269,7 +326,7 @@ def export_blocks():
         return jsonify({"error": str(e)}), 500
 
 
-def generate_python_code(blocks, connections):
+def generate_python_code(blocks, connections, method_connections=None, connections_data=None):
     """Generate Python code for blocks and connections similar to block_sim.py logic."""
     # Determine execution order
     execution_order = determine_execution_order(blocks, connections)
@@ -289,19 +346,37 @@ def generate_python_code(blocks, connections):
     # Track blocks that have already been initialized with special handling
     special_init_blocks = set()
 
+    # First scan to collect all imports upfront
+    #print(f"Processing {len(blocks)} blocks for imports...")
+    for block_id, block in blocks.items():
+        # Only add non-comment imports
+        #print(f"Processing block {block_id} with import string: {block.import_string}")
+        if hasattr(block, "import_string") and block.import_string and not block.import_string.startswith("#"):
+            imports.add(block.import_string)
+            #print(f"Added import: {block.import_string}")
+        # Fallback for blocks with module path but no import string
+        elif hasattr(block, "module_path") and block.module_path and hasattr(block, "class_name"):
+            import_statement = f"from {block.module_path} import {block.class_name}"
+            imports.add(import_statement)
+            #print(f"Added generated import: {import_statement}")
+
+    #print(f"\nCollected {len(imports)} imports: {imports}")
+
     # Create variable names for each block
     block_vars = {}
     for i, block_id in enumerate(execution_order):
         block = blocks[block_id]
+
+        # Get class name from block attributes
         class_name = (
             block.class_name if hasattr(block, "class_name") else type(block).__name__
         )
+
+        # Create a sanitized variable name based on class name
         var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
-        # Add import for this block
-        if hasattr(block, "module_path") and block.module_path:
-            imports.add(f"from {block.module_path} import {class_name}")
+        print(f"Assigned variable name '{var_name}' to block {block_id} of type {class_name}")
 
         # Check if this block uses file paths
         if hasattr(block, "config") and block.config:
@@ -393,21 +468,8 @@ def generate_python_code(blocks, connections):
                                         special_init_blocks.add(block_id)
 
                                         # Add extra code for multi-file loading
-                                        init_params = []
-                                        multi_load_comment = (
-                                            f"# Handle multiple files for {class_name}"
-                                        )
-                                        init_code_lines.append(multi_load_comment)
-
-                                        # Find next available variable name
-                                        i = 1
-                                        while f"docs_{i}" in block_vars.values():
-                                            i += 1
-
-                                        result_var = f"docs_{i}"
-
-                                        # Generate code to load multiple documents - ensure path normalization
-                                        init_code_lines.append(f"{result_var} = []")
+                                        init_code_lines.append(f"# Handle multiple files for {class_name}")
+                                        init_code_lines.append(f"{var_name} = []")
                                         # Use raw strings for file paths to avoid issues with Windows backslashes
                                         init_code_lines.append(
                                             "# Normalize paths for cross-platform compatibility"
@@ -426,7 +488,7 @@ def generate_python_code(blocks, connections):
                                             f"        loader = {class_name}(file_path)"
                                         )
                                         init_code_lines.append(
-                                            f"        {result_var}.extend(loader.load())"
+                                            f"        {var_name}.extend(loader.load())"
                                         )
                                         init_code_lines.append(
                                             '        print(f"Successfully loaded {file_path}")'
@@ -447,7 +509,7 @@ def generate_python_code(blocks, connections):
                                             f"    {var_name} = {class_name}(file_paths[0])"
                                         )
                                         init_code_lines.append(
-                                            f"    {var_name}_output = {result_var}"
+                                            f"    {var_name}_output = {var_name}"
                                         )
                                         init_code_lines.append("else:")
                                         init_code_lines.append(
@@ -543,38 +605,84 @@ def generate_python_code(blocks, connections):
         if not methods_to_execute:
             continue
 
-        # Execute methods for this block
+        # Process selected methods in order - with better method-specific connection handling
         for method_name in methods_to_execute:
-            # Skip if this method has already been processed for this block
-            if method_name in processed_methods[block_id]:
-                continue
-
-            # Skip load() method for specially initialized document loaders
             if method_name == "load" and block_id in special_init_blocks:
                 continue
 
             method_code_lines.append(f"# Execute {method_name} on {class_name}")
 
+            # Check if we should use method-specific connections
+            should_use_method_connections = False
+            method_specific_sources = []
+
+            if method_connections and block_id in method_connections:
+                # If we have the method in our method connections map
+                if method_name in method_connections[block_id]:
+                    should_use_method_connections = True
+                    method_specific_sources = method_connections[block_id][method_name]
+                    #print(f"Using method-specific connections for {method_name} on {class_name}: {method_specific_sources}")
+
             # If this block has incoming connections, use them as parameters
-            if block_id in reverse_connection_map:
-                source_ids = reverse_connection_map[block_id]
+            if should_use_method_connections and method_specific_sources:
+                # Use method-specific connections
                 source_params = []
-                for source_id in source_ids:
+                for source_id in method_specific_sources:
                     source_var = block_vars[source_id]
-                    source_params.append(f"{source_var}_output")
+
+                    # Look for method-specific outputs from source block
+                    # The connection should indicate which source method output to use
+                    source_method = None
+
+                    # Check each connection to see if it connects this source to this target method
+                    for conn in connections_data:
+                        if (conn.get("source") == source_id and
+                            conn.get("target") == block_id and
+                            conn.get("targetMethod") == method_name):
+                            source_method = conn.get("sourceMethod")
+                            break
+
+                    # If there's a specific source method, use its output variable
+                    if source_method:
+                        source_params.append(f"{source_var}_{source_method}_output")
+                    else:
+                        # Otherwise use the general output variable
+                        source_params.append(f"{source_var}_output")
 
                 if source_params:
-                    # For methods like load() that typically don't take other blocks' outputs
-                    # We'll handle those specially
-                    if method_name == "load" and (
-                        hasattr(block, "component_type")
-                        and block.component_type == "document_loaders"
-                    ):
+                    # Filter out any empty parameters
+                    filtered_params = [
+                        p for p in source_params if p and p.strip() != ""
+                    ]
+
+                    # For methods with only one parameter, try to pass it as the first argument
+                    if len(filtered_params) == 1:
                         method_code_lines.append(
-                            f"{var_name}_output = {var_name}.{method_name}()"
+                            f"{var_name}_{method_name}_output = {var_name}.{method_name}({filtered_params[0]})"
                         )
-                    # Instead of hardcoded parameter names, use generic parameter passing
                     else:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
+                        )
+                else:
+                    method_code_lines.append(
+                        f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
+                    )
+
+                # Also set the default output to the most recently used method
+                method_code_lines.append(
+                    f"{var_name}_output = {var_name}_{method_name}_output"
+                )
+            else:
+                # Use standard connection map as fallback
+                if block_id in reverse_connection_map:
+                    source_ids = reverse_connection_map[block_id]
+                    source_params = []
+                    for source_id in source_ids:
+                        source_var = block_vars[source_id]
+                        source_params.append(f"{source_var}_output")
+
+                    if source_params:
                         # Filter out any empty parameters
                         filtered_params = [
                             p for p in source_params if p and p.strip() != ""
@@ -583,20 +691,25 @@ def generate_python_code(blocks, connections):
                         # For methods with only one parameter, try to pass it as the first argument
                         if len(filtered_params) == 1:
                             method_code_lines.append(
-                                f"{var_name}_output = {var_name}.{method_name}({filtered_params[0]})"
+                                f"{var_name}_{method_name}_output = {var_name}.{method_name}({filtered_params[0]})"
                             )
                         else:
                             method_code_lines.append(
-                                f"{var_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
+                                f"{var_name}_{method_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
                             )
+                    else:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
+                        )
                 else:
+                    # No incoming connections, call with no parameters
                     method_code_lines.append(
-                        f"{var_name}_output = {var_name}.{method_name}()"
+                        f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
                     )
-            else:
-                # No incoming connections, call with no parameters
+
+                # Set the default output variable
                 method_code_lines.append(
-                    f"{var_name}_output = {var_name}.{method_name}()"
+                    f"{var_name}_output = {var_name}_{method_name}_output"
                 )
 
             # Mark this method as processed
@@ -797,7 +910,7 @@ def list_langchain_classes():
     # Check cache first
     cached_result = module_classes_cache.get(module_path)
     if cached_result:
-        print(f"Using cached classes for {module_path}")
+        #print(f"Using cached classes for {module_path}")
         return jsonify({"classes": cached_result})
 
     try:
@@ -821,11 +934,12 @@ def list_langchain_classes():
 
             # Sort and cache the results
             classes = sorted(classes)
-            print(f"Found {len(classes)} classes in {module_path}")
+            #print(f"Found {len(classes)} classes in {module_path}")
             module_classes_cache.set(module_path, classes)
             return jsonify({"classes": classes})
 
         # Import the base package
+        #print(f"Importing module: {module_path}")
         module = importlib.import_module(module_path)
         classes = []
 
@@ -834,7 +948,7 @@ def list_langchain_classes():
         try:
             # Check if module has __path__ attribute (indicating it's a package)
             if hasattr(module, "__path__"):
-                print(f"Scanning submodules in {module_path}")
+                #print(f"Scanning submodules in {module_path}")
                 # Get all modules in the package (both modules and packages)
                 for finder, name, ispkg in pkgutil.iter_modules(module.__path__):
                     submodule_name = f"{module_path}.{name}"
@@ -864,7 +978,7 @@ def list_langchain_classes():
         # Add the module itself to the list of modules to check
         modules_to_check = [module_path] + submodules
 
-        print(f"Found {len(modules_to_check)} modules/submodules to check for classes")
+        #print(f"Found {len(modules_to_check)} modules/submodules to check for classes")
 
         # Check each module for classes
         for mod_path in modules_to_check:
@@ -925,6 +1039,7 @@ def get_langchain_class_details():
     """Get details about a specific class in LangChain."""
     # library = request.args.get("library", "langchain")
     module_path = request.args.get("module", "")
+    print(f"Getting class details for {module_path}")
     class_name = request.args.get("class_name", "")
 
     # Generate cache key
@@ -933,7 +1048,7 @@ def get_langchain_class_details():
     # Check cache first
     cached_result = class_details_cache.get(cache_key)
     if cached_result:
-        print(f"Using cached details for {cache_key}")
+        #print(f"Using cached details for {cache_key}")
         return jsonify(cached_result)
 
     if not module_path or not class_name:
@@ -1105,6 +1220,7 @@ def get_langchain_class_details():
 def create_custom_block():
     """Create a custom block based on a LangChain class."""
     data = request.json
+    print(f"Creating custom block with data: {data}")
     module_path = data.get("module_path")
     class_name = data.get("class_name")
     block_id = data.get("id")

@@ -325,180 +325,174 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the exportPipeline function
     async function exportPipeline() {
-        // Show progress indicator
-        showProgress(true, 'Exporting Pipeline', 'Validating pipeline');
-
-        // Validate the pipeline
-        const validationResult = validatePipeline();
-        if (!validationResult.valid) {
-            showProgress(false);
-            showToast(validationResult.error, 'error');
-            return;
-        }
-
-        updateProgress(25, 'Collecting block configurations');
+        console.log('Starting export process...');
+        showProgress(true, 'Exporting Pipeline', 'Starting export process');
 
         try {
-            // Get the block configurations and connections
-            const blockConfigs = {};
-            document.querySelectorAll('.block').forEach(block => {
-                const blockId = block.getAttribute('id');
-                const blockType = block.getAttribute('data-block-type');
-
-                // For custom blocks, include the full module path and class name
-                let finalBlockType = blockType;
-                if (blockType === 'custom') {
-                    const className = block.getAttribute('data-class-name');
-
-                    // Find module info from sessionStorage to get the full path
-                    let moduleInfo = null;
-
-                    // First try to find in customBlocks array in sessionStorage
-                    try {
-                        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-                        const blockData = customBlocks.find(b => b.className === className || b.id === blockId);
-                        if (blockData && blockData.moduleInfo) {
-                            moduleInfo = blockData.moduleInfo;
-                        }
-                    } catch (e) {
-                        console.warn('Error finding module info in sessionStorage:', e);
-                    }
-
-                    // If not found, try localStorage as a fallback
-                    if (!moduleInfo) {
-                        try {
-                            const localStorageData = JSON.parse(localStorage.getItem('customBlocks') || '[]');
-                            const localData = localStorageData.find(b => b.className === className);
-                            if (localData && localData.moduleInfo) {
-                                moduleInfo = localData.moduleInfo;
-                            }
-                        } catch (e) {
-                            console.warn('Error finding module info in localStorage:', e);
-                        }
-                    }
-
-                    // If we found module info, build the full path
-                    if (moduleInfo && moduleInfo.module) {
-                        finalBlockType = `custom_${moduleInfo.module}.${className}`;
-                        console.log(`Using full path for custom block: ${finalBlockType}`);
-                    } else {
-                        // Default to just using the class name
-                        finalBlockType = `custom_${className}`;
-                        console.log(`Using just class name for custom block: ${finalBlockType}`);
-                    }
-                }
-
-                // Get methods from sessionStorage if available
-                let methods = [];
-                try {
-                    const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-                    const blockData = customBlocks.find(b => b.id === blockId);
-                    if (blockData && blockData.methods) {
-                        methods = blockData.methods;
-                    }
-                } catch (e) {
-                    console.warn('Error reading methods from sessionStorage:', e);
-                }
-
-                blockConfigs[blockId] = {
-                    id: blockId,
-                    type: finalBlockType,
-                    config: {
-                        ...getBlockConfig(block),
-                        methods: methods
-                    }
-                };
-            });
-
-
-            updateProgress(50, 'Generating Python code');
-
-            // Call the export API
-            const response = await fetch('/api/blocks/export', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    blocks: blockConfigs,
-                    connections: connections,
-                    output_file: 'generated_pipeline.py'
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Export failed: ' + (await response.text()));
+            // Validate the pipeline before exporting
+            if (!validatePipeline()) {
+                showProgress(false);
+                return;
             }
 
-            const result = await response.json();
-            updateProgress(100, 'Export complete');
+            updateProgress(25, 'Collecting block configurations');
 
-            // Create a modal to display the code
-            const modal = document.createElement('div');
-            modal.className = 'code-preview-modal';
-            modal.innerHTML = `
-                <div class="code-preview-content">
-                    <div class="code-preview-header">
-                        <h3>Generated Python Code</h3>
-                        <button class="close-button">&times;</button>
-                    </div>
-                    <pre class="code-preview-body">${escapeHtml(result.code)}</pre>
-                    <div class="code-preview-footer">
-                        <button class="copy-button">Copy to Clipboard</button>
-                        <button class="save-button">Save as File</button>
-                    </div>
-                </div>
-            `;
+            try {
+                // Get the block configurations and connections
+                const blockConfigs = {};
+                document.querySelectorAll('.block').forEach(block => {
+                    const blockId = block.getAttribute('id');
+                    console.log(blockId);
+                    const blockType = block.getAttribute('data-block-type');
+                    console.log(blockType);
 
-            document.body.appendChild(modal);
+                    // For custom blocks, include the full module path and class name
+                    let finalBlockType = blockType;
+                    if (blockType === 'custom') {
+                        const className = block.getAttribute('data-class-name');
 
-            // Close modal when clicking the close button or outside the content
-            const closeButton = modal.querySelector('.close-button');
-            closeButton.addEventListener('click', () => {
-                document.body.removeChild(modal);
-            });
+                        // Find module info from sessionStorage to get the full path
+                        let moduleInfo = null;
+                        try {
+                            const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                            const blockData = customBlocks.find(b => b.id === blockId || b.className === className);
+                            console.log(blockData);
 
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    document.body.removeChild(modal);
-                }
-            });
+                            moduleInfo = {
+                                module: blockData.moduleInfo.module,
+                                library: blockData.moduleInfo.library
+                            };
+                            console.log(moduleInfo, moduleInfo.module, moduleInfo.library);
 
-            // Copy to clipboard functionality
-            const copyButton = modal.querySelector('.copy-button');
-            copyButton.addEventListener('click', () => {
-                const codeText = result.code;
-                navigator.clipboard.writeText(codeText)
-                    .then(() => {
-                        showToast('Code copied to clipboard', 'success');
+                        } catch (e) {
+                            console.warn('Error getting module info from sessionStorage:', e);
+                        }
+                            // Create a custom type identifier
+                        const modulePath = moduleInfo.module;
+                        finalBlockType = `custom_${modulePath}.${className}`;
+
+                        console.log(finalBlockType);
+                    }
+
+                    // Generate configuration for this block
+                    blockConfigs[blockId] = {
+                        type: finalBlockType,
+                        config: getBlockConfig(block)
+                    };
+                });
+
+                // Format connections for the server
+                const formattedConnections = connections.map(conn => ({
+                    source: conn.source,
+                    target: conn.target,
+                    inputId: conn.inputId,
+                    sourceMethod: conn.sourceMethod || undefined,
+                    targetMethod: conn.targetMethod || undefined,
+                    sourceNode: conn.sourceNode || undefined
+                }));
+
+                updateProgress(50, 'Sending pipeline data to server');
+
+                // Send the data to the server for processing
+                const response = await fetch('/api/blocks/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        blocks: blockConfigs,
+                        connections: formattedConnections,
+                        output_file: 'generated_pipeline.py'
                     })
-                    .catch(() => {
-                        showToast('Failed to copy code', 'error');
-                    });
-            });
+                });
 
-            // Save as file functionality
-            const saveButton = modal.querySelector('.save-button');
-            saveButton.addEventListener('click', () => {
-                const blob = new Blob([result.code], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'generated_pipeline.py';
-                document.body.appendChild(a);
-                a.click();
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to export pipeline');
+                }
+
+                const result = await response.json();
+                updateProgress(90, 'Generating export file');
+
+                // Create a modal to display the code
+                const modal = document.createElement('div');
+                modal.className = 'code-preview-modal';
+                modal.innerHTML = `
+                    <div class="code-preview-content">
+                        <div class="code-preview-header">
+                            <h3>Generated Python Code</h3>
+                            <button class="close-button">&times;</button>
+                        </div>
+                        <pre class="code-preview-body">${escapeHtml(result.code)}</pre>
+                        <div class="code-preview-footer">
+                            <button class="copy-button">Copy to Clipboard</button>
+                            <button class="save-button">Save as File</button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+                // Close modal when clicking the close button or outside the content
+                const closeButton = modal.querySelector('.close-button');
+                closeButton.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        document.body.removeChild(modal);
+                    }
+                });
+
+                // Copy to clipboard functionality
+                const copyButton = modal.querySelector('.copy-button');
+                copyButton.addEventListener('click', () => {
+                    const codeText = result.code;
+                    navigator.clipboard.writeText(codeText)
+                        .then(() => {
+                            showToast('Code copied to clipboard', 'success');
+                        })
+                        .catch(() => {
+                            showToast('Failed to copy code', 'error');
+                        });
+                });
+
+                // Save as file functionality
+                const saveButton = modal.querySelector('.save-button');
+                saveButton.addEventListener('click', () => {
+                    const blob = new Blob([result.code], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'generated_pipeline.py';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 0);
+                });
+
+                updateProgress(100, 'Export complete');
+
+                // Hide progress after a short delay
                 setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 0);
-            });
+                    showProgress(false);
+                    showToast('Pipeline exported successfully', 'success');
+                }, 1000);
 
-            showProgress(false);
-            showToast('Code generated successfully', 'success');
+                return result.code;
+            } catch (error) {
+                console.error('Export error:', error);
+                showProgress(false);
+                showToast(`Export failed: ${error.message}`, 'error');
+                throw error;
+            }
         } catch (error) {
             console.error('Export error:', error);
             showProgress(false);
-            showToast('Failed to generate code: ' + error.message, 'error');
+            showToast(`Export failed: ${error.message}`, 'error');
         }
     }
 
@@ -931,7 +925,31 @@ document.addEventListener('DOMContentLoaded', () => {
             inputId: inputId
         };
 
+        // Store additional information for method nodes
+        // When connecting, we already have the source node which is the clicked output node
+        if (sourceNode && sourceNode.getAttribute('data-output')) {
+            const outputId = sourceNode.getAttribute('data-output');
+            // Check if this is a method-specific output node
+            if (outputId && outputId.includes('_output')) {
+                connection.sourceMethod = outputId.split('_')[0];
+                connection.sourceNode = outputId;
+            }
+        }
+
+        // Check if this is a method-specific input node
+        if (inputId && inputId.includes('_input')) {
+            connection.targetMethod = inputId.split('_')[0];
+        }
+
         connections.push(connection);
+
+        // Save to sessionStorage
+        try {
+            sessionStorage.setItem('connections', JSON.stringify(connections));
+        } catch (err) {
+            console.warn('Error saving connections to sessionStorage:', err);
+        }
+
         updateConnections();
         processBlock(target);
     }
@@ -1309,53 +1327,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the updateConnections function
     function updateConnections() {
-        if (!connectionsContainer) return;
-
+        const connectionsContainer = document.getElementById('connections');
         connectionsContainer.innerHTML = '';
-        connections.forEach((conn, index) => {
-            const sourceBlock = document.getElementById(conn.source);
-            const targetBlock = document.getElementById(conn.target);
 
-            if (!sourceBlock || !targetBlock) return;
+        connections.forEach(connection => {
+            const sourceBlock = document.getElementById(connection.source);
+            const targetBlock = document.getElementById(connection.target);
 
-            const sourceNode = sourceBlock.querySelector('.output-node');
-            const targetNode = targetBlock.querySelector(`[data-input="${conn.inputId}"]`);
+            if (!sourceBlock || !targetBlock) {
+                return;
+            }
 
-            if (!sourceNode || !targetNode) return;
+            // Determine output node based on the connection source node if available
+            let outputNode;
+            if (connection.sourceNode) {
+                // Use the specified source node
+                outputNode = sourceBlock.querySelector(`.output-node[data-output="${connection.sourceNode}"]`);
+            } else if (connection.sourceMethod) {
+                // Try to find by method
+                outputNode = sourceBlock.querySelector(`.output-node[data-output="${connection.sourceMethod}_output"]`);
+            } else {
+                // Default to the first output node
+                outputNode = sourceBlock.querySelector('.output-node');
+            }
 
-            const sourceRect = sourceNode.getBoundingClientRect();
-            const targetRect = targetNode.getBoundingClientRect();
+            if (!outputNode) {
+                return;
+            }
+
+            // Determine input node from connection inputId
+            let inputNode;
+            if (connection.inputId) {
+                inputNode = targetBlock.querySelector(`.input-node[data-input="${connection.inputId}"]`);
+            }
+
+            if (!inputNode) {
+                // Fallback to first input node if we couldn't find a matching one
+                inputNode = targetBlock.querySelector('.input-node');
+            }
+
+            if (!inputNode) {
+                return;
+            }
+
+            const svgLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+            // Get positions of nodes
+            const outputRect = outputNode.getBoundingClientRect();
+            const inputRect = inputNode.getBoundingClientRect();
             const canvasRect = canvas.getBoundingClientRect();
 
-            // Calculate positions accounting for canvas transform
-            const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
-            const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
-            const x2 = ((targetRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
-            const y2 = ((targetRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight / 2;
+            // Calculate positions
+            const x1 = ((outputRect.right - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y1 = ((outputRect.top + outputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+            const x2 = ((inputRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y2 = ((inputRect.top + inputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x1);
-            line.setAttribute('y1', y1);
-            line.setAttribute('x2', x2);
-            line.setAttribute('y2', y2);
-            line.setAttribute('class', 'connection-line');
-            line.setAttribute('data-connection-index', index);
+            // Calculate control points for curve
+            const dx = Math.abs(x2 - x1) * 0.6;
+            const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 
-            line.addEventListener('click', (e) => {
-                if (selectedConnection === line) {
-                    connections.splice(index, 1);
-                    updateConnections();
-                    selectedConnection = null;
-                } else {
-                    if (selectedConnection) {
-                        selectedConnection.classList.remove('selected');
+            svgLine.setAttribute('d', d);
+            svgLine.setAttribute('class', 'connection-line');
+            svgLine.setAttribute('data-source', connection.source);
+            svgLine.setAttribute('data-target', connection.target);
+
+            // Store original connection data for later reference
+            svgLine.dataset.connection = JSON.stringify(connection);
+
+            connectionsContainer.appendChild(svgLine);
+
+            // Add delete button on hover
+            svgLine.addEventListener('mouseover', () => {
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'connection-delete-btn';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.style.position = 'absolute';
+
+                // Position the delete button at the middle of the curve
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+
+                deleteBtn.style.left = `${midX}px`;
+                deleteBtn.style.top = `${midY}px`;
+
+                deleteBtn.addEventListener('click', () => {
+                    // Remove the connection
+                    connections = connections.filter(c =>
+                        !(c.source === connection.source &&
+                          c.target === connection.target &&
+                          c.inputId === connection.inputId)
+                    );
+
+                    // Save to sessionStorage
+                    try {
+                        sessionStorage.setItem('connections', JSON.stringify(connections));
+                    } catch (err) {
+                        console.warn('Error saving connections to sessionStorage:', err);
                     }
-                    selectedConnection = line;
-                    line.classList.add('selected');
-                }
-            });
 
-            connectionsContainer.appendChild(line);
+                    // Update the visual connections
+                    updateConnections();
+
+                    // Remove the delete button
+                    deleteBtn.remove();
+                });
+
+                canvas.appendChild(deleteBtn);
+
+                // Remove the button when mouse leaves the connection
+                svgLine.addEventListener('mouseout', () => {
+                    setTimeout(() => {
+                        if (document.querySelector(':hover') !== deleteBtn) {
+                            deleteBtn.remove();
+                        }
+                    }, 50);
+                });
+
+                deleteBtn.addEventListener('mouseout', () => {
+                    setTimeout(() => {
+                        if (document.querySelector(':hover') !== svgLine) {
+                            deleteBtn.remove();
+                        }
+                    }, 50);
+                });
+            });
         });
     }
 
@@ -1559,6 +1655,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const methodSelect = block.querySelector('.method-select');
                 if (methodSelect && methodSelect.value) {
                     config.selected_method = methodSelect.value;
+                }
+
+                // Get active methods from the method rows
+                const methodRows = block.querySelectorAll('.method-row');
+                if (methodRows.length > 0) {
+                    const activeMethods = Array.from(methodRows).map(row =>
+                        row.getAttribute('data-method')
+                    ).filter(m => m); // Filter out empty values
+
+                    // Always include __init__ as the first method
+                    if (!activeMethods.includes('__init__')) {
+                        activeMethods.unshift('__init__');
+                    }
+
+                    // Store the active methods in config
+                    config.selected_methods = activeMethods;
+
+                    // If no single method is selected, use the first active method
+                    if (!config.selected_method && activeMethods.length > 1) {
+                        config.selected_method = activeMethods[1]; // Use first non-init method
+                    }
                 }
 
                 // Get any parameter values - support both dropdown and text input
@@ -1772,9 +1889,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (draggingConnection && sourceNode) {
                     const sourceBlock = sourceNode.closest('.block');
                     const targetBlock = inputNode.closest('.block');
+
                     if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                         hoveredInputNode = inputNode;
                         inputNode.classList.add('input-node-hover');
+
                         // Add an effect to better visualize the potential connection
                         if (tempConnection) {
                             tempConnection.classList.add('connection-hover');
@@ -1788,6 +1907,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hoveredInputNode === inputNode) {
                     hoveredInputNode = null;
                     inputNode.classList.remove('input-node-hover');
+
                     // Remove the connection hover effect
                     if (tempConnection) {
                         tempConnection.classList.remove('connection-hover');
@@ -1796,6 +1916,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        // Handle mouseup on document for creating connections
+        if (!document.connectionHandlerAdded) {
+            document.addEventListener('mouseup', () => {
+                if (draggingConnection && sourceNode && hoveredInputNode) {
+                    const sourceBlock = sourceNode.closest('.block');
+                    const targetBlock = hoveredInputNode.closest('.block');
+
+                    if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                        // Get data-input attribute value for the hoveredInputNode
+                        const inputId = hoveredInputNode.getAttribute('data-input');
+
+                        // Create the connection with the specific input/output nodes
+                        createConnection(sourceBlock, targetBlock, inputId);
+
+                        console.log(`Created connection from ${sourceBlock.id} to ${targetBlock.id} (input: ${inputId})`);
+
+                        // For display blocks, update directly
+                        if (targetBlock.getAttribute('data-block-type') === 'display') {
+                            processBlock(targetBlock);
+                        }
+                    }
+
+                    // Reset connection UI state
+                    hoveredInputNode.classList.remove('input-node-hover');
+                    hoveredInputNode = null;
+                }
+
+                // Clean up temporary connection
+                if (tempConnection && tempConnection.parentNode) {
+                    tempConnection.parentNode.removeChild(tempConnection);
+                }
+
+                tempConnection = null;
+                draggingConnection = false;
+                sourceNode = null;
+            });
+
+            document.connectionHandlerAdded = true;
+        }
     }
 
     /**
