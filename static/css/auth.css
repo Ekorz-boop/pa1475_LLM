@@ -31,10 +31,17 @@ body {
 }
 
 .auth-box {
-    background: white;
+    background: #e6f9f2;
     padding: 30px;
-    border-radius: 8px;
-    box-shadow: var(--box-shadow);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(16, 24, 40, 0.18), 0 2px 8px rgba(16, 185, 129, 0.10);
+    border: 2px solid #10b981;
+    transition: transform 0.15s cubic-bezier(.4,2,.6,1), box-shadow 0.15s;
+}
+
+.auth-box:hover {
+    transform: scale(1.01);
+    box-shadow: 0 12px 40px rgba(16, 24, 40, 0.22), 0 4px 16px rgba(16, 185, 129, 0.13);
 }
 
 .auth-header {
@@ -191,7 +198,9 @@ input[type="checkbox"] {
     }
 
     .auth-box {
-        background: #2d2d2d;
+        background: #23272f;
+        border: 2px solid #10b981;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(16, 185, 129, 0.10);
     }
 
     .form-control {
