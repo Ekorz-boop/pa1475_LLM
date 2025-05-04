@@ -342,9 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blockConfigs = {};
                 document.querySelectorAll('.block').forEach(block => {
                     const blockId = block.getAttribute('id');
-                    console.log(blockId);
+
                     const blockType = block.getAttribute('data-block-type');
-                    console.log(blockType);
 
                     // For custom blocks, include the full module path and class name
                     let finalBlockType = blockType;
@@ -356,13 +355,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
                             const blockData = customBlocks.find(b => b.id === blockId || b.className === className);
-                            console.log(blockData);
 
                             moduleInfo = {
                                 module: blockData.moduleInfo.module,
                                 library: blockData.moduleInfo.library
                             };
-                            console.log(moduleInfo, moduleInfo.module, moduleInfo.library);
 
                         } catch (e) {
                             console.warn('Error getting module info from sessionStorage:', e);
@@ -371,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         const modulePath = moduleInfo.module;
                         finalBlockType = `custom_${modulePath}.${className}`;
 
-                        console.log(finalBlockType);
                     }
 
                     // Generate configuration for this block

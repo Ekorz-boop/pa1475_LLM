@@ -9,6 +9,10 @@ from blocks import (
     Block,
 )
 import os
+import logging
+
+log = logging.getLogger("werkzeug")  # Suppress werkzeug logging
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
@@ -133,7 +137,9 @@ def export_blocks():
                     super().__init__()
                     self.block_type = block_type
                     self.class_name = None  # Will be set properly based on block_type
-                    self.module_path = request.args.get("module", "")  # Default empty module path
+                    self.module_path = request.args.get(
+                        "module", ""
+                    )  # Default empty module path
                     self.config = config
                     self.component_type = ""  # Default empty component type
                     self.selected_methods = []
@@ -148,7 +154,9 @@ def export_blocks():
                         ]  # e.g. "langchain_community.llms.OpenAI"
 
                         # Split the path to get module and class name
-                        print(f"Full class path: {full_class_path}, module path: {self.module_path}, class name: {self.class_name}")
+                        print(
+                            f"Full class path: {full_class_path}, module path: {self.module_path}, class name: {self.class_name}"
+                        )
                         parts = full_class_path.split(".")
                         if len(parts) > 1:
                             self.class_name = parts[-1]  # Last part is class name
@@ -157,12 +165,13 @@ def export_blocks():
                             )  # Rest is module path
 
                             # Set import string for custom classes
-                            self.import_string = f"from {self.module_path} import {self.class_name}"
+                            self.import_string = (
+                                f"from {self.module_path} import {self.class_name}"
+                            )
                             print(f"Custom block import: {self.import_string}")
                         else:
                             self.class_name = full_class_path  # If no dots, use as is
                             self.import_string = f"# Import for {self.class_name}"
-
 
                     # Determine component type based on module path and class name
                     if (
@@ -229,15 +238,21 @@ def export_blocks():
             source_id = conn.get("source")
             target_id = conn.get("target")
 
-            if (source_id and target_id and source_id in temp_canvas.blocks
-                and target_id in temp_canvas.blocks):
+            if (
+                source_id
+                and target_id
+                and source_id in temp_canvas.blocks
+                and target_id in temp_canvas.blocks
+            ):
                 if source_id not in canvas_connections:
                     canvas_connections[source_id] = []
                 if target_id not in canvas_connections[source_id]:
                     canvas_connections[source_id].append(target_id)
 
         # Determine execution order
-        execution_order = determine_execution_order(temp_canvas.blocks, canvas_connections)
+        execution_order = determine_execution_order(
+            temp_canvas.blocks, canvas_connections
+        )
 
         # Initialize connection maps
         for block_id in execution_order:
@@ -271,7 +286,10 @@ def export_blocks():
                 continue
 
             # Skip if either block doesn't exist
-            if source_id not in temp_canvas.blocks or target_id not in temp_canvas.blocks:
+            if (
+                source_id not in temp_canvas.blocks
+                or target_id not in temp_canvas.blocks
+            ):
                 continue
 
             # If we don't have explicit method information, try to extract it from input/output nodes
@@ -294,7 +312,9 @@ def export_blocks():
                 if source_id not in method_connection_map[target_id][method_key]:
                     method_connection_map[target_id][method_key].append(source_id)
 
-                print(f"Found method-specific connection: {source_id} -> {target_id} (method: {method_key})")
+                print(
+                    f"Found method-specific connection: {source_id} -> {target_id} (method: {method_key})"
+                )
 
         # Set the connections on the temp canvas - use the standard format for compatibility
         temp_canvas.connections = canvas_connections
@@ -304,7 +324,10 @@ def export_blocks():
 
         # Export the code - using custom export logic similar to block_sim.py
         generated_code = generate_python_code(
-            temp_canvas.blocks, temp_canvas.connections, method_connection_map, connections_data
+            temp_canvas.blocks,
+            temp_canvas.connections,
+            method_connection_map,
+            connections_data,
         )
 
         # Write the generated code to the file
@@ -326,7 +349,9 @@ def export_blocks():
         return jsonify({"error": str(e)}), 500
 
 
-def generate_python_code(blocks, connections, method_connections=None, connections_data=None):
+def generate_python_code(
+    blocks, connections, method_connections=None, connections_data=None
+):
     """Generate Python code for blocks and connections similar to block_sim.py logic."""
     # Determine execution order
     execution_order = determine_execution_order(blocks, connections)
@@ -347,20 +372,28 @@ def generate_python_code(blocks, connections, method_connections=None, connectio
     special_init_blocks = set()
 
     # First scan to collect all imports upfront
-    #print(f"Processing {len(blocks)} blocks for imports...")
+    # print(f"Processing {len(blocks)} blocks for imports...")
     for block_id, block in blocks.items():
         # Only add non-comment imports
-        #print(f"Processing block {block_id} with import string: {block.import_string}")
-        if hasattr(block, "import_string") and block.import_string and not block.import_string.startswith("#"):
+        # print(f"Processing block {block_id} with import string: {block.import_string}")
+        if (
+            hasattr(block, "import_string")
+            and block.import_string
+            and not block.import_string.startswith("#")
+        ):
             imports.add(block.import_string)
-            #print(f"Added import: {block.import_string}")
+            # print(f"Added import: {block.import_string}")
         # Fallback for blocks with module path but no import string
-        elif hasattr(block, "module_path") and block.module_path and hasattr(block, "class_name"):
+        elif (
+            hasattr(block, "module_path")
+            and block.module_path
+            and hasattr(block, "class_name")
+        ):
             import_statement = f"from {block.module_path} import {block.class_name}"
             imports.add(import_statement)
-            #print(f"Added generated import: {import_statement}")
+            # print(f"Added generated import: {import_statement}")
 
-    #print(f"\nCollected {len(imports)} imports: {imports}")
+    # print(f"\nCollected {len(imports)} imports: {imports}")
 
     # Create variable names for each block
     block_vars = {}
@@ -376,7 +409,9 @@ def generate_python_code(blocks, connections, method_connections=None, connectio
         var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
-        print(f"Assigned variable name '{var_name}' to block {block_id} of type {class_name}")
+        print(
+            f"Assigned variable name '{var_name}' to block {block_id} of type {class_name}"
+        )
 
         # Check if this block uses file paths
         if hasattr(block, "config") and block.config:
@@ -468,7 +503,9 @@ def generate_python_code(blocks, connections, method_connections=None, connectio
                                         special_init_blocks.add(block_id)
 
                                         # Add extra code for multi-file loading
-                                        init_code_lines.append(f"# Handle multiple files for {class_name}")
+                                        init_code_lines.append(
+                                            f"# Handle multiple files for {class_name}"
+                                        )
                                         init_code_lines.append(f"{var_name} = []")
                                         # Use raw strings for file paths to avoid issues with Windows backslashes
                                         init_code_lines.append(
@@ -621,7 +658,7 @@ def generate_python_code(blocks, connections, method_connections=None, connectio
                 if method_name in method_connections[block_id]:
                     should_use_method_connections = True
                     method_specific_sources = method_connections[block_id][method_name]
-                    #print(f"Using method-specific connections for {method_name} on {class_name}: {method_specific_sources}")
+                    # print(f"Using method-specific connections for {method_name} on {class_name}: {method_specific_sources}")
 
             # If this block has incoming connections, use them as parameters
             if should_use_method_connections and method_specific_sources:
@@ -636,9 +673,11 @@ def generate_python_code(blocks, connections, method_connections=None, connectio
 
                     # Check each connection to see if it connects this source to this target method
                     for conn in connections_data:
-                        if (conn.get("source") == source_id and
-                            conn.get("target") == block_id and
-                            conn.get("targetMethod") == method_name):
+                        if (
+                            conn.get("source") == source_id
+                            and conn.get("target") == block_id
+                            and conn.get("targetMethod") == method_name
+                        ):
                             source_method = conn.get("sourceMethod")
                             break
 
@@ -910,7 +949,7 @@ def list_langchain_classes():
     # Check cache first
     cached_result = module_classes_cache.get(module_path)
     if cached_result:
-        #print(f"Using cached classes for {module_path}")
+        # print(f"Using cached classes for {module_path}")
         return jsonify({"classes": cached_result})
 
     try:
@@ -934,12 +973,12 @@ def list_langchain_classes():
 
             # Sort and cache the results
             classes = sorted(classes)
-            #print(f"Found {len(classes)} classes in {module_path}")
+            # print(f"Found {len(classes)} classes in {module_path}")
             module_classes_cache.set(module_path, classes)
             return jsonify({"classes": classes})
 
         # Import the base package
-        #print(f"Importing module: {module_path}")
+        # print(f"Importing module: {module_path}")
         module = importlib.import_module(module_path)
         classes = []
 
@@ -948,7 +987,7 @@ def list_langchain_classes():
         try:
             # Check if module has __path__ attribute (indicating it's a package)
             if hasattr(module, "__path__"):
-                #print(f"Scanning submodules in {module_path}")
+                # print(f"Scanning submodules in {module_path}")
                 # Get all modules in the package (both modules and packages)
                 for finder, name, ispkg in pkgutil.iter_modules(module.__path__):
                     submodule_name = f"{module_path}.{name}"
@@ -978,7 +1017,7 @@ def list_langchain_classes():
         # Add the module itself to the list of modules to check
         modules_to_check = [module_path] + submodules
 
-        #print(f"Found {len(modules_to_check)} modules/submodules to check for classes")
+        # print(f"Found {len(modules_to_check)} modules/submodules to check for classes")
 
         # Check each module for classes
         for mod_path in modules_to_check:
@@ -1048,7 +1087,7 @@ def get_langchain_class_details():
     # Check cache first
     cached_result = class_details_cache.get(cache_key)
     if cached_result:
-        #print(f"Using cached details for {cache_key}")
+        # print(f"Using cached details for {cache_key}")
         return jsonify(cached_result)
 
     if not module_path or not class_name:
