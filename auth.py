@@ -21,6 +21,9 @@ def login():
             flash('Invalid username or password', 'error')
             return redirect(url_for('auth.login'))
         login_user(user, remember=form.remember_me.data)
+        user.last_login = datetime.utcnow()
+        user.login_count = (user.login_count or 0) + 1
+        db.session.commit()
         next_page = request.args.get('next')
         if not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('index')
