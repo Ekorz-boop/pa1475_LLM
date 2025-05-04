@@ -1,13 +1,19 @@
 # 🛡️ Admin Panel & Authentication – Setup & Usage Guide
 
-## **Features**
+## **Features at a Glance**
 
 - **Secure Authentication:** User registration, login, and password reset with strong password hashing.
 - **Admin Panel:** Manage users, roles, and system settings with a modern, responsive UI.
 - **User Management:** Add, edit, activate/deactivate, reset password, and delete users.
-- **Dashboard:** User statistics, system status, and user growth analytics.
+- **Dashboard:** User statistics and user growth analytics.
+- **User Growth Analytics:** Visual chart of user signups over time.
 - **Settings:** Maintenance mode, security settings, and more.
-- **Dark Mode:** Toggleable, persistent dark/light theme.
+- **Custom Confirmation Modals:** All destructive/admin actions use branded, accessible confirmation dialogs.
+- **Fixed Sidebar:** Always-visible, modern sidebar for easy navigation.
+- **Modern Card Design:** Soft backgrounds, accent borders, and deep shadows for all admin cards.
+- **Accessibility:** ARIA roles, keyboard navigation, and high-contrast text for all major elements.
+- **Visual Feedback:** Toast notifications and prominent alert messages for all user actions.
+- **Maintenance Mode:** Toggle and customize maintenance mode from the admin panel.
 - **Email Notifications:** Password reset and admin actions send emails to users.
 
 ---
@@ -65,9 +71,9 @@ Visit [http://localhost:5000](http://localhost:5000) in your browser.
 ### **Admin Panel**
 - Only users with admin privileges can access `/admin`.
 - Manage users: add, edit, activate/deactivate, reset password, delete.
-- View user statistics and system status on the dashboard.
+- View user statistics.
 - Change system settings (maintenance mode, security, etc.).
-- Toggle dark mode from the sidebar.
+
 
 ### **Password Reset**
 - Users can request a password reset from the login page.
@@ -98,13 +104,5 @@ Visit [http://localhost:5000](http://localhost:5000) in your browser.
   Check your SMTP settings and credentials. For Gmail, use an App Password and ensure the sender matches your authenticated account.
 - **Database errors?**  
   Make sure you've initialized the database and have the correct URI.
-
----
-
-## **Contributing**
-
-Pull requests and issues are welcome! Please follow the code style and add tests for new features.
-
----
 
 **For more details, see the code comments and inline documentation. If you have questions, open an issue or contact the maintainer.** 
