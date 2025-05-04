@@ -4,11 +4,17 @@ from werkzeug.urls import url_parse
 from datetime import datetime, timedelta
 import secrets
 from models import db, User
-from forms import LoginForm, RegistrationForm, ResetPasswordRequestForm, ResetPasswordForm
+from forms import (
+    LoginForm,
+    RegistrationForm,
+    ResetPasswordRequestForm,
+    ResetPasswordForm,
+)
 from flask_mail import Message
 from extensions import mail
 
 auth = Blueprint("auth", __name__)
+
 
 @auth.route("/login", methods=["GET", "POST"])
 def login():
@@ -24,7 +30,7 @@ def login():
         user.last_login = datetime.utcnow()
         user.login_count = (user.login_count or 0) + 1
         db.session.commit()
-        
+
         # Get the next page from the request args
         next_page = request.args.get("next")
         # If no next page or next page is not safe, redirect to index
@@ -39,12 +45,14 @@ def login():
         return redirect(next_page)
     return render_template("auth/login.html", form=form)
 
+
 @auth.route("/logout")
 @login_required
 def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))
+
 
 @auth.route("/register", methods=["GET", "POST"])
 def register():
@@ -60,6 +68,7 @@ def register():
         return redirect(url_for("auth.login"))
     return render_template("auth/register.html", form=form)
 
+
 @auth.route("/reset_password_request", methods=["GET", "POST"])
 def reset_password_request():
     if current_user.is_authenticated:
@@ -73,9 +82,11 @@ def reset_password_request():
             user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
             db.session.commit()
             reset_url = url_for("auth.reset_password", token=token, _external=True)
-            msg = Message("Password Reset Request",
-                         sender="noreply@raggie.com",
-                         recipients=[user.email])
+            msg = Message(
+                "Password Reset Request",
+                sender="noreply@raggie.com",
+                recipients=[user.email],
+            )
             msg.body = f"""To reset your password, visit the following link:
 {reset_url}
 
@@ -85,6 +96,7 @@ If you did not make this request then simply ignore this email.
         flash("Check your email for the instructions to reset your password", "info")
         return redirect(url_for("auth.login"))
     return render_template("auth/reset_password_request.html", form=form)
+
 
 @auth.route("/reset_password/<token>", methods=["GET", "POST"])
 def reset_password(token):
@@ -102,4 +114,4 @@ def reset_password(token):
         db.session.commit()
         flash("Your password has been reset", "success")
         return redirect(url_for("auth.login"))
-    return render_template("auth/reset_password.html", form=form) 
+    return render_template("auth/reset_password.html", form=form)

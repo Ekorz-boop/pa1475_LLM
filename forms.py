@@ -1,7 +1,22 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, IntegerField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError, Optional
+from wtforms import (
+    StringField,
+    PasswordField,
+    SubmitField,
+    BooleanField,
+    IntegerField,
+    TextAreaField,
+)
+from wtforms.validators import (
+    DataRequired,
+    Email,
+    Length,
+    EqualTo,
+    ValidationError,
+    Optional,
+)
 from models import User
+
 
 class LoginForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
@@ -9,11 +24,16 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField("Remember Me")
     submit = SubmitField("Sign In")
 
+
 class RegistrationForm(FlaskForm):
-    username = StringField("Username", validators=[DataRequired(), Length(min=4, max=20)])
+    username = StringField(
+        "Username", validators=[DataRequired(), Length(min=4, max=20)]
+    )
     email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=6)])
-    password2 = PasswordField("Repeat Password", validators=[DataRequired(), EqualTo("password")])
+    password2 = PasswordField(
+        "Repeat Password", validators=[DataRequired(), EqualTo("password")]
+    )
     submit = SubmitField("Register")
 
     def validate_username(self, username):
@@ -26,17 +46,24 @@ class RegistrationForm(FlaskForm):
         if user is not None:
             raise ValidationError("Please use a different email address.")
 
+
 class ResetPasswordRequestForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     submit = SubmitField("Request Password Reset")
 
+
 class ResetPasswordForm(FlaskForm):
     password = PasswordField("Password", validators=[DataRequired(), Length(min=6)])
-    password2 = PasswordField("Repeat Password", validators=[DataRequired(), EqualTo("password")])
+    password2 = PasswordField(
+        "Repeat Password", validators=[DataRequired(), EqualTo("password")]
+    )
     submit = SubmitField("Reset Password")
 
+
 class AdminUserForm(FlaskForm):
-    username = StringField("Username", validators=[DataRequired(), Length(min=4, max=20)])
+    username = StringField(
+        "Username", validators=[DataRequired(), Length(min=4, max=20)]
+    )
     email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("New Password", validators=[Optional(), Length(min=6)])
     is_active = BooleanField("Active")
@@ -61,10 +88,15 @@ class AdminUserForm(FlaskForm):
         if user is not None:
             raise ValidationError("Please use a different email address.")
 
+
 class AdminSettingsForm(FlaskForm):
     maintenance_mode = BooleanField("Maintenance Mode")
-    maintenance_message = TextAreaField("Maintenance Message", validators=[Optional(), Length(max=500)])
+    maintenance_message = TextAreaField(
+        "Maintenance Message", validators=[Optional(), Length(max=500)]
+    )
     max_login_attempts = IntegerField("Max Login Attempts", validators=[DataRequired()])
-    password_reset_timeout = IntegerField("Password Reset Timeout (seconds)", validators=[DataRequired()])
+    password_reset_timeout = IntegerField(
+        "Password Reset Timeout (seconds)", validators=[DataRequired()]
+    )
     public_mode = BooleanField("Public Mode (no login required for main site)")
-    submit = SubmitField("Save Settings") 
+    submit = SubmitField("Save Settings")

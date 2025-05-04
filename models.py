@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from extensions import db
 
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -25,6 +26,7 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f"<User {self.username}>"
 
+
 class AdminPanel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     maintenance_mode = db.Column(db.Boolean, default=False)
@@ -33,7 +35,9 @@ class AdminPanel(db.Model):
     password_reset_timeout = db.Column(db.Integer, default=3600)  # in seconds
     public_mode = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def __repr__(self):
-        return f"<AdminPanel {self.id}>" 
+        return f"<AdminPanel {self.id}>"
