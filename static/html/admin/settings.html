@@ -1,0 +1,154 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Settings{% endblock %}
+
+{% block header %}Admin Settings{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <form method="POST" class="settings-form">
+        {{ form.hidden_tag() }}
+        
+        <div class="settings-section">
+            <h3>Maintenance Mode</h3>
+            <div class="form-group checkbox-group">
+                {{ form.maintenance_mode(class="form-checkbox") }}
+                <label>
+                    {{ form.maintenance_mode.label.text }}
+                    <span class="info-tooltip" tabindex="0" aria-label="Toggle maintenance mode. When enabled, users will see a maintenance message.">ℹ️
+                        <span class="tooltip-text">Toggle maintenance mode. When enabled, users will see a maintenance message.</span>
+                    </span>
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    {{ form.maintenance_message.label.text }}
+                    <span class="info-tooltip" tabindex="0" aria-label="Message shown to users during maintenance.">ℹ️
+                        <span class="tooltip-text">Message shown to users during maintenance.</span>
+                    </span>
+                </label>
+                {{ form.maintenance_message(class="form-control", rows=4) }}
+                {% if form.maintenance_message.errors %}
+                    <div class="error-message">
+                        {% for error in form.maintenance_message.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <small class="form-text">This message will be displayed to users when maintenance mode is enabled.</small>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Security Settings</h3>
+            <div class="form-group">
+                <label>
+                    {{ form.max_login_attempts.label.text }}
+                    <span class="info-tooltip" tabindex="0" aria-label="Number of failed logins before lockout.">ℹ️
+                        <span class="tooltip-text">Number of failed logins before lockout.</span>
+                    </span>
+                </label>
+                {{ form.max_login_attempts(class="form-control") }}
+                {% if form.max_login_attempts.errors %}
+                    <div class="error-message">
+                        {% for error in form.max_login_attempts.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <small class="form-text">Maximum number of failed login attempts before account is locked.</small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    {{ form.password_reset_timeout.label.text }}
+                    <span class="info-tooltip" tabindex="0" aria-label="Minutes before password reset tokens expire.">ℹ️
+                        <span class="tooltip-text">Minutes before password reset tokens expire.</span>
+                    </span>
+                </label>
+                {{ form.password_reset_timeout(class="form-control") }}
+                {% if form.password_reset_timeout.errors %}
+                    <div class="error-message">
+                        {% for error in form.password_reset_timeout.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <small class="form-text">Time in minutes before password reset tokens expire.</small>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Site Access</h3>
+            <div class="form-group checkbox-group">
+                {{ form.public_mode(class="form-checkbox") }}
+                <label>
+                    {{ form.public_mode.label.text }}
+                    <span class="info-tooltip" tabindex="0" aria-label="When enabled, the main site is public and does not require login. Admin panel remains protected.">ℹ️
+                        <span class="tooltip-text">When enabled, the main site is public and does not require login. Admin panel remains protected.</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </div>
+    </form>
+    <form id="reset-defaults-form" method="POST" action="{{ url_for('admin.reset_admin_settings') }}" style="display:inline;">
+        {{ form.csrf_token }}
+        <button type="button" id="reset-defaults-btn" class="btn btn-secondary">Reset to Defaults</button>
+    </form>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="reset-modal-overlay" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <div class="modal-message">Are you sure you want to reset all settings to defaults?</div>
+            <div class="modal-actions">
+                <button id="modal-confirm-reset" class="btn btn-primary">Yes, Reset</button>
+                <button id="modal-cancel-reset" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-info-card">
+        <h3>Current Settings</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Maintenance Mode</span>
+                <span class="info-value {% if settings.maintenance_mode %}status-active{% endif %}">
+                    {{ 'Enabled' if settings.maintenance_mode else 'Disabled' }}
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Max Login Attempts</span>
+                <span class="info-value">{{ settings.max_login_attempts }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Password Reset Timeout</span>
+                <span class="info-value">{{ settings.password_reset_timeout // 60 }} minutes</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Last Updated</span>
+                <span class="info-value">{{ settings.updated_at.strftime('%Y-%m-%d %H:%M') if settings.updated_at else 'N/A' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('reset-defaults-btn').onclick = function() {
+    document.getElementById('reset-modal-overlay').style.display = 'flex';
+};
+document.getElementById('modal-cancel-reset').onclick = function() {
+    document.getElementById('reset-modal-overlay').style.display = 'none';
+};
+document.getElementById('modal-confirm-reset').onclick = function() {
+    document.getElementById('reset-modal-overlay').style.display = 'none';
+    document.getElementById('reset-defaults-form').submit();
+};
+</script>
+{% endblock %} 

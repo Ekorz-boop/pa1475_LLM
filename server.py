@@ -1,17 +1,44 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_cors import CORS
+from flask_login import current_user
 import importlib
 import inspect
 import pkgutil
 import traceback
-from blocks import (
-    Canvas,
-    Block,
-)
 import os
+from blocks import Canvas, Block
+from extensions import db, login_manager, init_app
+from models import AdminPanel, User
+from auth import auth as auth_blueprint
+from admin import admin as admin_blueprint
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder="static", template_folder="static/html")
 CORS(app)
+
+# Configuration
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-please-change")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+    "DATABASE_URL", "sqlite:///app.db"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", True)
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+
+# Initialize extensions
+init_app(app)
+
+
+@login_manager.user_loader
+def load_user(id):
+    return User.query.get(int(id))
+
+
+# Register blueprints
+app.register_blueprint(auth_blueprint)
+app.register_blueprint(admin_blueprint, url_prefix="/admin")
 
 # Global canvas instance
 canvas = Canvas()
@@ -45,8 +72,8 @@ class_details_cache = SimpleCache(max_size=50)
 
 
 @app.route("/")
-def serve_static():
-    return app.send_static_file("html/index.html")
+def index():
+    return render_template("index.html")
 
 
 @app.route("/api/connect", methods=["POST"])
@@ -1174,6 +1201,48 @@ def create_custom_block():
         return jsonify({"error": str(e)}), 500
 
 
+@app.before_request
+def check_maintenance_mode():
+    # Skip for static files and auth routes
+    if request.path.startswith("/static") or request.path.startswith("/auth"):
+        return
+
+    settings = AdminPanel.query.first()
+    if settings and settings.maintenance_mode:
+        # Allow admins to access everything
+        if current_user.is_authenticated and getattr(current_user, "is_admin", False):
+            return
+        # Show maintenance page to everyone else
+        return (
+            render_template("maintenance.html", message=settings.maintenance_message),
+            503,
+        )
+
+
+@app.before_request
+def enforce_public_mode():
+    # Skip for static files and auth routes
+    if request.path.startswith("/static") or request.path.startswith("/auth"):
+        return
+    # Skip for admin routes - they are handled by @login_required and @admin_required
+    if request.path.startswith("/admin"):
+        return
+    # Prevent redirect loop: if already on /login, do not redirect
+    if request.path == "/login":
+        return
+    settings = AdminPanel.query.first()
+    if settings and not settings.public_mode:
+        if not current_user.is_authenticated:
+            # Prevent redirect loop: do not set next to /login or /auth/login
+            if request.path == "/login" or request.path.startswith("/auth/login"):
+                return
+            # Store the current URL as the next parameter only if it's not /login
+            return redirect(url_for("auth.login", next=request.url))
+
+
+# Create database tables
+with app.app_context():
+    db.create_all()
+
 if __name__ == "__main__":
-    canvas.clear()  # Clear the canvas to prevent custom blocks from persisting
     app.run(debug=True)

@@ -95,6 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle menu item clicks
     menuItems.forEach(item => {
+        // Skip the logout button
+        if (item.id === 'logout-button') return;
+        
         item.addEventListener('click', () => {
             const menuType = item.dataset.menu;
 

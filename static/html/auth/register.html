@@ -1,0 +1,43 @@
+{% extends "auth/base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('auth.register') }}">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        {{ form.username.label }}
+        {{ form.username(class="form-control", placeholder="Choose a username") }}
+        {% for error in form.username.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        {{ form.email.label }}
+        {{ form.email(class="form-control", placeholder="Enter your email") }}
+        {% for error in form.email.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        {{ form.password.label }}
+        {{ form.password(class="form-control", placeholder="Choose a password") }}
+        {% for error in form.password.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        {{ form.password2.label }}
+        {{ form.password2(class="form-control", placeholder="Confirm your password") }}
+        {% for error in form.password2.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+    <div class="auth-links">
+        Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>
+    </div>
+</form>
+{% endblock %} 
