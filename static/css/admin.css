@@ -34,8 +34,8 @@ body, .admin-container {
     z-index: 100;
     background: #f9fafb;
     border-right: 2px solid #e5e7eb;
-    padding: 2rem 1rem 1rem 1.5rem;
-    min-width: 220px;
+    padding: 1.2rem 0.5rem 1rem 0.7rem;
+    min-width: 140px;
     box-shadow: 2px 0 12px rgba(16,185,129,0.04);
     display: flex;
     flex-direction: column;
@@ -43,7 +43,7 @@ body, .admin-container {
 
 .admin-content {
     flex: 1;
-    margin-left: 220px;
+    margin-left: 160px;
     padding: 2rem;
 }
 
