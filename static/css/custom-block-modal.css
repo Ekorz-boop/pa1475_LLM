@@ -102,24 +102,29 @@
 /* Enhanced docstring formatting */
 #custom-block-modal .class-description {
     margin-top: 15px;
-    padding: 15px;
+    padding: 20px;
     background-color: var(--langchain-light);
-    border-radius: 4px;
-    border-left: 3px solid var(--langchain-primary);
-    max-height: 300px;
+    border-radius: 8px;
+    border-left: 4px solid var(--langchain-primary);
+    max-height: 400px;
     overflow-y: auto;
-    line-height: 1.5;
+    line-height: 1.6;
     text-align: left;
     font-size: 0.95em;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 /* Improved heading styles */
 #custom-block-modal .class-description h4 {
-    margin: 18px 0 10px;
+    margin: 20px 0 12px;
     color: var(--langchain-primary);
     font-size: 1.1em;
-    padding-bottom: 4px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+    padding-bottom: 6px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 /* Deprecation warning */
@@ -143,241 +148,144 @@
 
 /* Improved parameter table */
 #custom-block-modal .class-description .parameter-table {
-    margin: 12px 0;
+    margin: 15px 0;
     border: 1px solid var(--langchain-border);
-    border-radius: 4px;
+    border-radius: 6px;
     overflow: hidden;
     width: 100%;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 #custom-block-modal .class-description .parameter-table-header {
-    background-color: #f1f3f5;
-    padding: 10px 12px;
-    font-weight: bold;
+    background-color: rgba(0, 0, 0, 0.03);
+    padding: 12px 15px;
+    font-weight: 600;
     border-bottom: 2px solid var(--langchain-border);
     display: grid;
     grid-template-columns: 1fr 1fr 3fr;
-    gap: 10px;
+    gap: 15px;
+    color: var(--langchain-primary);
 }
 
-/* Parameter row styling */
-#custom-block-modal .class-description .parameter-item {
-    padding: 10px 12px;
+#custom-block-modal .class-description .parameter-row {
+    padding: 12px 15px;
     border-bottom: 1px solid var(--langchain-border);
     display: grid;
     grid-template-columns: 1fr 1fr 3fr;
-    gap: 10px;
-    align-items: start;
-    transition: background-color 0.15s ease;
+    gap: 15px;
+    transition: background-color 0.2s;
 }
 
-#custom-block-modal .class-description .parameter-item:hover {
+#custom-block-modal .class-description .parameter-row:hover {
     background-color: rgba(0, 0, 0, 0.02);
 }
 
-#custom-block-modal .class-description .parameter-item.even-row {
-    background-color: rgba(0, 0, 0, 0.02);
+#custom-block-modal .class-description .parameter-row:last-child {
+    border-bottom: none;
 }
 
-/* Parameter name/type styling */
 #custom-block-modal .class-description .param-name {
     font-family: monospace;
     font-weight: 600;
-    color: #333;
-    padding: 5px;
+    color: #e36209;
 }
 
 #custom-block-modal .class-description .param-type {
     font-family: monospace;
-    color: #0277bd;
-    padding: 5px;
-    font-style: italic;
+    color: #0366d6;
 }
 
-/* Improved code blocks */
-#custom-block-modal .class-description pre.code-block,
-#custom-block-modal .class-description pre.python-example {
-    background-color: #f8f9fa;
-    padding: 12px 15px;
+#custom-block-modal .class-description .param-desc {
+    color: var(--langchain-text);
+}
+
+/* Code block styling */
+#custom-block-modal .class-description pre {
+    background-color: rgba(0, 0, 0, 0.03);
+    padding: 15px;
     border-radius: 6px;
     overflow-x: auto;
     margin: 12px 0;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    white-space: pre-wrap;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    position: relative;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    font-family: 'Fira Code', monospace;
     font-size: 0.9em;
-    line-height: 1.4;
+    line-height: 1.5;
+    border: 1px solid var(--langchain-border);
 }
 
-/* Language indicator for code blocks */
-#custom-block-modal .class-description pre.code-block::before,
-#custom-block-modal .class-description pre.python-example::before {
-    content: attr(data-language);
-    position: absolute;
-    top: 0;
-    right: 0;
-    background: rgba(0, 0, 0, 0.05);
-    padding: 2px 8px;
-    font-size: 0.75em;
-    border-radius: 0 6px 0 6px;
-    color: #666;
-    font-family: sans-serif;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-/* Improved usage section styling */
-#custom-block-modal .class-description .usage-section {
-    background: #f0f7ff;
-    border-radius: 6px;
-    padding: 12px 15px;
-    margin: 15px 0;
-    border-left: 3px solid #1976d2;
-}
-
-#custom-block-modal .class-description .usage-section h4 {
-    margin-top: 0;
-    color: #1976d2;
-    border-bottom-color: rgba(25, 118, 210, 0.2);
-}
-
-/* Installation section styling */
-#custom-block-modal .class-description .install-section {
-    background: #f0fff0;
-    border-radius: 6px;
-    padding: 12px 15px;
-    margin: 15px 0;
-    border-left: 3px solid #43a047;
-}
-
-#custom-block-modal .class-description .install-section h4 {
-    margin-top: 0;
-    color: #43a047;
-    border-bottom-color: rgba(67, 160, 71, 0.2);
-}
-
-/* Copy button for code blocks */
-#custom-block-modal .class-description .copy-button {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
+/* Inline code styling */
+#custom-block-modal .class-description code {
+    background-color: rgba(0, 0, 0, 0.03);
     padding: 2px 6px;
-    font-size: 12px;
-    color: #333;
-    cursor: pointer;
-    z-index: 5;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+    border-radius: 4px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+    color: #0366d6;
 }
 
-#custom-block-modal .class-description pre.code-block:hover .copy-button,
-#custom-block-modal .class-description pre.python-example:hover .copy-button {
-    opacity: 1;
-}
-
-/* Better syntax highlighting with more specific colors */
-#custom-block-modal .class-description .code-keyword {
-    color: #0033b3;
-    font-weight: bold;
-}
-
-#custom-block-modal .class-description .code-builtin {
-    color: #0033b3;
-}
-
-#custom-block-modal .class-description .code-string {
-    color: #067d17;
-}
-
-#custom-block-modal .class-description .code-number {
-    color: #1750eb;
-}
-
-#custom-block-modal .class-description .code-comment {
-    color: #8c8c8c;
+/* Default value styling */
+#custom-block-modal .class-description .default-value {
+    color: #666;
     font-style: italic;
+    font-size: 0.9em;
+    margin-left: 4px;
 }
 
-#custom-block-modal .class-description .code-function {
-    color: #6f42c1;
+/* Raises section styling */
+#custom-block-modal .class-description .raises-section {
+    margin-top: 20px;
 }
 
-#custom-block-modal .class-description .code-class {
-    color: #e36209;
-    font-weight: bold;
+#custom-block-modal .class-description .raise-item {
+    margin: 8px 0;
+    padding: 8px 12px;
+    background-color: rgba(255, 0, 0, 0.05);
+    border-left: 3px solid #dc3545;
+    border-radius: 4px;
 }
 
-#custom-block-modal .class-description .code-variable {
-    color: #005cc5;
-}
-
-/* Collapsible sections */
-#custom-block-modal .class-description .collapsible-section {
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    margin: 12px 0;
-    overflow: hidden;
-}
-
-#custom-block-modal .class-description .collapsible-header {
-    background: #f5f5f5;
-    padding: 10px 15px;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 600;
-}
-
-#custom-block-modal .class-description .collapsible-header:hover {
-    background: #eeeeee;
-}
-
-#custom-block-modal .class-description .collapsible-content {
-    padding: 0 15px;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease, padding 0.3s ease;
-}
-
-#custom-block-modal .class-description .collapsible-section.expanded .collapsible-content {
-    padding: 15px;
-    max-height: 1000px;
-}
-
-#custom-block-modal .class-description .collapsible-header::after {
-    content: '↓';
-    font-size: 16px;
-    transition: transform 0.3s ease;
-}
-
-#custom-block-modal .class-description .collapsible-section.expanded .collapsible-header::after {
-    transform: rotate(180deg);
-}
-
-/* Better inline formatting for important code elements */
-#custom-block-modal .class-description .parameter-name {
-    background-color: rgba(0, 0, 0, 0.05);
-    padding: 2px 5px;
-    border-radius: 3px;
+#custom-block-modal .class-description .raise-type {
     font-family: monospace;
     font-weight: 600;
-    color: #e36209;
+    color: #dc3545;
+    margin-right: 8px;
 }
 
-#custom-block-modal .class-description .url {
-    word-break: break-all;
-    color: #0366d6;
-    text-decoration: underline;
+/* Returns section styling */
+#custom-block-modal .class-description .returns-section {
+    margin-top: 20px;
 }
 
-/* Make scrollbar more visible in docstring content */
+#custom-block-modal .class-description .returns-content {
+    padding: 12px;
+    background-color: rgba(0, 128, 0, 0.05);
+    border-left: 3px solid #28a745;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+/* Setup section styling */
+#custom-block-modal .class-description .setup-section {
+    margin-top: 20px;
+}
+
+#custom-block-modal .class-description .setup-content {
+    padding: 12px;
+    background-color: rgba(0, 123, 255, 0.05);
+    border-left: 3px solid #007bff;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+/* Examples section styling */
+#custom-block-modal .class-description .examples-section {
+    margin-top: 20px;
+}
+
+#custom-block-modal .class-description .example-content {
+    margin-top: 8px;
+}
+
+/* Scrollbar styling */
 #custom-block-modal .docstring-content::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -423,9 +331,11 @@
 }
 
 #custom-block-modal .docstring-content {
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
-    padding-right: 10px;
+    padding-right: 15px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.05);
 }
 
 #custom-block-modal .class-description h3 {
@@ -792,4 +702,137 @@
         padding: 8px 10px;
         font-size: 14px;
     }
+}
+
+/* Code blocks section styling */
+#custom-block-modal .code-blocks-section {
+    margin-top: 20px;
+    border: 1px solid var(--langchain-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#custom-block-modal .code-blocks-section h4 {
+    margin: 0;
+    padding: 12px 15px;
+    background-color: var(--langchain-light);
+    border-bottom: 1px solid var(--langchain-border);
+    color: var(--langchain-primary);
+    font-size: 1.1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#custom-block-modal .code-blocks-content {
+    padding: 15px;
+    background-color: white;
+}
+
+#custom-block-modal .code-blocks-content pre {
+    margin: 0 0 15px 0;
+    border: 1px solid var(--langchain-border);
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+#custom-block-modal .code-blocks-content pre:last-child {
+    margin-bottom: 0;
+}
+
+#custom-block-modal .code-blocks-content code {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+/* RST directive and important note styling */
+#custom-block-modal .class-description .rst-versionchanged {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    color: #1565c0;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-dropdown {
+    background: #f3e5f5;
+    border-left: 4px solid #8e24aa;
+    color: #6a1b9a;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-note {
+    background: #fffde7;
+    border-left: 4px solid #fbc02d;
+    color: #795548;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-warning {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+    color: #e65100;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+}
+#custom-block-modal .class-description .rst-deprecated {
+    background: #fbe9e7;
+    border-left: 4px solid #d84315;
+    color: #b71c1c;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 0.97em;
+    font-style: italic;
+}
+#custom-block-modal .class-description .rst-icon {
+    margin-right: 8px;
+    font-size: 1.1em;
+    vertical-align: middle;
+}
+
+/* RST Dropdown Collapsible Styles */
+#custom-block-modal .class-description .rst-dropdown-collapsible {
+    margin: 12px 0;
+    border: 1px solid #8e24aa;
+    border-radius: 5px;
+    background: #f3e5f5;
+    box-shadow: 0 1px 2px rgba(142,36,170,0.07);
+}
+#custom-block-modal .class-description .rst-dropdown-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 1em;
+    color: #6a1b9a;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 5px 5px 0 0;
+    transition: background 0.2s;
+}
+#custom-block-modal .class-description .rst-dropdown-toggle:hover {
+    background: #e1bee7;
+}
+#custom-block-modal .class-description .rst-dropdown-content {
+    padding: 12px 18px 14px 32px;
+    background: #faf6fb;
+    border-top: 1px solid #8e24aa;
+    color: #4a148c;
+    font-size: 0.97em;
+    border-radius: 0 0 5px 5px;
 }

@@ -177,6 +177,20 @@ class CustomBlockHandler {
 
         // Load available libraries
         this.loadLibraries();
+
+        // Add event delegation for RST dropdown toggles
+        this.modal.addEventListener('click', (e) => {
+            const btn = e.target.closest('.rst-dropdown-toggle');
+            if (btn) {
+                const targetId = btn.getAttribute('data-target');
+                const content = document.getElementById(targetId);
+                if (content) {
+                    const isOpen = content.style.display === 'block';
+                    content.style.display = isOpen ? 'none' : 'block';
+                    btn.innerHTML = (isOpen ? '▼' : '▲') + btn.innerHTML.slice(1);
+                }
+            }
+        });
     }
 
     /**

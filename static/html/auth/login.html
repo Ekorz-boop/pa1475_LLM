@@ -1,0 +1,64 @@
+{% extends "auth/base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('auth.login') }}">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        {{ form.username.label }}
+        {{ form.username(class="form-control", placeholder="Enter your username") }}
+        {% for error in form.username.errors %}
+            <span class="error">{{ error }}</span>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        {{ form.password.label }}
+        <div class="password-wrapper">
+            {{ form.password(class="form-control", placeholder="Enter your password", autocomplete="current-password") }}
+            <button type="button" class="toggle-password" aria-label="Show password" tabindex="0" onclick="togglePasswordVisibility(this)">👁️</button>
+        </div>
+        {% for error in form.password.errors %}
+            <span class="error animated-error">{{ error }}</span>
+        {% endfor %}
+    </div>
+    <div class="form-group">
+        <label class="checkbox-label">
+            {{ form.remember_me() }} {{ form.remember_me.label }}
+        </label>
+    </div>
+    <div class="form-group">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+    <div class="auth-links">
+        <a href="{{ url_for('auth.register') }}">Create an account</a>
+        <span class="separator">|</span>
+        <a href="{{ url_for('auth.reset_password_request') }}">Forgot password?</a>
+    </div>
+</form>
+
+<div id="login-loading" class="loading-overlay" style="display:none;">
+    <div class="spinner"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePasswordVisibility(btn) {
+    const input = btn.parentElement.querySelector('input');
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.setAttribute('aria-label', 'Hide password');
+    } else {
+        input.type = 'password';
+        btn.setAttribute('aria-label', 'Show password');
+    }
+    input.focus();
+}
+// Show loading spinner on submit
+const form = document.querySelector('form');
+form.addEventListener('submit', function() {
+    document.getElementById('login-loading').style.display = 'flex';
+});
+</script>
+{% endblock %} 

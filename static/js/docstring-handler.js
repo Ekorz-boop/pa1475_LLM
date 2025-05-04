@@ -5,8 +5,8 @@
 class DocstringHandler {
     constructor() {
         this.patterns = {
-            // Section headers (Google-style and custom)
-            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Attributes|Note|Warning|Setup):\s*$/gm,
+            // Section headers (Enhanced based on LangChain analysis)
+            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Attributes|Note|Warning|Setup|Instantiate|Load|Async load|Lazy load|Output Example|References|See Also|Parameters|Deprecated|Usage|Configuration|Migration|Beta):\s*$/gm,
             
             // Add pattern for pre-formatted parameter tables
             parameterTable: /Parameters:\s*\nName\s*\nType\s*\nDescription\s*\n([\s\S]*?)(?=\n\n|\n[A-Z]|$)/,
@@ -20,11 +20,12 @@ class DocstringHandler {
                 pipInstall: /pip\s+install\s+(?:-[uU]\s+)?[^\n]+/g
             },
             
-            // Code block patterns
+            // Enhanced code block patterns based on LangChain analysis
             codeBlocks: {
                 rst: /\.\.\s*code-block::\s*(\w+)\s*\n\s*([\s\S]*?)(?=\n\n\S|\n\s*\.\.|$)/g,
                 triple: /```(\w+)?\n([\s\S]*?)```/g,
-                indented: /(?:^|\n)( {4}|\t)([^\n]+(?:\n(?:[ \t]+[^\n]+)*)*)/g
+                indented: /(?:^|\n)( {4}|\t)([^\n]+(?:\n(?:[ \t]+[^\n]+)*)*)/g,
+                output: /Output:\s*\n\s*([\s\S]*?)(?=\n\s*\n|\n[A-Z]|$)/g
             },
             
             // Installation patterns
@@ -34,11 +35,20 @@ class DocstringHandler {
                 multiPackage: /(?:langchain[\w-]*|pypdf\d*|chromadb|openai|tiktoken)(?:\s*,\s*[\w-]+)*/g
             },
             
-            // Parameter patterns
+            // Enhanced parameter patterns
             parameters: {
                 sphinx: /(?:^|\n)\s*:param\s+([^:]+):\s*([^\n]*(?:\n\s+[^\n:]*)*)/g,
                 google: /(?:^|\n)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\):\s*([^\n]*(?:\n\s+[^\n]*)*)/g,
-                types: /(?:^|\n)\s*:type\s+([^:]+):\s*([^\n]*)/g
+                types: /(?:^|\n)\s*:type\s+([^:]+):\s*([^\n]*)/g,
+                // New patterns for better type detection
+                unionTypes: /Union\[([^\]]+)\]/g,
+                listTypes: /List\[([^\]]+)\]/g,
+                dictTypes: /Dict\[([^\]]+)\]/g,
+                optionalMarker: /Optional\[([^\]]+)\]/g,
+                // New patterns for parameter metadata
+                requiredMarker: /required\s*[,.]/i,
+                optionalMarker: /optional\s*[,.]/i,
+                defaultMarker: /defaults?\s+to\s+([^,\n]+)/i
             },
             
             // Return value patterns
@@ -52,6 +62,102 @@ class DocstringHandler {
             raises: {
                 sphinx: /(?:^|\n)\s*:raises?\s+([^:]+):\s*([^\n]*(?:\n\s+[^\n:]*)*)/g,
                 google: /Raises:\s*\n\s*([A-Za-z0-9_]+):\s*([^\n]*(?:\n\s+[^\n]*)*)/g
+            },
+            
+            // New patterns for references and links
+            references: {
+                classRef: /:class:`([^`]+)`/g,
+                funcRef: /:func:`([^`]+)`/g,
+                methRef: /:meth:`([^`]+)`/g,
+                modRef: /:mod:`([^`]+)`/g,
+                extLink: /`([^`]+)\s+<([^>]+)>`_/g,
+                apiRef: /https?:\/\/api\.python\.langchain\.com\/en\/latest\/([^\s]+)/g,
+                migrationGuide: /https?:\/\/python\.langchain\.com\/docs\/versions\/migrating[^\s]+/g
+            },
+
+            // New patterns for special markers
+            markers: {
+                beta: /\.\.\s*beta::/g,
+                deprecated: /\.\.\s*deprecated::\s*([^\n]+)/g,
+                versionChanged: /\.\.\s*versionchanged::\s*([^\n]+)/g,
+                versionAdded: /\.\.\s*versionadded::\s*([^\n]+)/g
+            }
+        };
+
+        // Enhanced section icons
+        this.sectionIcons = {
+            'Args': '📝',
+            'Parameters': '📝',
+            'Returns': '↩️',
+            'Raises': '⚠️',
+            'Example': '💡',
+            'Examples': '💡',
+            'Attributes': '🔍',
+            'Note': '📌',
+            'Warning': '⚠️',
+            'Setup': '⚙️',
+            'References': '📚',
+            'See Also': '👉',
+            'Deprecated': '🚫',
+            'Usage': '🎯',
+            'Configuration': '⚙️',
+            'Migration': '🔄',
+            'Beta': '🧪',
+            'Output Example': '📤'
+        };
+
+        // Language detection patterns
+        this.languagePatterns = {
+            python: {
+                keywords: /\b(def|class|import|from|return|if|else|for|while|try|except|with|as|lambda|async|await)\b/,
+                builtins: /\b(print|len|str|int|dict|list|tuple|set|bool|None|True|False)\b/,
+                imports: /\b(os|sys|json|requests|numpy|pandas|torch|tensorflow)\b/
+            },
+            bash: {
+                keywords: /\b(echo|cd|ls|mkdir|rm|cp|mv|chmod|chown|sudo|apt|pip|python|git)\b/,
+                flags: /\s-[a-zA-Z]+|\s--[a-zA-Z-]+/
+            },
+            yaml: {
+                patterns: /^\s*[a-zA-Z_][a-zA-Z0-9_]*:\s*$/m,
+                lists: /^\s*-\s+/m
+            },
+            json: {
+                patterns: /^\s*[{"]/m,
+                arrays: /^\s*\[/m
+            }
+        };
+
+        // Add method-specific section icons
+        this.methodSectionIcons = {
+            ...this.sectionIcons,
+            'Args': '📝',
+            'Parameters': '📝',
+            'Returns': '↩️',
+            'Raises': '⚠️',
+            'Example': '💡',
+            'Examples': '💡',
+            'Note': '📌',
+            'Warning': '⚠️',
+            'Deprecated': '🚫',
+            'Usage': '🎯',
+            'Beta': '🧪',
+            'Output Example': '📤'
+        };
+
+        // Add method-specific patterns
+        this.methodPatterns = {
+            ...this.patterns,
+            // Method-specific section headers
+            sectionHeaders: /^(Args|Returns|Raises|Example|Examples|Note|Warning|Deprecated|Usage|Beta|Output Example):\s*$/gm,
+            
+            // Method-specific parameter patterns
+            parameters: {
+                ...this.patterns.parameters,
+                // Add method-specific parameter patterns
+                decorator: /@\w+(?:\([^)]*\))?/g,
+                async: /\basync\b/g,
+                yield: /\byield\b/g,
+                generator: /\byield\s+from\b/g
             }
         };
     }
@@ -154,31 +260,159 @@ class DocstringHandler {
             }
         }
 
-        // Extract code blocks
+        // Extract code blocks with their context
         let codeBlockId = 0;
+        const codeBlockContexts = new Map(); // Map to store code block context
+        const seenCodeBlocks = new Set(); // Track unique code blocks
         
+        // Helper function to check if code block is unique
+        const isUniqueCodeBlock = (code) => {
+            const normalizedCode = code.trim().replace(/\s+/g, ' ');
+            if (seenCodeBlocks.has(normalizedCode)) {
+                return false;
+            }
+            seenCodeBlocks.add(normalizedCode);
+            return true;
+        };
+
+        // Helper function to determine context
+        const determineContext = (beforeText, code) => {
+            // First check for explicit section headers
+            const headerMatch = beforeText.match(/(?:^|\n)(Setup|Instantiate|Load|Async load|Lazy load|Output Example|Usage Example):\s*$/);
+            if (headerMatch) {
+                return headerMatch[1];
+            }
+
+            // Analyze code content to determine context
+            const normalizedCode = code.toLowerCase().trim();
+            
+            // Check for setup/installation related code
+            if (normalizedCode.includes('pip install') || 
+                normalizedCode.includes('requirements.txt') ||
+                normalizedCode.includes('setup.py')) {
+                return 'Setup';
+            }
+
+            // Check for instantiation code
+            if (normalizedCode.includes(' = ') && 
+                (normalizedCode.includes('loader') || 
+                 normalizedCode.includes('model') || 
+                 normalizedCode.includes('client'))) {
+                return 'Instantiate';
+            }
+
+            // Check for load/async load code
+            if (normalizedCode.includes('.load()') || 
+                normalizedCode.includes('.aload()')) {
+                return normalizedCode.includes('async') ? 'Async load' : 'Load';
+            }
+
+            // Check for lazy load code
+            if (normalizedCode.includes('lazy_load') || 
+                normalizedCode.includes('alazy_load')) {
+                return 'Lazy load';
+            }
+
+            // Check for output/result code
+            if (normalizedCode.includes('print(') || 
+                normalizedCode.includes('result') || 
+                normalizedCode.includes('output')) {
+                return 'Output Example';
+            }
+
+            // If no specific context is found, try to group with previous block
+            const lastBlock = sections.codeBlocks.length > 0 ? sections.codeBlocks[sections.codeBlocks.length - 1] : null;
+            if (lastBlock) {
+                // If the previous block was an Example, keep the same context
+                if (lastBlock.context === 'Example' || lastBlock.context === 'Usage Example') {
+                    return lastBlock.context;
+                }
+                // If the code looks like a continuation of the previous block
+                if (normalizedCode.includes('doc') || 
+                    normalizedCode.includes('result') || 
+                    normalizedCode.includes('output')) {
+                    return lastBlock.context;
+                }
+            }
+
+            return 'Usage Example';
+        };
+
+        // Helper function to group related code blocks
+        const groupRelatedBlocks = (blocks) => {
+            const groups = [];
+            let currentGroup = [];
+            let currentContext = null;
+
+            blocks.forEach(block => {
+                // Start a new group if context changes, or if context is 'Usage Example' and previous was not
+                if (block.context !== currentContext || (block.context === 'Usage Example' && currentContext !== 'Usage Example')) {
+                    if (currentGroup.length > 0) {
+                        groups.push({
+                            context: currentContext,
+                            blocks: [...currentGroup]
+                        });
+                    }
+                    currentGroup = [block];
+                    currentContext = block.context;
+                } else {
+                    // Add to current group if context is the same
+                    currentGroup.push(block);
+                }
+            });
+
+            // Add the last group
+            if (currentGroup.length > 0) {
+                groups.push({
+                    context: currentContext,
+                    blocks: currentGroup
+                });
+            }
+
+            return groups;
+        };
+
         // Handle RST-style code blocks
-        docstring = docstring.replace(this.patterns.codeBlocks.rst, (_, lang, code) => {
+        docstring = docstring.replace(this.patterns.codeBlocks.rst, (_, lang, code, offset) => {
+            if (!isUniqueCodeBlock(code)) {
+                return ''; // Skip duplicate code blocks
+            }
             const id = `__CODE_${codeBlockId++}__`;
+            const beforeText = docstring.slice(0, offset);
+            const context = determineContext(beforeText, code);
+            
             sections.codeBlocks.push({
                 id,
                 language: lang || 'python',
-                code: code.trim()
+                code: code.trim(),
+                context: context
             });
+            codeBlockContexts.set(id, context);
             return id;
         });
 
         // Handle triple backtick code blocks
-        docstring = docstring.replace(this.patterns.codeBlocks.triple, (_, lang, code) => {
+        docstring = docstring.replace(this.patterns.codeBlocks.triple, (_, lang, code, offset) => {
+            if (!isUniqueCodeBlock(code)) {
+                return ''; // Skip duplicate code blocks
+            }
             const id = `__CODE_${codeBlockId++}__`;
+            const beforeText = docstring.slice(0, offset);
+            const context = determineContext(beforeText, code);
+            
             sections.codeBlocks.push({
                 id,
                 language: lang || 'python',
-                code: code.trim()
+                code: code.trim(),
+                context: context
             });
+            codeBlockContexts.set(id, context);
             return id;
         });
-        
+
+        // Group related code blocks
+        sections.codeBlocks = groupRelatedBlocks(sections.codeBlocks);
+
         // Extract description (everything before the first section header or remaining text)
         const firstSectionMatch = docstring.match(this.patterns.sectionHeaders);
         if (firstSectionMatch) {
@@ -201,10 +435,21 @@ class DocstringHandler {
     formatDocstring(sections) {
         let html = '';
 
+        // Group code blocks by context
+        const codeBlocksByContext = new Map();
+        sections.codeBlocks.forEach(group => {
+            if (!codeBlocksByContext.has(group.context)) {
+                codeBlocksByContext.set(group.context, []);
+            }
+            group.blocks.forEach(block => {
+                codeBlocksByContext.get(group.context).push(block);
+            });
+        });
+
         // Setup section
         if (sections.setup) {
             html += `<div class="docstring-section setup-section">
-                        <h4>Setup:</h4>
+                        <h4>${this.sectionIcons['Setup']} Setup</h4>
                         <div class="setup-content">`;
             
             for (const command of sections.setup.commands) {
@@ -214,30 +459,83 @@ class DocstringHandler {
             html += `</div></div>`;
         }
 
-        // Description section with code blocks
+        // Description section - replace placeholders with code blocks
+        const contextOrder = ['Output Example', 'Instantiate', 'Load', 'Async load', 'Lazy load', 'Setup', 'Usage Example', 'Example'];
+        const usedBlockIds = new Set();
         if (sections.description) {
             let description = sections.description;
-            
-            // Replace code block placeholders with formatted code
-            sections.codeBlocks.forEach(block => {
-                const formatted = this._formatCodeBlock(block.code, block.language);
-                description = description.replace(
-                    block.id,
-                    `<pre class="${block.language}"><code>${formatted}</code></pre>`
-                );
-            });
-
-            html += `<div class="docstring-section">
-                        <div class="section-content description">
-                            ${this._formatText(description)}
+            // For each context, replace placeholder with code block if available
+            contextOrder.forEach(context => {
+                const regex = new RegExp(`^\s*${context}:\s*$`, 'im');
+                const blocks = codeBlocksByContext.get(context);
+                if (blocks && blocks.length > 0) {
+                    // Only use the first block for this context in the description
+                    const block = blocks[0];
+                    const formatted = `<div class="docstring-section code-blocks-section">
+                        <h4 data-context="${context}">${this.sectionIcons[context] || '💻'} ${context}</h4>
+                        <div class="code-blocks-content">
+                            <pre class="${block.language}"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre>
                         </div>
                     </div>`;
+                    description = description.replace(regex, formatted);
+                    usedBlockIds.add(block.id);
+                } else {
+                    // If no code block, remove the placeholder line
+                    description = description.replace(regex, '');
+                }
+            });
+
+            // Remove any code block placeholders that remain
+            sections.codeBlocks.forEach(group => {
+                group.blocks.forEach(block => {
+                    description = description.replace(block.id, '');
+                });
+            });
+            // Clean up any resulting empty lines
+            description = description.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
+            if (description) {
+                html += `<div class="docstring-section">
+                            <div class="section-content description">
+                                ${this._formatText(description)}
+                            </div>
+                        </div>`;
+            }
+        }
+
+        // Add code blocks grouped by context
+        for (const context of contextOrder) {
+            const blocks = codeBlocksByContext.get(context);
+            if (blocks && blocks.length > 0) {
+                // Show all blocks for this context that weren't used in the description
+                // If context is 'Usage Example', group all blocks together in one code block
+                if (context === 'Usage Example' && blocks.length > 1) {
+                    const combinedCode = blocks.map(block => block.code).join('\n\n');
+                    html += `<div class="docstring-section code-blocks-section">
+                        <h4 data-context="${context}">💻 ${context}</h4>
+                        <div class="code-blocks-content">
+                            <pre class="${blocks[0].language}"><code>${this._formatCodeBlock(combinedCode, blocks[0].language)}</code></pre>
+                        </div>
+                    </div>`;
+                    blocks.forEach(block => usedBlockIds.add(block.id));
+                } else {
+                    blocks.forEach(block => {
+                        if (!usedBlockIds.has(block.id)) {
+                            html += `<div class="docstring-section code-blocks-section">
+                                <h4 data-context="${context}">${this.sectionIcons[context] || '💻'} ${context}</h4>
+                                <div class="code-blocks-content">
+                                    <pre class="${block.language}"><code>${this._formatCodeBlock(block.code, block.language)}</code></pre>
+                                </div>
+                            </div>`;
+                        }
+                    });
+                }
+            }
         }
 
         // Parameters section
         if (sections.parameters && sections.parameters.length > 0) {
             html += `<div class="docstring-section parameters-section">
-                        <h4>Parameters:</h4>
+                        <h4>${this.sectionIcons['Parameters']} Parameters</h4>
                         <div class="parameter-table">
                             <div class="parameter-table-header">
                                 <div class="param-name-header">Name</div>
@@ -266,7 +564,7 @@ class DocstringHandler {
         // Returns section
         if (sections.returns && sections.returns.description) {
             html += `<div class="docstring-section returns-section">
-                        <h4>Returns:</h4>
+                        <h4>${this.sectionIcons['Returns']} Returns</h4>
                         <div class="returns-content">
                             ${sections.returns.description}
                         </div>
@@ -276,7 +574,7 @@ class DocstringHandler {
         // Raises section
         if (sections.raises && sections.raises.length > 0) {
             html += `<div class="docstring-section raises-section">
-                        <h4>Raises:</h4>
+                        <h4>${this.sectionIcons['Raises']} Raises</h4>
                         <div class="raises-content">`;
             
             sections.raises.forEach(raise => {
@@ -289,6 +587,32 @@ class DocstringHandler {
             html += `</div></div>`;
         }
 
+        // Examples section
+        if (sections.examples && sections.examples.length > 0) {
+            html += `<div class="docstring-section examples-section">
+                        <h4>${this.sectionIcons['Examples']} Examples</h4>
+                        <div class="example-content">`;
+            
+            sections.examples.forEach(example => {
+                html += `<div class="example-item">
+                            ${this._formatText(example)}
+                        </div>`;
+            });
+            
+            html += `</div></div>`;
+        }
+
+        // Add copy buttons to all code blocks
+        setTimeout(() => {
+            document.querySelectorAll('pre code').forEach(block => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-block-wrapper';
+                block.parentNode.insertBefore(wrapper, block);
+                wrapper.appendChild(block);
+                wrapper.appendChild(this._addCopyButton(block));
+            });
+        }, 0);
+
         return html;
     }
 
@@ -299,6 +623,36 @@ class DocstringHandler {
     _formatText(text) {
         if (!text) return '';
 
+        // Handle RST dropdowns as real collapsible sections
+        text = this._extractAndFormatDropdowns(text);
+
+        // Handle special markers
+        text = text.replace(this.patterns.markers.beta, '<div class="rst-beta"><span class="rst-icon">🧪</span> <strong>Beta Feature</strong></div>');
+        text = text.replace(this.patterns.markers.deprecated, (_, version) => 
+            `<div class="rst-deprecated"><span class="rst-icon">🛑</span> <strong>Deprecated:</strong> ${version}</div>`
+        );
+        text = text.replace(this.patterns.markers.versionChanged, (_, note) => 
+            `<div class="rst-versionchanged"><span class="rst-icon">ℹ️</span> <strong>Version changed:</strong> ${note}</div>`
+        );
+        text = text.replace(this.patterns.markers.versionAdded, (_, note) => 
+            `<div class="rst-versionadded"><span class="rst-icon">✨</span> <strong>New in version:</strong> ${note}</div>`
+        );
+
+        // Handle API references and migration guides
+        text = text.replace(this.patterns.references.apiRef, (_, path) => 
+            `<a href="https://api.python.langchain.com/en/latest/${path}" target="_blank" class="api-ref">API Reference</a>`
+        );
+        text = text.replace(this.patterns.references.migrationGuide, (_, path) => 
+            `<a href="https://python.langchain.com/docs/versions/migrating${path}" target="_blank" class="migration-guide">Migration Guide</a>`
+        );
+
+        // RST directives and important notes (except dropdown)
+        text = text.replace(/^\s*\.\.\s*versionchanged::(.*)$/gim, '<div class="rst-versionchanged"><span class="rst-icon">ℹ️</span> <strong>Version changed:</strong>$1</div>');
+        text = text.replace(/^\s*\.\.\s*note::(.*)$/gim, '<div class="rst-note"><span class="rst-icon">💡</span> <strong>Note:</strong>$1</div>');
+        text = text.replace(/^\s*\.\.\s*warning::(.*)$/gim, '<div class="rst-warning"><span class=\"rst-icon\">⚠️</span> <strong>Warning:</strong>$1</div>');
+        text = text.replace(/^\s*\.\.\s*deprecated::(.*)$/gim, '<div class="rst-deprecated"><span class="rst-icon">🛑</span> <strong>Deprecated:</strong>$1</div>');
+        text = text.replace(/^\s*Deprecated(.*)$/gim, '<div class="rst-deprecated"><span class="rst-icon">🛑</span> <strong>Deprecated:</strong>$1</div>');
+
         // Replace inline code with potential class references
         text = text.replace(/`([^`]+)`/g, (_, code) => {
             if (this._looksLikeClass(code)) {
@@ -307,13 +661,41 @@ class DocstringHandler {
             return `<code>${code}</code>`;
         });
 
+        // Replace URLs with clickable links
+        text = text.replace(
+            /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g,
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+
         // Replace line breaks with paragraphs
         text = text.split(/\n\s*\n/).map(p => `<p>${p.trim()}</p>`).join('');
-        
         // Replace single line breaks with <br>
         text = text.replace(/\n/g, '<br>');
-        
         return text;
+    }
+
+    // Helper to extract and format .. dropdown:: blocks as collapsible sections
+    _extractAndFormatDropdowns(text) {
+        let dropdownId = 0;
+        // Regex to match .. dropdown:: and its indented content
+        const dropdownRegex = /(^|\n)\s*\.\.\s*dropdown::(.*?)(\n(?:(?: {2,}|\t).+\n?)*)/g;
+        return text.replace(dropdownRegex, (match, pre, summary, content) => {
+            dropdownId++;
+            // Clean up summary and content
+            let summaryText = summary.trim();
+            // Remove leading code>, text>, or similar prefixes
+            summaryText = summaryText.replace(/^(code|text|output|example|note|tip|info|warning|danger|important)\s*>\s*/i, '');
+            const contentText = (content || '').replace(/^( {2,}|\t)/gm, '').trim();
+            const id = `rst-dropdown-${Date.now()}-${dropdownId}`;
+            return `
+                <div class="rst-dropdown-collapsible">
+                    <button class="rst-dropdown-toggle" type="button" data-target="${id}">▼ <strong>${summaryText}</strong></button>
+                    <div class="rst-dropdown-content" id="${id}" style="display:none;">
+                        ${this._formatText(contentText)}
+                    </div>
+                </div>
+            `;
+        });
     }
 
     /**
@@ -388,18 +770,122 @@ class DocstringHandler {
     }
 
     /**
-     * Format a code block with syntax highlighting
+     * Enhanced code block formatting with better language detection and syntax highlighting
      * @private
      */
     _formatCodeBlock(code, language) {
+        // First detect/verify language if not specified
+        if (!language || language === 'text') {
+            language = this._detectLanguage(code);
+        }
+
+        // Escape HTML
+        code = this._escapeHtml(code);
+
         switch (language.toLowerCase()) {
             case 'python':
+            case 'py':
+            case 'python3':
                 return this._formatPythonCode(code);
             case 'bash':
+            case 'shell':
+            case 'sh':
                 return this._formatBashCode(code);
+            case 'yaml':
+            case 'yml':
+                return this._formatYamlCode(code);
             default:
-                return this._escapeHtml(code);
+                return code;
         }
+    }
+
+    /**
+     * Enhanced language detection based on code content
+     * @private
+     */
+    _detectLanguage(code) {
+        // Python detection
+        if (this.languagePatterns.python.keywords.test(code) ||
+            this.languagePatterns.python.builtins.test(code) ||
+            this.languagePatterns.python.imports.test(code)) {
+            return 'python';
+        }
+
+        // Bash detection
+        if (this.languagePatterns.bash.keywords.test(code) ||
+            this.languagePatterns.bash.flags.test(code)) {
+            return 'bash';
+        }
+
+        // YAML detection
+        if (this.languagePatterns.yaml.patterns.test(code) &&
+            this.languagePatterns.yaml.lists.test(code)) {
+            return 'yaml';
+        }
+
+        return 'text';
+    }
+
+    /**
+     * Enhanced Python code formatting
+     * @private
+     */
+    _formatPythonCode(code) {
+        // Store string literals
+        const strings = [];
+        code = code.replace(/(["'])((?:\\.|[^\\])*?)\1/g, (match) => {
+            strings.push(match);
+            return `__STRING_${strings.length - 1}__`;
+        });
+
+        // Highlight keywords
+        code = code.replace(
+            /\b(def|class|import|from|return|if|else|elif|for|in|while|try|except|with|as|lambda|async|await)\b/g,
+            '<span class="keyword">$1</span>'
+        );
+
+        // Highlight built-in functions and types
+        code = code.replace(
+            /\b(print|len|str|int|dict|list|tuple|set|bool|None|True|False)\b/g,
+            '<span class="builtin">$1</span>'
+        );
+
+        // Highlight decorators
+        code = code.replace(
+            /(@[\w.]+)/g,
+            '<span class="decorator">$1</span>'
+        );
+
+        // Highlight function calls
+        code = code.replace(
+            /(\w+)\(/g,
+            '<span class="function">$1</span>('
+        );
+
+        // Restore strings with highlighting
+        code = code.replace(/__STRING_(\d+)__/g, (_, i) => 
+            `<span class="string">${strings[i]}</span>`
+        );
+
+        // Add line numbers
+        const lines = code.split('\n');
+        return lines.map((line, i) => 
+            `<span class="line-number">${i + 1}</span>${line}`
+        ).join('\n');
+    }
+
+    /**
+     * Enhanced YAML code formatting
+     * @private
+     */
+    _formatYamlCode(code) {
+        return code
+            // Highlight keys
+            .replace(/^(\s*)([\w-]+):/gm, '$1<span class="yaml-key">$2</span>:')
+            // Highlight values
+            .replace(/:\s*(.+)$/gm, ': <span class="yaml-value">$1</span>')
+            // Highlight lists
+            .replace(/^(\s*)-\s+/gm, '$1<span class="yaml-list">-</span> ');
     }
 
     /**
@@ -424,4 +910,505 @@ class DocstringHandler {
         };
         return text.replace(/[&<>"']/g, m => map[m]);
     }
-} 
+
+    /**
+     * Add copy button to code blocks
+     * @private
+     */
+    _addCopyButton(codeElement) {
+        const button = document.createElement('button');
+        button.className = 'copy-button';
+        button.innerHTML = '📋';
+        button.title = 'Copy to clipboard';
+        
+        button.addEventListener('click', () => {
+            const code = codeElement.textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                button.innerHTML = '✓';
+                setTimeout(() => {
+                    button.innerHTML = '📋';
+                }, 2000);
+            });
+        });
+
+        return button;
+    }
+
+    /**
+     * Parse a method docstring into structured sections
+     * @param {string} docstring - The raw method docstring text
+     * @param {Object} methodInfo - Additional method information
+     * @returns {Object} - Structured method docstring data
+     */
+    parseMethodDocstring(docstring, methodInfo = {}) {
+        if (!docstring || typeof docstring !== 'string') {
+            return {
+                description: 'No description available.',
+                parameters: [],
+                returns: { type: '', description: '' },
+                raises: [],
+                examples: [],
+                isAsync: methodInfo.isAsync || false,
+                isGenerator: methodInfo.isGenerator || false,
+                decorators: methodInfo.decorators || []
+            };
+        }
+
+        const sections = {
+            description: '',
+            parameters: [],
+            returns: { type: '', description: '' },
+            raises: [],
+            examples: [],
+            isAsync: methodInfo.isAsync || false,
+            isGenerator: methodInfo.isGenerator || false,
+            decorators: methodInfo.decorators || []
+        };
+
+        // Extract method-specific information
+        const decoratorMatches = docstring.matchAll(this.methodPatterns.parameters.decorator);
+        sections.decorators = Array.from(decoratorMatches).map(match => match[0].trim());
+        
+        sections.isAsync = this.methodPatterns.parameters.async.test(docstring);
+        sections.isGenerator = this.methodPatterns.parameters.yield.test(docstring) || 
+                             this.methodPatterns.parameters.generator.test(docstring);
+
+        // Parse parameters with method-specific handling
+        const tableMatch = docstring.match(this.methodPatterns.parameterTable);
+        if (tableMatch) {
+            const tableContent = tableMatch[1];
+            let paramMatch;
+            while ((paramMatch = this.methodPatterns.tableParameter.exec(tableContent)) !== null) {
+                const [_, name, type, description] = paramMatch;
+                sections.parameters.push({
+                    name: name.trim(),
+                    type: type.trim(),
+                    description: description.trim(),
+                    isOptional: this.methodPatterns.parameters.optionalMarker.test(description),
+                    isRequired: this.methodPatterns.parameters.requiredMarker.test(description),
+                    defaultValue: this._extractDefaultValue(description)
+                });
+            }
+            docstring = docstring.replace(tableMatch[0], '');
+        } else {
+            // Parse traditional parameter format
+            const params = new Map();
+            let match;
+            
+            while ((match = this.methodPatterns.parameters.sphinx.exec(docstring)) !== null) {
+                const name = match[1].trim();
+                const description = match[2].trim();
+                params.set(name, {
+                    name,
+                    description,
+                    type: '',
+                    isOptional: this.methodPatterns.parameters.optionalMarker.test(description),
+                    isRequired: this.methodPatterns.parameters.requiredMarker.test(description),
+                    defaultValue: this._extractDefaultValue(description)
+                });
+            }
+
+            while ((match = this.methodPatterns.parameters.types.exec(docstring)) !== null) {
+                const name = match[1].trim();
+                const type = match[2].trim();
+                if (params.has(name)) {
+                    params.get(name).type = type;
+                }
+            }
+            sections.parameters = Array.from(params.values());
+        }
+
+        // Extract returns section with method-specific handling
+        const returnsMatch = docstring.match(this.methodPatterns.returns.google);
+        if (returnsMatch) {
+            sections.returns = {
+                description: returnsMatch[1].trim(),
+                type: this._extractReturnType(returnsMatch[1])
+            };
+        }
+
+        // Extract raises section
+        const raisesMatches = Array.from(docstring.matchAll(this.methodPatterns.raises.google));
+        sections.raises = raisesMatches.map(match => ({
+            type: match[1].trim(),
+            description: match[2].trim()
+        }));
+
+        // Extract examples
+        const exampleMatches = docstring.matchAll(/Examples?:\s*\n([\s\S]*?)(?=\n\s*\n|\n[A-Z]|$)/g);
+        sections.examples = Array.from(exampleMatches).map(match => ({
+            description: match[1].trim(),
+            codeBlocks: this._extractCodeBlocks(match[1])
+        }));
+
+        // Get main description
+        const firstSection = docstring.match(/\n\s*[A-Z][a-z]+:/);
+        sections.description = firstSection 
+            ? docstring.slice(0, firstSection.index).trim()
+            : docstring.trim();
+
+        return sections;
+    }
+
+    /**
+     * Format a method docstring for display
+     * @param {Object} sections - The parsed method docstring sections
+     * @returns {string} - HTML formatted method docstring
+     */
+    formatMethodDocstring(sections) {
+        let html = '';
+
+        // Add method metadata
+        if (sections.isAsync || sections.isGenerator || sections.decorators.length > 0) {
+            html += '<div class="method-metadata">';
+            if (sections.isAsync) {
+                html += '<span class="method-badge async">async</span>';
+            }
+            if (sections.isGenerator) {
+                html += '<span class="method-badge generator">generator</span>';
+            }
+            sections.decorators.forEach(decorator => {
+                html += `<span class="method-badge decorator">${this._escapeHtml(decorator)}</span>`;
+            });
+            html += '</div>';
+        }
+
+        // Add description
+        if (sections.description) {
+            html += `<div class="method-description">${this._formatText(sections.description)}</div>`;
+        }
+
+        // Add parameters
+        if (sections.parameters.length > 0) {
+            html += '<div class="method-parameters">';
+            html += '<h4>📝 Parameters</h4>';
+            html += '<ul>';
+            sections.parameters.forEach(param => {
+                html += '<li>';
+                html += `<strong>${this._escapeHtml(param.name)}</strong>`;
+                if (param.type) {
+                    html += ` <span class="param-type">${this._escapeHtml(param.type)}</span>`;
+                }
+                if (param.isOptional) {
+                    html += ' <span class="param-optional">(optional)</span>';
+                }
+                if (param.isRequired) {
+                    html += ' <span class="param-required">(required)</span>';
+                }
+                if (param.defaultValue) {
+                    html += ` <span class="param-default">default: ${this._escapeHtml(param.defaultValue)}</span>`;
+                }
+                html += `<p>${this._formatText(param.description)}</p>`;
+                html += '</li>';
+            });
+            html += '</ul>';
+            html += '</div>';
+        }
+
+        // Add returns
+        if (sections.returns.description) {
+            html += '<div class="method-returns">';
+            html += '<h4>↩️ Returns</h4>';
+            if (sections.returns.type) {
+                html += `<div class="return-type">${this._escapeHtml(sections.returns.type)}</div>`;
+            }
+            html += `<div class="return-description">${this._formatText(sections.returns.description)}</div>`;
+            html += '</div>';
+        }
+
+        // Add raises
+        if (sections.raises.length > 0) {
+            html += '<div class="method-raises">';
+            html += '<h4>⚠️ Raises</h4>';
+            html += '<ul>';
+            sections.raises.forEach(raise => {
+                html += '<li>';
+                html += `<strong>${this._escapeHtml(raise.type)}</strong>`;
+                html += `<p>${this._formatText(raise.description)}</p>`;
+                html += '</li>';
+            });
+            html += '</ul>';
+            html += '</div>';
+        }
+
+        // Add examples
+        if (sections.examples.length > 0) {
+            html += '<div class="method-examples">';
+            html += '<h4>💡 Examples</h4>';
+            sections.examples.forEach(example => {
+                html += `<div class="example">`;
+                if (example.description) {
+                    html += `<div class="example-description">${this._formatText(example.description)}</div>`;
+                }
+                example.codeBlocks.forEach(block => {
+                    html += this._formatCodeBlock(block.code, block.language);
+                });
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        return html;
+    }
+
+    /**
+     * Extract default value from parameter description
+     * @private
+     */
+    _extractDefaultValue(description) {
+        const match = description.match(this.methodPatterns.parameters.defaultMarker);
+        return match ? match[1].trim() : null;
+    }
+
+    /**
+     * Extract return type from return description
+     * @private
+     */
+    _extractReturnType(description) {
+        const typeMatch = description.match(/(?:^|\n)\s*:rtype:\s*([^\n]*)/);
+        return typeMatch ? typeMatch[1].trim() : '';
+    }
+}
+
+// Add CSS styles for the enhanced features
+const style = document.createElement('style');
+style.textContent = `
+    .code-block-wrapper {
+        position: relative;
+        margin: 1em 0;
+    }
+
+    .copy-button {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        padding: 5px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .copy-button:hover {
+        opacity: 1;
+    }
+
+    .line-number {
+        color: #999;
+        margin-right: 1em;
+        user-select: none;
+    }
+
+    .keyword { color: #007acc; }
+    .builtin { color: #0000ff; }
+    .string { color: #a31515; }
+    .decorator { color: #af00db; }
+    .function { color: #795e26; }
+    
+    .yaml-key { color: #007acc; }
+    .yaml-value { color: #a31515; }
+    .yaml-list { color: #0000ff; }
+
+    .parameter-row:hover {
+        background-color: #f5f5f5;
+    }
+
+    .rst-dropdown-collapsible {
+        margin: 1em 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .rst-dropdown-toggle {
+        width: 100%;
+        text-align: left;
+        padding: 10px;
+        background: #f5f5f5;
+        border: none;
+        cursor: pointer;
+    }
+
+    .rst-dropdown-content {
+        padding: 10px;
+        border-top: 1px solid #ddd;
+    }
+
+    .rst-note, .rst-warning, .rst-deprecated {
+        margin: 1em 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+
+    .rst-note { background: #e8f4f8; }
+    .rst-warning { background: #fff3cd; }
+    .rst-deprecated { background: #ffe6e6; }
+
+    .parameter-table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    .parameter-row {
+        border-bottom: 1px solid #eee;
+    }
+
+    .param-name {
+        font-weight: bold;
+        color: #007acc;
+    }
+
+    .param-type {
+        color: #795e26;
+        font-family: monospace;
+    }
+
+    .default-value {
+        color: #098658;
+        font-style: italic;
+    }
+
+    .rst-beta {
+        margin: 1em 0;
+        padding: 10px;
+        background: #e8f4f8;
+        border-radius: 4px;
+        border-left: 4px solid #007acc;
+    }
+
+    .rst-versionadded {
+        margin: 1em 0;
+        padding: 10px;
+        background: #e8f4f8;
+        border-radius: 4px;
+        border-left: 4px solid #098658;
+    }
+
+    .api-ref, .migration-guide {
+        display: inline-block;
+        padding: 2px 6px;
+        background: #f5f5f5;
+        border-radius: 3px;
+        text-decoration: none;
+        color: #007acc;
+        font-size: 0.9em;
+    }
+
+    .api-ref:hover, .migration-guide:hover {
+        background: #e8f4f8;
+    }
+
+    .output-block {
+        background: #f8f8f8;
+        border-left: 4px solid #666;
+        padding: 10px;
+        margin: 1em 0;
+        font-family: monospace;
+    }
+
+    .configuration-block {
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 1em 0;
+    }
+
+    .configuration-key {
+        color: #007acc;
+        font-weight: bold;
+    }
+
+    .configuration-value {
+        color: #098658;
+    }
+
+    .configuration-comment {
+        color: #666;
+        font-style: italic;
+    }
+
+    .method-metadata {
+        margin-bottom: 1em;
+    }
+
+    .method-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        margin-right: 8px;
+        border-radius: 3px;
+        font-size: 0.9em;
+        font-weight: 500;
+    }
+
+    .method-badge.async {
+        background: #e8f4f8;
+        color: #007acc;
+    }
+
+    .method-badge.generator {
+        background: #f0f8ff;
+        color: #0066cc;
+    }
+
+    .method-badge.decorator {
+        background: #f5f5f5;
+        color: #666;
+    }
+
+    .method-description {
+        margin-bottom: 1.5em;
+    }
+
+    .method-parameters,
+    .method-returns,
+    .method-raises,
+    .method-examples {
+        margin: 1.5em 0;
+    }
+
+    .param-type {
+        color: #007acc;
+        font-family: monospace;
+    }
+
+    .param-optional {
+        color: #666;
+        font-style: italic;
+    }
+
+    .param-required {
+        color: #d73a49;
+        font-weight: 500;
+    }
+
+    .param-default {
+        color: #098658;
+        font-family: monospace;
+    }
+
+    .return-type {
+        font-family: monospace;
+        color: #007acc;
+        margin-bottom: 0.5em;
+    }
+
+    .return-description {
+        color: #333;
+    }
+
+    .example {
+        margin: 1em 0;
+        padding: 1em;
+        background: #f8f8f8;
+        border-radius: 4px;
+    }
+
+    .example-description {
+        margin-bottom: 1em;
+        color: #666;
+    }
+`;
+
+document.head.appendChild(style); 

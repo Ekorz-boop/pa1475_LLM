@@ -1,0 +1,90 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Panel{% endblock %}
+
+{% block header %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <div class="dashboard-card-header">
+            <h3>User Statistics</h3>
+            <button class="btn btn-primary quick-action" onclick="window.location.href='{{ url_for('admin.create_user') }}'" title="Add User" aria-label="Add User">+ Add User</button>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-item">
+                <span class="stat-value">{{ users|length }}</span>
+                <span class="stat-label">Total Users</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">{{ users|selectattr('is_active', 'eq', true)|list|length }}</span>
+                <span class="stat-label">Active Users</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">{{ users|selectattr('created_at', 'ge', now().replace(hour=0, minute=0, second=0, microsecond=0))|list|length }}</span>
+                <span class="stat-label">New Today</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <h3>System Status</h3>
+        <div class="status-list">
+            <div class="status-item">
+                <span class="status-label">Maintenance Mode</span>
+                <span class="status-value {% if settings.maintenance_mode %}status-active{% endif %}">
+                    {{ 'Enabled' if settings.maintenance_mode else 'Disabled' }}
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Max Login Attempts</span>
+                <span class="status-value">{{ settings.max_login_attempts }}</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Password Reset Timeout</span>
+                <span class="status-value">{{ settings.password_reset_timeout // 60 }} minutes</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <h3>User Growth (Last 30 Days)</h3>
+        <canvas id="userGrowthChart" height="120"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const userGrowthData = {{ user_growth_data|tojson }};
+    const ctx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: userGrowthData.labels,
+            datasets: [{
+                label: 'New Users',
+                data: userGrowthData.counts,
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                borderColor: '#10b981',
+                borderWidth: 2,
+                pointRadius: 3,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: true }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Date' } },
+                y: { title: { display: true, text: 'Users' }, beginAtZero: true, precision: 0 }
+            }
+        }
+    });
+</script>
+{% endblock %} 
