@@ -1201,7 +1201,6 @@ def create_custom_block():
         return jsonify({"error": str(e)}), 500
 
 
-
 @app.route("/api/templates/save", methods=["POST"])
 def save_template():
     """Save the current pipeline state as a template."""
