@@ -272,7 +272,7 @@
 }
 
 /* Tooltip styles */
-.template-actions-menu .action-button::after {
+.template-actions-menu .action-button:hover::after {
     content: attr(title);
     position: absolute;
     bottom: -30px;
@@ -285,14 +285,8 @@
     font-size: 12px;
     white-space: nowrap;
     opacity: 0;
-    visibility: hidden;
-    transition: all 0.2s ease;
-    z-index: 1000;
-}
-
-.template-actions-menu .action-button:hover::after {
-    opacity: 1;
     visibility: visible;
+    z-index: 1000;
 }
 
 /* Toast fade-out animation */
