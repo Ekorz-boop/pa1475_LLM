@@ -53,16 +53,16 @@
                     <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never' }}</td>
                     <td class="action-buttons">
                         <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-edit" title="Edit User">
-                            <img src="/static/images/icons/edit.svg" alt="Edit">
+                            <img src="/static/images/icons/action-buttons/edit.svg" alt="Edit">
                         </a>
                         <button class="btn btn-reset" onclick="resetPassword({{ user.id }})" title="Reset Password">
-                            <img src="/static/images/icons/reset.svg" alt="Reset">
+                            <img src="/static/images/icons/action-buttons/reset.svg" alt="Reset">
                         </button>
                         <button class="btn btn-toggle" onclick="toggleUserStatus({{ user.id }})" title="Toggle Status">
-                            <img src="/static/images/icons/toggle.svg" alt="Toggle">
+                            <img src="/static/images/icons/action-buttons/toggle.svg" alt="Toggle">
                         </button>
                         <button class="btn btn-delete" onclick="deleteUser({{ user.id }})" title="Delete User">
-                            <img src="/static/images/icons/delete.svg" alt="Delete">
+                            <img src="/static/images/icons/action-buttons/delete.svg" alt="Delete">
                         </button>
                     </td>
                 </tr>

@@ -1111,4 +1111,60 @@ body.dark-mode {
 .dark-mode .zoom-controls {
     background-color: var(--secondary-bg);
     border: 1px solid var(--border-color);
+}
+
+/* Toast Dark Mode */
+.dark-mode .toast {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .toast.success {
+    border-left: 4px solid #4caf50;
+}
+
+.dark-mode .toast.error {
+    border-left: 4px solid #f44336;
+}
+
+.dark-mode .toast.warning {
+    border-left: 4px solid #ff9800;
+}
+
+.dark-mode .toast.info {
+    border-left: 4px solid #2196f3;
+}
+
+.dark-mode .toast.fade-out {
+    opacity: 0;
+    transform: translateX(10%);
+}
+
+/* Progress Modal Dark Mode */
+.dark-mode #progress-modal {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.dark-mode #progress-modal .modal-content {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #progress-modal h3 {
+    color: var(--text-color);
+}
+
+.dark-mode #progress-modal .progress-bar {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #progress-modal .progress-fill {
+    background-color: var(--langchain-primary);
+}
+
+.dark-mode #progress-modal #progress-status {
+    color: var(--text-color);
 } 

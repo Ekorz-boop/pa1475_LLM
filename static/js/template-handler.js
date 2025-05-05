@@ -105,24 +105,13 @@ class TemplateHandler {
 
     setupEventListeners() {
         // Save template button in sidebar
-        const saveTemplateBtnSidebar = document.getElementById('save-template-btn');
-        if (saveTemplateBtnSidebar) {
-            saveTemplateBtnSidebar.addEventListener('click', () => this.saveTemplateModal());
-        }
-
-        // Load template button in sidebar
-        const loadTemplateBtnSidebar = document.getElementById('load-template-btn');
-        if (loadTemplateBtnSidebar) {
-            loadTemplateBtnSidebar.addEventListener('click', () => this.showLoadTemplateModal());
-        }
-        
-        // Canvas buttons
-        const saveTemplateBtn = document.getElementById('save-template');
+        const saveTemplateBtn = document.getElementById('saveTemplateBtn');
         if (saveTemplateBtn) {
             saveTemplateBtn.addEventListener('click', () => this.saveTemplateModal());
         }
-        
-        const loadTemplateBtn = document.getElementById('load-template');
+
+        // Load template button in sidebar
+        const loadTemplateBtn = document.getElementById('loadTemplateBtn');
         if (loadTemplateBtn) {
             loadTemplateBtn.addEventListener('click', () => this.showLoadTemplateModal());
         }
