@@ -40,6 +40,11 @@
     text-align: left;
 }
 
+.dark-mode .template-modal .modal-header h3 {
+    color: #f1f1f1;
+    font-weight: 500;
+}
+
 .template-modal .close-modal {
     background: none;
     border: none;
@@ -349,24 +354,56 @@
 .dark-mode .template-modal {
     background-color: #2d2d2d;
     color: #f1f1f1;
+    border-color: #444;
+}
+
+.dark-mode .modal-content {
+    background-color: #2d2d2d;
 }
 
 .dark-mode .modal-header {
+    background-color: #333;
     border-bottom-color: #444;
 }
 
 .dark-mode .modal-footer {
+    background-color: #333;
     border-top-color: #444;
 }
 
 .dark-mode .form-control {
     background-color: #333;
-    border-color: #555;
+    border-color: #444;
     color: #f1f1f1;
+}
+
+.dark-mode .form-control:focus {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 0 0 3px rgba(0, 166, 126, 0.2);
 }
 
 .dark-mode .form-description {
     color: #bbb;
+}
+
+.dark-mode .close-modal {
+    color: #bbb;
+}
+
+.dark-mode .close-modal:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.dark-mode .secondary-btn {
+    background-color: #333;
+    color: #f1f1f1;
+    border-color: #444;
+}
+
+.dark-mode .secondary-btn:hover {
+    background-color: #444;
+    border-color: #555;
 }
 
 .dark-mode .file-upload-btn {
