@@ -264,6 +264,9 @@
 .no-templates {
     color: #666;
     font-style: italic;
+    font-size: 12px;
+    margin: 8px 0;
+    text-align: left;
 }
 
 /* Templates tab in sidebar */
