@@ -117,7 +117,6 @@ def connect_block_nodes():
 @app.route("/api/blocks/export", methods=["POST"])
 def export_blocks():
     data = request.json
-    print(f"Exporting blocks with data: {data}")
     output_file = data.get("output_file", "generated_pipeline.py")
     blocks_data = data.get("blocks", {})
     connections_data = data.get("connections", [])  # Array of connection objects
@@ -272,7 +271,6 @@ def export_blocks():
 
         # Create a plain connections dict format for execution order
         canvas_connections = {}
-        print("\nconnections being gotten:\n", connections_data)
         for conn in connections_data:
             source_id = conn.get("source")
             target_id = conn.get("target")
@@ -283,12 +281,10 @@ def export_blocks():
                 and source_id in temp_canvas.blocks
                 and target_id in temp_canvas.blocks
             ):
-                print("\nsuccess:", conn.get("sourceNode"), conn.get("inputId"))
                 if source_id not in canvas_connections:
                     canvas_connections[source_id] = []
                 if target_id not in canvas_connections[source_id]:
                     canvas_connections[source_id].append(target_id)
-                print(canvas_connections)
 
         # Determine execution order
         execution_order = determine_execution_order(
@@ -376,19 +372,19 @@ def export_blocks():
                     )
 
             # Log all connections with detailed information
-            connection_type = (
-                "method-specific" if target_method or source_method else "standard"
-            )
-            print(
-                f"Connection: {source_id}{' (' + source_method + ')' if source_method else ''} -> {target_id}{' (' + target_method + ')' if target_method else ''} [{connection_type}]"
-            )
+            # connection_type = (
+            #     "method-specific" if target_method or source_method else "standard"
+            # )
+            # print(
+            #     f"Connection: {source_id}{' (' + source_method + ')' if source_method else ''} -> {target_id}{' (' + target_method + ')' if target_method else ''} [{connection_type}]"
+            # )
 
         # Print out the method_connection_map for debugging
-        print("\nFinal method connection map:")
-        for target_id, methods in method_connection_map.items():
-            print(f"Target {target_id}:")
-            for method, sources in methods.items():
-                print(f"  Method {method}: {sources}")
+        # print("\nFinal method connection map:")
+        # for target_id, methods in method_connection_map.items():
+        # print(f"Target {target_id}:")
+        # for method, sources in methods.items():
+        #     print(f"  Method {method}: {sources}")
 
         # Set the connections on the temp canvas - use the standard format for compatibility
         temp_canvas.connections = canvas_connections
@@ -483,9 +479,9 @@ def generate_python_code(
         var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
-        print(
-            f"Assigned variable name '{var_name}' to block {block_id} of type {class_name}"
-        )
+        # print(
+        #     f"Assigned variable name '{var_name}' to block {block_id} of type {class_name}"
+        # )
 
         # Check if this block uses file paths
         if hasattr(block, "config") and block.config:
@@ -780,7 +776,6 @@ def generate_python_code(
 
                     # Check each connection to see if it connects this source to this target method
                     for conn in connections_data:
-                        print("\n\nCONNN:\n", conn)
                         # if (
                         #     conn.get("source") == source_id
                         #     and conn.get("target") == block_id
