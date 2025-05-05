@@ -81,7 +81,7 @@
     position: absolute;
     top: -10px;
     left: 0;
-    background-image: url('/static/images/icons/arrow_upLeft.png');
+    background-image: url('/static/images/icons/canvas-controls/arrow_upLeft.png');
     background-size: contain;
     background-repeat: no-repeat;
 }
@@ -108,7 +108,7 @@
     position: absolute;
     top: 0;
     right: 0;
-    background-image: url('/static/images/icons/arrow_upRight.png');
+    background-image: url('/static/images/icons/canvas-controls/arrow_upRight.png');
     background-size: contain;
     background-repeat: no-repeat;
     z-index: 1;
@@ -138,7 +138,7 @@
     position: absolute;
     bottom: 0;
     left: 0;
-    background-image: url('/static/images/icons/arrow_down.png');
+    background-image: url('/static/images/icons/canvas-controls/arrow_down.png');
     background-size: contain;
     background-repeat: no-repeat;
 }
