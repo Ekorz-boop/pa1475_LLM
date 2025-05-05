@@ -132,25 +132,6 @@
     color: var(--tag-color);
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    .parameter-table {
-        background: var(--dark-block-bg-color, #2d2d2d);
-    }
-
-    .parameter-table-header {
-        background: var(--dark-header-bg-color, #363636);
-    }
-
-    .parameter-row:hover {
-        background-color: var(--dark-hover-bg-color, #383838);
-    }
-
-    .default-value {
-        background: var(--dark-tag-bg-color, #404040);
-    }
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
     .parameter-table-header,
