@@ -2061,6 +2061,8 @@ class TemplateHandler {
                 if (blockData.config && blockData.config.moduleInfo) {
                     existingBlocks[existingBlockIndex].moduleInfo = blockData.config.moduleInfo;
                 }
+                
+                console.log(`Updated existing block in session storage: ${blockData.id}`);
             } else {
                 // Add new block
                 existingBlocks.push({
@@ -2071,10 +2073,24 @@ class TemplateHandler {
                     id: blockData.id,
                     moduleInfo: blockData.config && blockData.config.moduleInfo ? blockData.config.moduleInfo : null
                 });
+                
+                console.log(`Added new block to session storage: ${blockData.id}`);
             }
             
             // Save to session storage
             sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
+            
+            // Also ensure we have block-specific parameter storage in localStorage
+            if (parameters && Object.keys(parameters).length > 0) {
+                const key = `blockParams-${blockData.id}`;
+                const existingParams = localStorage.getItem(key);
+                
+                if (!existingParams) {
+                    localStorage.setItem(key, JSON.stringify(parameters));
+                    console.log(`Initialized blockParams for ${blockData.id}`);
+                }
+            }
+            
             console.log(`Saved custom block to session storage: ${blockData.className} (ID: ${blockData.id})`);
         } catch (e) {
             console.error('Error saving custom block to session storage:', e);
