@@ -378,14 +378,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Format connections for the server
-                const formattedConnections = connections.map(conn => ({
-                    source: conn.source,
-                    target: conn.target,
-                    inputId: conn.inputId,
-                    sourceMethod: conn.sourceMethod || undefined,
-                    targetMethod: conn.targetMethod || undefined,
-                    sourceNode: conn.sourceNode || undefined
-                }));
+                const formattedConnections = connections.map(conn => {
+                    // Create a basic connection object
+                    const formattedConn = {
+                        source: conn.source,
+                        target: conn.target,
+                        inputId: conn.inputId
+                    };
+
+                    // Add method-specific information if available
+                    if (conn.sourceMethod) {
+                        formattedConn.sourceMethod = conn.sourceMethod;
+                    }
+
+                    if (conn.targetMethod) {
+                        formattedConn.targetMethod = conn.targetMethod;
+                    }
+
+                    if (conn.sourceNode) {
+                        formattedConn.sourceNode = conn.sourceNode;
+                    }
+
+                    return formattedConn;
+                });
+
+                // Log the formatted connections for debugging
+                console.log('Formatted connections for export:', formattedConnections);
 
                 updateProgress(50, 'Sending pipeline data to server');
 
@@ -927,15 +945,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const outputId = sourceNode.getAttribute('data-output');
             // Check if this is a method-specific output node
             if (outputId && outputId.includes('_output')) {
-                connection.sourceMethod = outputId.split('_')[0];
+                const methodName = outputId.split('_')[0];
+                connection.sourceMethod = methodName;
                 connection.sourceNode = outputId;
+                console.log(`Source method: ${methodName}, Source node: ${outputId}`);
             }
         }
 
         // Check if this is a method-specific input node
         if (inputId && inputId.includes('_input')) {
-            connection.targetMethod = inputId.split('_')[0];
+            const methodName = inputId.split('_')[0];
+            connection.targetMethod = methodName;
+            console.log(`Target method: ${methodName}, Target input: ${inputId}`);
         }
+
+        // Log the complete connection object for debugging
+        console.log('Creating connection:', connection);
 
         connections.push(connection);
 
@@ -1913,45 +1938,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Handle mouseup on document for creating connections
-        if (!document.connectionHandlerAdded) {
-            document.addEventListener('mouseup', () => {
-                if (draggingConnection && sourceNode && hoveredInputNode) {
-                    const sourceBlock = sourceNode.closest('.block');
-                    const targetBlock = hoveredInputNode.closest('.block');
-
-                    if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
-                        // Get data-input attribute value for the hoveredInputNode
-                        const inputId = hoveredInputNode.getAttribute('data-input');
-
-                        // Create the connection with the specific input/output nodes
-                        createConnection(sourceBlock, targetBlock, inputId);
-
-                        console.log(`Created connection from ${sourceBlock.id} to ${targetBlock.id} (input: ${inputId})`);
-
-                        // For display blocks, update directly
-                        if (targetBlock.getAttribute('data-block-type') === 'display') {
-                            processBlock(targetBlock);
-                        }
-                    }
-
-                    // Reset connection UI state
-                    hoveredInputNode.classList.remove('input-node-hover');
-                    hoveredInputNode = null;
-                }
-
-                // Clean up temporary connection
-                if (tempConnection && tempConnection.parentNode) {
-                    tempConnection.parentNode.removeChild(tempConnection);
-                }
-
-                tempConnection = null;
-                draggingConnection = false;
-                sourceNode = null;
-            });
-
-            document.connectionHandlerAdded = true;
-        }
+        // We don't need to add a mouseup handler here because it's already handled
+        // in the global document mouseup event listener
     }
 
     /**
