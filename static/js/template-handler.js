@@ -1182,37 +1182,73 @@ class TemplateHandler {
                     
                     // Set the selected method if available
                     if (methodSelect && blockData.config.selectedMethod) {
-                        // Add a small delay to let the methods populate
-                        setTimeout(() => {
+                        // Store the parameters for later application
+                        const parameters = blockData.config.parameters || {};
+                        
+                        // Wait for methods to be fully loaded before trying to select one
+                        const waitForMethodsToLoad = () => {
+                            if (methodSelect.options.length <= 1) {
+                                // Methods are not yet loaded, wait and try again
+                                console.log(`Waiting for methods to load for ${blockData.className}...`);
+                                setTimeout(waitForMethodsToLoad, 250);
+                                return;
+                            }
+                            
+                            // Now methods are loaded, set the selected method
                             methodSelect.value = blockData.config.selectedMethod;
+                            console.log(`Selected method ${blockData.config.selectedMethod} for ${blockData.className}`);
                             
                             // Trigger change event to update parameters
                             const event = new Event('change');
                             methodSelect.dispatchEvent(event);
                             
-                            console.log(`Selected method ${blockData.config.selectedMethod} for ${blockData.className}`);
-                            
-                            // After method selection, apply parameter values
-                            setTimeout(() => {
-                                if (blockData.config.parameters) {
-                                    // Find all parameter inputs and set their values
-                                    Object.entries(blockData.config.parameters).forEach(([paramName, value]) => {
-                                        const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
-                                        if (paramRow) {
-                                            const input = paramRow.querySelector('input, select, textarea');
-                                            if (input) {
-                                                input.value = value;
-                                                
-                                                // Save the parameter value
-                                                this.saveParameterValue(blockData.id, paramName, value);
-                                                
-                                                console.log(`Set parameter ${paramName} = ${value} for ${blockData.className}`);
-                                            }
-                                        }
-                                    });
+                            // Wait for parameter rows to be created before setting values
+                            const waitForParametersToLoad = () => {
+                                const paramRows = block.querySelectorAll('.parameter-row');
+                                const paramNames = Object.keys(parameters);
+                                let allParamsFound = true;
+                                
+                                // Check if all parameter rows exist
+                                for (const paramName of paramNames) {
+                                    const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
+                                    if (!paramRow) {
+                                        allParamsFound = false;
+                                        break;
+                                    }
                                 }
-                            }, 500);
-                        }, 500);
+                                
+                                if (!allParamsFound && paramRows.length < paramNames.length) {
+                                    // Parameters are not yet loaded, wait and try again
+                                    console.log(`Waiting for parameters to load for ${blockData.className}...`);
+                                    setTimeout(waitForParametersToLoad, 250);
+                                    return;
+                                }
+                                
+                                // Now parameters are loaded, set their values
+                                Object.entries(parameters).forEach(([paramName, value]) => {
+                                    const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
+                                    if (paramRow) {
+                                        const input = paramRow.querySelector('input, select, textarea');
+                                        if (input) {
+                                            input.value = value;
+                                            
+                                            // Save the parameter value
+                                            this.saveParameterValue(blockData.id, paramName, value);
+                                            
+                                            console.log(`Set parameter ${paramName} = ${value} for ${blockData.className}`);
+                                        }
+                                    } else {
+                                        console.warn(`Parameter row for ${paramName} not found`);
+                                    }
+                                });
+                            };
+                            
+                            // Start waiting for parameters
+                            setTimeout(waitForParametersToLoad, 250);
+                        };
+                        
+                        // Start waiting for methods
+                        waitForMethodsToLoad();
                     }
                 }
                 
@@ -2000,6 +2036,13 @@ class TemplateHandler {
                 }
             }
             
+            // Capture selected method and parameters from template
+            let selectedMethod = blockData.config && blockData.config.selectedMethod ? 
+                blockData.config.selectedMethod : null;
+            
+            let parameters = blockData.config && blockData.config.parameters ? 
+                {...blockData.config.parameters} : {};
+                
             // Check if block already exists
             const existingBlockIndex = existingBlocks.findIndex(block => block.id === blockData.id);
             
@@ -2008,50 +2051,33 @@ class TemplateHandler {
                 existingBlocks[existingBlockIndex] = {
                     ...existingBlocks[existingBlockIndex],
                     className: blockData.className,
-                    inputNodes: blockData.inputs || [],
-                    outputNodes: blockData.outputs || [],
                     methods: methods,
-                    moduleInfo: blockData.config?.moduleInfo || existingBlocks[existingBlockIndex].moduleInfo
+                    selectedMethod: selectedMethod,
+                    parameters: parameters,
+                    id: blockData.id
                 };
+                
+                // Store module info if available
+                if (blockData.config && blockData.config.moduleInfo) {
+                    existingBlocks[existingBlockIndex].moduleInfo = blockData.config.moduleInfo;
+                }
             } else {
                 // Add new block
                 existingBlocks.push({
-                    id: blockData.id,
                     className: blockData.className,
-                    inputNodes: blockData.inputs || [],
-                    outputNodes: blockData.outputs || [],
                     methods: methods,
-                    moduleInfo: blockData.config?.moduleInfo
+                    selectedMethod: selectedMethod,
+                    parameters: parameters,
+                    id: blockData.id,
+                    moduleInfo: blockData.config && blockData.config.moduleInfo ? blockData.config.moduleInfo : null
                 });
             }
             
-            // Save back to sessionStorage
+            // Save to session storage
             sessionStorage.setItem('customBlocks', JSON.stringify(existingBlocks));
-            console.log(`Saved block ${blockData.id} (${blockData.className}) to session storage`);
-            
-            // Also save module info separately if available
-            if (blockData.config?.moduleInfo) {
-                const moduleInfo = blockData.config.moduleInfo;
-                if (moduleInfo.library && moduleInfo.module) {
-                    if (typeof window.saveModuleInfo === 'function') {
-                        window.saveModuleInfo(
-                            blockData.className, 
-                            moduleInfo.library, 
-                            moduleInfo.module, 
-                            blockData.id
-                        );
-                    }
-                }
-            }
-            
-            // Save methods separately if available
-            if (methods && methods.length > 0) {
-                if (typeof window.saveMethods === 'function') {
-                    window.saveMethods(blockData.className, methods, blockData.id);
-                }
-            }
-        } catch (error) {
-            console.error('Error saving custom block to session storage:', error);
+            console.log(`Saved custom block to session storage: ${blockData.className} (ID: ${blockData.id})`);
+        } catch (e) {
+            console.error('Error saving custom block to session storage:', e);
         }
     }
 

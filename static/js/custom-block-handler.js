@@ -1697,44 +1697,32 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
 function populateMethodsForBlock(block, className, blockId) {
     const methodSelect = block.querySelector('.method-select');
     if (!methodSelect) return;
-
-    console.log(`Populating methods for ${className} (block ID: ${blockId})`);
-
-    // Clear existing options except the first one (Select method...)
-    while (methodSelect.options.length > 1) {
-        methodSelect.remove(1);
-    }
-
-    // Try to find methods from sessionStorage for this specific block
-    let customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-
-    // First look for the specific block by ID
-    let blockData = blockId ? customBlocks.find(b => b.id === blockId) : null;
-
-    // If not found and this is a canvas instance, try to find the original block
-    if (!blockData && block.hasAttribute('data-original-block-id')) {
-        const originalId = block.getAttribute('data-original-block-id');
-        blockData = customBlocks.find(b => b.id === originalId);
-    }
-
-    // If still not found, try to find by className
-    if (!blockData) {
-        blockData = customBlocks.find(b => b.className === className);
-    }
-
-    // As a fallback, also check localStorage (for backward compatibility)
-    if (!blockData) {
-        try {
-            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
-            blockData = localBlocks.find(b => b.className === className);
-        } catch (e) {
-            console.warn('Error reading from localStorage:', e);
+    
+    console.log(`Populating methods for block ${blockId || className}`);
+    
+    // Clear existing options
+    methodSelect.innerHTML = '<option value="">Select Method</option>';
+    
+    // Try to find the block data with methods first by blockId
+    let blockData = null;
+    
+    try {
+        const customBlocksSession = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        if (blockId) {
+            blockData = customBlocksSession.find(b => b.id === blockId);
         }
+        
+        // If not found by ID, try by className
+        if (!blockData) {
+            blockData = customBlocksSession.find(b => b.className === className);
+        }
+    } catch (e) {
+        console.warn('Error retrieving block data from sessionStorage:', e);
     }
-
+    
     if (blockData && blockData.methods && blockData.methods.length > 0) {
         console.log(`Found ${blockData.methods.length} methods for ${blockId || className}: ${blockData.methods.join(', ')}`);
-
+        
         // Add all methods to select
         blockData.methods.forEach(method => {
             const option = document.createElement('option');
@@ -1742,83 +1730,27 @@ function populateMethodsForBlock(block, className, blockId) {
             option.textContent = method;
             methodSelect.appendChild(option);
         });
-
-        // Set the first method as selected (often __init__)
-        if (methodSelect.options.length > 1) {
-            methodSelect.selectedIndex = 1;
+        
+        // If we have a selectedMethod from the saved data, use it
+        if (blockData.selectedMethod) {
+            methodSelect.value = blockData.selectedMethod;
+            console.log(`Set selected method to ${blockData.selectedMethod} for block ${blockId || className}`);
+            
             // Trigger change event to update parameters
-            const changeEvent = new Event('change');
-            methodSelect.dispatchEvent(changeEvent);
-        }
-    } else {
-        // If no methods found, fetch them from the server or use defaults
-        console.log(`No methods found for ${blockId || className}, fetching from server...`);
-
-        // Find module info from sessionStorage
-        const moduleInfo = findModuleInfoForClass(className);
-
-        if (moduleInfo) {
-            console.log(`Found module info for ${className}: ${moduleInfo.library}/${moduleInfo.module}`);
-
-            // Fetch methods from the server
-            fetch(`/api/langchain/class_details?library=${moduleInfo.library}&module=${moduleInfo.module}&class_name=${className}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch methods: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log(`Fetched methods for ${blockId || className}:`, data);
-
-                    // Add constructor
-                    const constructorOption = document.createElement('option');
-                    constructorOption.value = '__init__';
-                    constructorOption.textContent = 'Constructor (__init__)';
-                    methodSelect.appendChild(constructorOption);
-
-                    // Add other methods
-                    if (data.methods && data.methods.length > 0) {
-                        data.methods.forEach(method => {
-                            if (method === '__init__') return; // Skip constructor, already added
-
-                            const option = document.createElement('option');
-                            option.value = method;
-                            option.textContent = method;
-                            methodSelect.appendChild(option);
-                        });
-
-                        // Save methods to sessionStorage for this specific block
-                        const methodsToSave = ['__init__', ...data.methods];
-                        saveMethods(className, methodsToSave, blockId);
-                        console.log(`Saved ${methodsToSave.length} methods from API for ${blockId || className}`);
-
-                        // Set constructor as selected by default
-                        if (methodSelect.options.length > 1) {
-                            methodSelect.selectedIndex = 1;
-                            // Trigger change event to update parameters
-                            const changeEvent = new Event('change');
-                            methodSelect.dispatchEvent(changeEvent);
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error(`Error fetching methods for ${blockId || className}:`, error);
-                    // Set first method as selected
-                    if (methodSelect.options.length > 1) {
-                        methodSelect.selectedIndex = 1;
-                        // Trigger change event
-                        const changeEvent = new Event('change');
-                        methodSelect.dispatchEvent(changeEvent);
-                    }
-                });
+            const event = new Event('change');
+            methodSelect.dispatchEvent(event);
+            
+            // After method selection, manually apply any saved parameters
+            if (blockData.parameters && Object.keys(blockData.parameters).length > 0) {
+                // Save parameters to localStorage for the updateBlockParameters function to find
+                localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(blockData.parameters));
+                console.log(`Saved parameters for ${blockId}:`, blockData.parameters);
+            }
         } else {
-            console.warn(`No module info found for ${blockId || className}`);
-
-            // Set first method as selected
+            // Set the first method as selected (often __init__)
             if (methodSelect.options.length > 1) {
                 methodSelect.selectedIndex = 1;
-                // Trigger change event
+                // Trigger change event to update parameters
                 const changeEvent = new Event('change');
                 methodSelect.dispatchEvent(changeEvent);
             }
