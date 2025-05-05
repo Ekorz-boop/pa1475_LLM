@@ -1139,4 +1139,32 @@ body.dark-mode {
 .dark-mode .toast.fade-out {
     opacity: 0;
     transform: translateX(10%);
+}
+
+/* Progress Modal Dark Mode */
+.dark-mode #progress-modal {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.dark-mode #progress-modal .modal-content {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #progress-modal h3 {
+    color: var(--text-color);
+}
+
+.dark-mode #progress-modal .progress-bar {
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.dark-mode #progress-modal .progress-fill {
+    background-color: var(--langchain-primary);
+}
+
+.dark-mode #progress-modal #progress-status {
+    color: var(--text-color);
 } 
