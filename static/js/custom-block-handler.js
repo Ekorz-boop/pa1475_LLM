@@ -898,9 +898,10 @@ class CustomBlockHandler {
      * Render parameter input fields
      * @param {string} methodName - The method name
      * @param {Array} parameters - The parameters to render inputs for
+     * @param {string} blockId - The ID of the block these parameters belong to
      * @returns {string} - HTML for parameter inputs
      */
-    renderParameterInputs(methodName, parameters) {
+    renderParameterInputs(methodName, parameters, blockId = '') {
         let html = '<div class="param-group">';
 
         parameters.forEach(param => {
@@ -919,6 +920,9 @@ class CustomBlockHandler {
             // Determine if the parameter is likely a file path
             const isFilePath = param.name.toLowerCase().includes('file') || 
                                param.name.toLowerCase().includes('path');
+
+            // Block ID attribute for targeting the right block
+            const blockIdAttr = blockId ? ` data-block-id="${blockId}"` : '';
             
             // Create input field with parameter details
             html += `
@@ -933,6 +937,7 @@ class CustomBlockHandler {
                             class="param-input"
                             data-method="${methodName}"
                             data-param="${param.name}"
+                            ${blockIdAttr}
                             value="${storedValue}"
                             placeholder="${param.default || ''}">
                         ${isFilePath ? `
@@ -940,6 +945,7 @@ class CustomBlockHandler {
                             class="file-upload-btn" 
                             data-method="${methodName}" 
                             data-param="${param.name}"
+                            ${blockIdAttr}
                             title="Upload files">
                             <span>📁</span>
                         </button>` : ''}
@@ -1697,44 +1703,34 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
 function populateMethodsForBlock(block, className, blockId) {
     const methodSelect = block.querySelector('.method-select');
     if (!methodSelect) return;
-
-    console.log(`Populating methods for ${className} (block ID: ${blockId})`);
-
-    // Clear existing options except the first one (Select method...)
-    while (methodSelect.options.length > 1) {
-        methodSelect.remove(1);
-    }
-
-    // Try to find methods from sessionStorage for this specific block
-    let customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-
-    // First look for the specific block by ID
-    let blockData = blockId ? customBlocks.find(b => b.id === blockId) : null;
-
-    // If not found and this is a canvas instance, try to find the original block
-    if (!blockData && block.hasAttribute('data-original-block-id')) {
-        const originalId = block.getAttribute('data-original-block-id');
-        blockData = customBlocks.find(b => b.id === originalId);
-    }
-
-    // If still not found, try to find by className
-    if (!blockData) {
-        blockData = customBlocks.find(b => b.className === className);
-    }
-
-    // As a fallback, also check localStorage (for backward compatibility)
-    if (!blockData) {
-        try {
-            const localBlocks = JSON.parse(localStorage.getItem('customBlocks') || '[]');
-            blockData = localBlocks.find(b => b.className === className);
-        } catch (e) {
-            console.warn('Error reading from localStorage:', e);
+    
+    console.log(`Populating methods for block ${blockId || className}`);
+    
+    // Clear existing options
+    methodSelect.innerHTML = '<option value="">Select Method</option>';
+    
+    // Try to find the block data with methods first by blockId
+    let blockData = null;
+    
+    try {
+        const customBlocksSession = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        if (blockId) {
+            blockData = customBlocksSession.find(b => b.id === blockId);
+            console.log(`Looking for block data by ID ${blockId}: ${blockData ? 'Found' : 'Not found'}`);
         }
+        
+        // If not found by ID, try by className
+        if (!blockData) {
+            blockData = customBlocksSession.find(b => b.className === className);
+            console.log(`Looking for block data by className ${className}: ${blockData ? 'Found' : 'Not found'}`);
+        }
+    } catch (e) {
+        console.warn('Error retrieving block data from sessionStorage:', e);
     }
-
+    
     if (blockData && blockData.methods && blockData.methods.length > 0) {
         console.log(`Found ${blockData.methods.length} methods for ${blockId || className}: ${blockData.methods.join(', ')}`);
-
+        
         // Add all methods to select
         blockData.methods.forEach(method => {
             const option = document.createElement('option');
@@ -1742,87 +1738,63 @@ function populateMethodsForBlock(block, className, blockId) {
             option.textContent = method;
             methodSelect.appendChild(option);
         });
-
-        // Set the first method as selected (often __init__)
-        if (methodSelect.options.length > 1) {
-            methodSelect.selectedIndex = 1;
-            // Trigger change event to update parameters
-            const changeEvent = new Event('change');
-            methodSelect.dispatchEvent(changeEvent);
-        }
-    } else {
-        // If no methods found, fetch them from the server or use defaults
-        console.log(`No methods found for ${blockId || className}, fetching from server...`);
-
-        // Find module info from sessionStorage
-        const moduleInfo = findModuleInfoForClass(className);
-
-        if (moduleInfo) {
-            console.log(`Found module info for ${className}: ${moduleInfo.library}/${moduleInfo.module}`);
-
-            // Fetch methods from the server
-            fetch(`/api/langchain/class_details?library=${moduleInfo.library}&module=${moduleInfo.module}&class_name=${className}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch methods: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log(`Fetched methods for ${blockId || className}:`, data);
-
-                    // Add constructor
-                    const constructorOption = document.createElement('option');
-                    constructorOption.value = '__init__';
-                    constructorOption.textContent = 'Constructor (__init__)';
-                    methodSelect.appendChild(constructorOption);
-
-                    // Add other methods
-                    if (data.methods && data.methods.length > 0) {
-                        data.methods.forEach(method => {
-                            if (method === '__init__') return; // Skip constructor, already added
-
-                            const option = document.createElement('option');
-                            option.value = method;
-                            option.textContent = method;
-                            methodSelect.appendChild(option);
-                        });
-
-                        // Save methods to sessionStorage for this specific block
-                        const methodsToSave = ['__init__', ...data.methods];
-                        saveMethods(className, methodsToSave, blockId);
-                        console.log(`Saved ${methodsToSave.length} methods from API for ${blockId || className}`);
-
-                        // Set constructor as selected by default
-                        if (methodSelect.options.length > 1) {
-                            methodSelect.selectedIndex = 1;
-                            // Trigger change event to update parameters
-                            const changeEvent = new Event('change');
-                            methodSelect.dispatchEvent(changeEvent);
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error(`Error fetching methods for ${blockId || className}:`, error);
-                    // Set first method as selected
-                    if (methodSelect.options.length > 1) {
-                        methodSelect.selectedIndex = 1;
-                        // Trigger change event
-                        const changeEvent = new Event('change');
-                        methodSelect.dispatchEvent(changeEvent);
-                    }
-                });
+        
+        // Store the block-specific selectedMethod
+        let selectedMethod = null;
+        
+        // If we have a selectedMethod from the saved data, use it
+        if (blockData.selectedMethod) {
+            selectedMethod = blockData.selectedMethod;
+            console.log(`Using saved selectedMethod for ${blockId}: ${selectedMethod}`);
         } else {
-            console.warn(`No module info found for ${blockId || className}`);
-
-            // Set first method as selected
+            // Default to the first available method (often __init__)
+            if (methodSelect.options.length > 1) {
+                selectedMethod = methodSelect.options[1].value;
+                console.log(`Defaulting to first method for ${blockId}: ${selectedMethod}`);
+            }
+        }
+        
+        if (selectedMethod) {
+            methodSelect.value = selectedMethod;
+            
+            // Store this selection in the block's data
+            try {
+                const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                const index = customBlocks.findIndex(b => b.id === blockId);
+                if (index >= 0) {
+                    customBlocks[index].selectedMethod = selectedMethod;
+                    sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
+                    console.log(`Saved selectedMethod ${selectedMethod} for block ${blockId}`);
+                }
+            } catch (e) {
+                console.warn('Error saving selectedMethod to sessionStorage:', e);
+            }
+            
+            // Trigger change event to update parameters
+            const event = new Event('change');
+            methodSelect.dispatchEvent(event);
+            
+            // After method selection, apply any saved parameters
+            if (blockData.parameters && Object.keys(blockData.parameters).length > 0) {
+                // First ensure we have blockParams for this specific block
+                const existingParams = localStorage.getItem(`blockParams-${blockId}`);
+                if (!existingParams) {
+                    // Save parameters to localStorage for this specific block
+                    localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(blockData.parameters));
+                    console.log(`Initialized parameters for block ${blockId}:`, blockData.parameters);
+                }
+            }
+        } else {
+            // No selected method found, select the first one by default
             if (methodSelect.options.length > 1) {
                 methodSelect.selectedIndex = 1;
-                // Trigger change event
+                // Trigger change event to update parameters
                 const changeEvent = new Event('change');
                 methodSelect.dispatchEvent(changeEvent);
             }
         }
+    } else {
+        console.warn(`No methods found for block ${blockId || className}`);
     }
 }
 
@@ -1933,6 +1905,10 @@ function updateBlockParameters(block, methodName) {
 
     // Get the block ID
     const blockId = block.id;
+    if (!blockId) {
+        console.error("Block ID missing, can't update parameters");
+        return;
+    }
 
     // Find module info for this class
     let moduleInfo = null;
@@ -1966,13 +1942,13 @@ function updateBlockParameters(block, methodName) {
         }
     }
 
-    // Get ALL saved parameters for this block from localStorage, not just for the current method
+    // Get saved parameters for THIS SPECIFIC BLOCK from localStorage
     let savedMethodParams = {};
     try {
         const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
         savedMethodParams = savedParams;
     } catch (e) {
-        console.warn('Error fetching saved parameters:', e);
+        console.warn(`Error fetching saved parameters for block ${blockId}:`, e);
     }
 
     // If we found module info, try to fetch class details
@@ -1996,6 +1972,7 @@ function updateBlockParameters(block, methodName) {
             })
             .then(data => {
                 console.log(`Fetched class details for ${className}:`, data);
+                console.log(`Using parameters specific to block ID: ${blockId}`);
 
                 // Remove loading message
                 paramsContainer.innerHTML = '';
@@ -2094,15 +2071,16 @@ function updateBlockParameters(block, methodName) {
                     // Find the parameter details
                     const paramInfo = allMethodParams.find(p => p.name === paramSelect.value);
                     if (paramInfo) {
-                        // Get value from saved parameters or current params
+                        // Get value ONLY from this block's saved parameters or current params
                         let savedValue = '';
                         if (savedMethodParams[paramInfo.name]) {
                             savedValue = savedMethodParams[paramInfo.name];
+                            console.log(`Found saved value for ${blockId}.${paramInfo.name}: ${savedValue}`);
                         } else if (currentParams[paramInfo.name]) {
                             savedValue = currentParams[paramInfo.name];
                         }
 
-                        // Add the parameter row
+                        // Add the parameter row with block ID
                         const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId);
 
                         // Focus on the value input to encourage the user to enter a value
@@ -2145,19 +2123,20 @@ function updateBlockParameters(block, methodName) {
                     if (savedMethodParams[param.name]) {
                         hasValue = true;
                         savedValue = savedMethodParams[param.name];
+                        console.log(`Using saved value for ${blockId}.${param.name}: ${savedValue}`);
                     } else if (currentParams[param.name]) {
                         hasValue = true;
                         savedValue = currentParams[param.name];
                     }
 
-                    // Always show parameters with values
-                    if (hasValue && savedValue.trim() !== '') {
+                    // Show required parameters or parameters with values
+                    if (hasValue || param.required) {
                         addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
                         displayedParams.add(param.name);
                     }
                 });
 
-                // Then show any saved parameters from other methods that have values
+                // Then show any saved parameters from other methods that have values (for THIS BLOCK ONLY)
                 Object.keys(savedMethodParams).forEach(paramName => {
                     // Skip if already displayed
                     if (displayedParams.has(paramName)) return;
@@ -2240,7 +2219,7 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
 
     // Check if this parameter might be a file path
     const isFilePath = paramName.toLowerCase().includes('file') || 
-                       paramName.toLowerCase().includes('path');
+                      paramName.toLowerCase().includes('path');
 
     // Create input container for file path parameters
     const inputContainer = document.createElement('div');
@@ -2252,14 +2231,25 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     valueInput.className = 'param-value';
     valueInput.placeholder = 'Value';
     valueInput.value = value;
+    
+    // Add data attribute to mark which block this parameter belongs to
+    valueInput.setAttribute('data-block-id', blockId);
+    valueInput.setAttribute('data-param-name', paramName);
 
     // Save value on input instead of just change event to be more responsive
     valueInput.addEventListener('input', () => {
+        if (!blockId) {
+            console.warn('Cannot save parameter value: No block ID provided');
+            return;
+        }
+        console.log(`Saving parameter for ${blockId}.${paramName}: ${valueInput.value}`);
         saveParameterValue(blockId, paramName, valueInput.value);
     });
 
     // Also keep the change event for compatibility
     valueInput.addEventListener('change', () => {
+        if (!blockId) return;
+        console.log(`Parameter changed for ${blockId}.${paramName}: ${valueInput.value}`);
         saveParameterValue(blockId, paramName, valueInput.value);
     });
 
@@ -2273,7 +2263,23 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
         fileUploadBtn.className = 'file-upload-btn';
         fileUploadBtn.title = 'Upload files';
         fileUploadBtn.setAttribute('data-param', paramName);
+        fileUploadBtn.setAttribute('data-block-id', blockId); // Add block ID
+        fileUploadBtn.setAttribute('data-param-name', paramName); // Add param name for easier lookup
         fileUploadBtn.innerHTML = '<span>📁</span>';
+        
+        // Add click event to directly handle file uploads for this specific block and parameter
+        fileUploadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log(`File upload button clicked for block ${blockId}, parameter ${paramName}`);
+            
+            if (typeof FilePathHandler === 'object' && typeof FilePathHandler.showFileSelectionModal === 'function') {
+                // Get current value from input
+                const currentValue = valueInput.value;
+                // Use function from FilePathHandler namespace but ensure we pass blockId
+                FilePathHandler.showFileSelectionModal('__init__', paramName, currentValue, blockId, valueInput);
+            }
+        });
         
         inputContainer.appendChild(fileUploadBtn);
         paramRow.classList.add('file-param-row');
@@ -2290,6 +2296,7 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
                 const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
                 delete savedParams[paramName];
                 localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+                console.log(`Removed parameter ${paramName} from block ${blockId}`);
             } catch (e) {
                 console.warn('Error removing saved parameter:', e);
             }
@@ -2313,21 +2320,50 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     container.appendChild(paramRow);
 
     // Save the parameter value immediately (even if empty) to track that user has explicitly added it
-    saveParameterValue(blockId, paramName, value);
+    if (blockId) {
+        saveParameterValue(blockId, paramName, value);
+    } else {
+        console.warn('Cannot save parameter value: No block ID provided');
+    }
 
     return paramRow;
 }
 
 // Helper function to save parameter value
 function saveParameterValue(blockId, paramName, value) {
-    if (blockId) {
-        try {
-            const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
-            savedParams[paramName] = value;
-            localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
-        } catch (e) {
-            console.warn('Error saving parameter value:', e);
+    if (!blockId) {
+        console.error('Cannot save parameter: Missing block ID');
+        return;
+    }
+    
+    try {
+        const key = `blockParams-${blockId}`;
+        const savedParams = JSON.parse(localStorage.getItem(key) || '{}');
+        
+        // Save the new value
+        savedParams[paramName] = value;
+        
+        // Store back in localStorage with the block-specific key
+        localStorage.setItem(key, JSON.stringify(savedParams));
+        
+        // Update the custom blocks in session storage if needed
+        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+        const blockIndex = customBlocks.findIndex(b => b.id === blockId);
+        
+        if (blockIndex >= 0) {
+            // Make sure parameters object exists
+            if (!customBlocks[blockIndex].parameters) {
+                customBlocks[blockIndex].parameters = {};
+            }
+            
+            // Save the parameter
+            customBlocks[blockIndex].parameters[paramName] = value;
+            
+            // Update session storage
+            sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
         }
+    } catch (e) {
+        console.error(`Error saving parameter ${paramName} for block ${blockId}:`, e);
     }
 }
 
@@ -2347,16 +2383,34 @@ const FilePathHandler = {
                 // Get the method name and parameter name
                 const methodName = button.getAttribute('data-method') || '__init__';
                 const paramName = button.getAttribute('data-param');
+                const blockId = button.getAttribute('data-block-id');
+                
+                if (!blockId) {
+                    console.error('Missing block ID for file upload button');
+                    return;
+                }
+                
+                console.log(`File upload clicked for block ${blockId}, parameter ${paramName}`);
                 
                 // Find the input element - try multiple selectors to ensure we find it
                 let inputElement = null;
                 
-                // First try to find by data attributes
-                if (methodName && paramName) {
-                    inputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+                // First try to find within the same block using the blockId
+                const block = document.getElementById(blockId);
+                if (block) {
+                    // Look for input in the parameter row with matching parameter name
+                    const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
+                    if (paramRow) {
+                        inputElement = paramRow.querySelector('.param-value') || paramRow.querySelector('input[type="text"]');
+                    }
                 }
                 
-                // If not found, try to find it within the parameter row
+                // If not found, try more general approaches but still within the block
+                if (!inputElement && methodName && paramName && block) {
+                    inputElement = block.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
+                }
+                
+                // If still not found, look for it in relation to the button itself
                 if (!inputElement) {
                     const paramRow = button.closest('.parameter-row');
                     if (paramRow) {
@@ -2367,10 +2421,10 @@ const FilePathHandler = {
                 // Get current value (comma-separated paths)
                 const currentValue = inputElement ? inputElement.value : '';
                 
-                console.log('File upload clicked:', { methodName, paramName, currentValue });
+                console.log('Current file path value:', currentValue);
                 
-                // Show file selection modal
-                this.showFileSelectionModal(methodName, paramName, currentValue);
+                // Show file selection modal with block ID
+                this.showFileSelectionModal(methodName, paramName, currentValue, blockId, inputElement);
             }
         });
     },
@@ -2464,48 +2518,38 @@ const FilePathHandler = {
     },
 
     // Show file selection modal
-    showFileSelectionModal(methodName, paramName, currentValue) {
+    showFileSelectionModal(methodName, paramName, currentValue, blockId, targetInputElement) {
         // First check if there's already an open file selection modal and remove it
         const existingModal = document.querySelector('.file-selection-modal');
         if (existingModal) {
             document.body.removeChild(existingModal);
         }
     
-        // Generate a unique key for this parameter
-        const paramKey = `${methodName}_${paramName}`;
+        // Generate a unique key for this parameter that includes the block ID
+        const paramKey = `${blockId}_${methodName}_${paramName}`;
         
-        // Store the current input element reference for when we save
-        let targetInputElement = null;
-        
-        // Try to find by data attributes
-        if (methodName && paramName) {
-            targetInputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
-        }
-        
-        // Try to find by parameter row
-        if (!targetInputElement) {
-            const paramRows = document.querySelectorAll(`.parameter-row[data-param-name="${paramName}"]`);
-            if (paramRows.length > 0) {
-                targetInputElement = paramRows[0].querySelector('.param-value');
-            }
-        }
+        console.log(`Opening file selection modal with paramKey: ${paramKey}`);
         
         // Initialize selected files for this parameter if not already done
         if (!this.selectedFiles[paramKey]) {
             // Parse any existing files from the current input value
             const filenames = this.extractFilePaths(currentValue);
             this.selectedFiles[paramKey] = filenames.map(name => ({ name }));
+            console.log(`Initialized files for ${paramKey}:`, filenames);
         }
 
         // Create modal markup
         const modal = document.createElement('div');
         modal.className = 'file-selection-modal';
-        // Store reference to the target input element
+        // Store references to help identify which block and parameter we're editing
         modal.dataset.targetInput = paramKey;
+        modal.dataset.blockId = blockId;
+        modal.dataset.paramName = paramName;
         modal.innerHTML = `
             <div class="file-selection-content">
                 <div class="file-selection-header">
                     <h3>Select Files for ${paramName}</h3>
+                    <span class="file-selection-block-id">Block ID: ${blockId}</span>
                     <button class="close-modal">×</button>
                 </div>
                 <div class="file-selection-body">
@@ -2544,13 +2588,24 @@ const FilePathHandler = {
         cancelBtn.addEventListener('click', () => this.closeModal(modal));
         
         saveBtn.addEventListener('click', () => {
-            // Find the corresponding input element using the stored reference
+            // First try to use the provided input element reference
             let inputElement = targetInputElement;
             
-            // If we still can't find it, use more aggressive DOM search
+            // If not available, try to find the input element by block ID and parameter name
+            if (!inputElement && blockId && paramName) {
+                const block = document.getElementById(blockId);
+                if (block) {
+                    const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
+                    if (paramRow) {
+                        inputElement = paramRow.querySelector('.param-value');
+                    }
+                }
+            }
+            
+            // If still not found, try a more general approach
             if (!inputElement) {
-                // Look for any input that matches this parameter name
-                const allInputs = document.querySelectorAll('input.param-value, input.param-input');
+                // Look for any input within blocks that matches this parameter name and has the right block ID
+                const allInputs = document.querySelectorAll('input.param-value[data-block-id="' + blockId + '"], input.param-input[data-block-id="' + blockId + '"]');
                 for (const input of allInputs) {
                     const paramAttr = input.getAttribute('data-param');
                     const paramRow = input.closest('.parameter-row');
@@ -2570,16 +2625,27 @@ const FilePathHandler = {
                 );
                 
                 // Update input value with comma-space separated file paths
-                // This ensures proper formatting for both visual display and parsing
                 inputElement.value = filePaths.join(', ');
                 
                 // Trigger change event to save the value
                 const event = new Event('change', { bubbles: true });
                 inputElement.dispatchEvent(event);
                 
-                console.log('Updated input with file paths:', inputElement.value);
+                console.log(`Updated input for block ${blockId} with file paths:`, inputElement.value);
+                
+                // Also save to localStorage directly to ensure it's stored properly
+                if (blockId && paramName) {
+                    try {
+                        const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+                        savedParams[paramName] = inputElement.value;
+                        localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+                        console.log(`Also saved file paths directly to localStorage for block ${blockId}`);
+                    } catch (e) {
+                        console.error('Error saving file paths to localStorage:', e);
+                    }
+                }
             } else {
-                console.warn('Could not find input element to update with file paths');
+                console.warn(`Could not find input element for block ${blockId}, parameter ${paramName}`);
             }
             
             this.closeModal(modal);
@@ -2604,6 +2670,8 @@ const FilePathHandler = {
                 
                 // Reset the file input
                 fileInput.value = '';
+                
+                console.log(`Added ${files.length} files to selection for ${paramKey}`);
             }
         });
 
@@ -2632,6 +2700,8 @@ const FilePathHandler = {
                 
                 // Update the file list UI
                 this.updateFileList(fileList, paramKey);
+                
+                console.log(`Dropped ${files.length} files for ${paramKey}`);
             }
         });
     },
