@@ -1111,4 +1111,32 @@ body.dark-mode {
 .dark-mode .zoom-controls {
     background-color: var(--secondary-bg);
     border: 1px solid var(--border-color);
+}
+
+/* Toast Dark Mode */
+.dark-mode .toast {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .toast.success {
+    border-left: 4px solid #4caf50;
+}
+
+.dark-mode .toast.error {
+    border-left: 4px solid #f44336;
+}
+
+.dark-mode .toast.warning {
+    border-left: 4px solid #ff9800;
+}
+
+.dark-mode .toast.info {
+    border-left: 4px solid #2196f3;
+}
+
+.dark-mode .toast.fade-out {
+    opacity: 0;
+    transform: translateX(10%);
 } 
