@@ -148,22 +148,12 @@
                         <!-- Templates specific content -->
                         <div class="templates-section">
                             <div class="template-actions-menu">
-                                <button id="save-template-btn" class="template-action-btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                                        <polyline points="7 3 7 8 15 8"></polyline>
-                                    </svg>
-                                    <span>Save Current Pipeline</span>
-                                </button>
-                                <button id="load-template-btn" class="template-action-btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                        <polyline points="7 10 12 15 17 10"></polyline>
-                                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                                    </svg>
-                                    <span>Load Template</span>
-                                </button>
+                                <div id="saveTemplateBtn" class="action-button" title="Save Pipeline Template">
+                                    <img src="/static/images/icons/action-buttons/save.svg" alt="Save Template">
+                                </div>
+                                <div id="loadTemplateBtn" class="action-button" title="Load Pipeline Template">
+                                    <img src="/static/images/icons/action-buttons/load.svg" alt="Load Template">
+                                </div>
                             </div>
                             <div class="saved-templates-preview">
                                 <h4>Recent Templates</h4>

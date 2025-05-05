@@ -42,32 +42,135 @@
 }
 
 .primary-btn, .secondary-btn {
-    padding: 8px 16px;
-    border-radius: 4px;
+    padding: 10px 20px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
     border: none;
     outline: none;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 100px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .primary-btn {
-    background-color: #2196f3;
+    background-color: var(--langchain-primary, #2196f3);
     color: white;
 }
 
 .primary-btn:hover {
-    background-color: #0b7dda;
+    background-color: var(--langchain-primary-dark, #0b7dda);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.primary-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .secondary-btn {
     background-color: #f5f5f5;
     color: #333;
+    border: 1px solid #ddd;
 }
 
 .secondary-btn:hover {
     background-color: #e1e1e1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.secondary-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode styles for buttons */
+.dark-mode .primary-btn {
+    background-color: var(--langchain-primary, #2196f3);
+    color: white;
+}
+
+.dark-mode .primary-btn:hover {
+    background-color: var(--langchain-primary-dark, #0b7dda);
+}
+
+.dark-mode .secondary-btn {
+    background-color: #2d2d2d;
+    color: #f1f1f1;
+    border-color: #444;
+}
+
+.dark-mode .secondary-btn:hover {
+    background-color: #3d3d3d;
+}
+
+/* Template action buttons */
+.template-actions-menu {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    margin: 0;
+    width: 100%;
+}
+
+.template-actions-menu .action-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    background: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.template-actions-menu .action-button img {
+    width: 24px;
+    height: 24px;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+}
+
+.template-actions-menu .action-button:hover {
+    border-color: var(--langchain-primary);
+    box-shadow: 0 4px 8px rgba(0, 166, 126, 0.2);
+    transform: translateY(-1px);
+}
+
+.template-actions-menu .action-button:hover img {
+    opacity: 1;
+}
+
+.template-actions-menu .action-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode styles for action buttons */
+.dark-mode .template-actions-menu .action-button {
+    background: #2d2d2d;
+    border-color: #444;
+}
+
+.dark-mode .template-actions-menu .action-button img {
+    filter: brightness(0) invert(1);
+}
+
+.dark-mode .template-actions-menu .action-button:hover {
+    background: #3d3d3d;
+    border-color: var(--langchain-primary);
 }
 
 .upload-section {
@@ -165,35 +268,31 @@
 
 /* Templates tab in sidebar */
 .templates-section {
-    margin-top: 20px;
+    margin-top: 0;
 }
 
-.template-actions-menu {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-.template-action-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background-color: #f5f5f5;
-    border: none;
+/* Tooltip styles */
+.template-actions-menu .action-button::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background-color: var(--tooltip-bg);
+    color: var(--tooltip-text);
     border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.2s;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
 }
 
-.template-action-btn img {
-    width: 16px;
-    height: 16px;
-}
-
-.template-action-btn:hover {
-    background-color: #e1e1e1;
+.template-actions-menu .action-button:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* Toast fade-out animation */
@@ -225,15 +324,6 @@
 
 .dark-mode .form-description {
     color: #bbb;
-}
-
-.dark-mode .secondary-btn {
-    background-color: #444;
-    color: #f1f1f1;
-}
-
-.dark-mode .secondary-btn:hover {
-    background-color: #555;
 }
 
 .dark-mode .file-upload-btn {
