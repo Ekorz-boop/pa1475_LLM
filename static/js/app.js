@@ -95,6 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle menu item clicks
     menuItems.forEach(item => {
+        // Skip the logout button
+        if (item.id === 'logout-button') return;
+
         item.addEventListener('click', () => {
             const menuType = item.dataset.menu;
 
@@ -230,7 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const blockTemplates = document.querySelectorAll('.block-template');
     const searchInput = document.getElementById('block-search');
     let blockCounter = 1;
-    let connections = [];
+    // Make connections a global window property so it's accessible to template-handler.js
+    window.connections = [];
     let draggedBlock = null;
     let draggingConnection = false;
     let tempConnection = null;
@@ -362,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             };
 
                         } catch (e) {
-                            console.warn('Error getting module info from sessionStorage:', e);
+                        console.warn('Error finding module info in sessionStorage:', e);
                         }
                             // Create a custom type identifier
                         const modulePath = moduleInfo.module;
@@ -378,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Format connections for the server
-                const formattedConnections = connections.map(conn => {
+                const formattedConnections = window.connections.map(conn => {
                     // Create a basic connection object
                     const formattedConn = {
                         source: conn.source,
@@ -406,8 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Formatted connections for export:', formattedConnections);
 
                 updateProgress(50, 'Sending pipeline data to server');
-
-                // Send the data to the server for processing
+            // Call the export API
                 const response = await fetch('/api/blocks/export', {
                     method: 'POST',
                     headers: {
@@ -426,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const result = await response.json();
-                updateProgress(90, 'Generating export file');
+                updateProgress(100, 'Export complete');
 
                 // Create a modal to display the code
                 const modal = document.createElement('div');
@@ -613,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Propagating data from ${sourceType} block (${sourceId})`);
 
         // Find all connections where this block is the source
-        const outgoingConnections = connections.filter(conn => conn.source === sourceId);
+        const outgoingConnections = window.connections.filter(conn => conn.source === sourceId);
 
         if (outgoingConnections.length === 0) {
             console.log(`No outgoing connections from ${sourceId}`);
@@ -757,6 +760,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 x: e.clientX - currentTranslate.x,
                 y: e.clientY - currentTranslate.y
             };
+            // Clear any text selection
+            window.getSelection().removeAllRanges();
             e.preventDefault();
             e.stopPropagation();
         }
@@ -788,13 +793,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
             draggedBlock.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
+            // IMPORTANT: Update connections in real-time during dragging
             updateConnections();
             e.preventDefault();
         }
 
         if (draggingConnection && tempConnection && sourceNode) {
             const canvasRect = canvas.getBoundingClientRect();
+
+            // IMPROVED: Calculate more accurately using node center
             const sourceRect = sourceNode.getBoundingClientRect();
+            const sourceCenterX = sourceRect.left + (sourceRect.width / 2);
+            const sourceCenterY = sourceRect.top + (sourceRect.height / 2);
 
             // Calculate connection points accounting for canvas transform
             const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
@@ -818,10 +828,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     hoveredInputNode = elemUnderMouse;
                     hoveredInputNode.classList.add('input-node-hover');
+
+                    // Add hover effect to connection
+                    tempConnection.classList.add('connection-hover');
                 }
             } else if (hoveredInputNode) {
                 hoveredInputNode.classList.remove('input-node-hover');
                 hoveredInputNode = null;
+                tempConnection.classList.remove('connection-hover');
             }
         }
     });
@@ -902,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function deleteBlock(block) {
-        connections = connections.filter(conn => {
+        window.connections = window.connections.filter(conn => {
             if (conn.source === block.id || conn.target === block.id) {
                 const targetBlock = document.getElementById(conn.target);
                 if (targetBlock && targetBlock.getAttribute('data-block-type') === 'display') {
@@ -918,7 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function removeConnectionsToInput(targetBlockId, inputId) {
-        connections = connections.filter(conn => {
+        window.connections = window.connections.filter(conn => {
             if (conn.target === targetBlockId && conn.inputId === inputId) {
                 const targetBlock = document.getElementById(targetBlockId);
                 if (targetBlock && targetBlock.getAttribute('data-block-type') === 'display') {
@@ -962,7 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Log the complete connection object for debugging
         console.log('Creating connection:', connection);
 
-        connections.push(connection);
+        window.connections.push(connection);
 
         // Save to sessionStorage
         try {
@@ -1079,13 +1093,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 draggingConnection = true;
                 sourceNode = outputNode;
 
-                const rect = outputNode.getBoundingClientRect();
+                const nodeRect = outputNode.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
 
-                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + outputNode.offsetWidth/2;
-                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + outputNode.offsetHeight/2;
+                // Calculate node center in ABSOLUTE document coordinates
+                const nodeCenterX = nodeRect.left + (nodeRect.width / 2);
+                const nodeCenterY = nodeRect.top + (nodeRect.height / 2);
 
+                // Convert to SVG coordinates with zoom compensation
+                const x1 = ((nodeCenterX - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((nodeCenterY - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+
+                tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 tempConnection.setAttribute('x1', x1);
                 tempConnection.setAttribute('y1', y1);
                 tempConnection.setAttribute('x2', x1);
@@ -1316,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.prompt = block.querySelector('.prompt-template').value;
 
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn =>
+                const queryConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -1328,7 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn =>
+                const contextConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
@@ -1351,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const connectionsContainer = document.getElementById('connections');
         connectionsContainer.innerHTML = '';
 
-        connections.forEach(connection => {
+        window.connections.forEach(connection => {
             const sourceBlock = document.getElementById(connection.source);
             const targetBlock = document.getElementById(connection.target);
 
@@ -1434,7 +1453,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 deleteBtn.addEventListener('click', () => {
                     // Remove the connection
-                    connections = connections.filter(c =>
+                    window.connections = connections.filter(c =>
                         !(c.source === connection.source &&
                           c.target === connection.target &&
                           c.inputId === connection.inputId)
@@ -1644,7 +1663,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 config.prompt = block.querySelector('.prompt-template').value;
 
                 // Get query from connected query input block
-                const queryConnection = connections.find(conn =>
+                const queryConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Query'
                 );
                 if (queryConnection) {
@@ -1656,7 +1675,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Get context from connected vector store or ranking block
-                const contextConnection = connections.find(conn =>
+                const contextConnection = window.connections.find(conn =>
                     conn.target === block.id && conn.inputId === 'Context'
                 );
                 if (contextConnection) {
@@ -1867,6 +1886,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 dragOffset.y = mouseY - blockY;
 
                 block.style.zIndex = '1000';
+
+            const mouseUpHandler = () => {
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+
+                block.classList.remove('dragging');
+                block.style.zIndex = '1';
+
+                // Final update without throttling to ensure accuracy
+                void document.body.offsetHeight; // Force reflow
+                updateConnections();
+            };
+
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+
                 e.preventDefault();
                 e.stopPropagation();
             });
@@ -1910,11 +1945,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (draggingConnection && sourceNode) {
                     const sourceBlock = sourceNode.closest('.block');
                     const targetBlock = inputNode.closest('.block');
-
                     if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                         hoveredInputNode = inputNode;
                         inputNode.classList.add('input-node-hover');
-
                         // Add an effect to better visualize the potential connection
                         if (tempConnection) {
                             tempConnection.classList.add('connection-hover');
@@ -1928,7 +1961,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hoveredInputNode === inputNode) {
                     hoveredInputNode = null;
                     inputNode.classList.remove('input-node-hover');
-
                     // Remove the connection hover effect
                     if (tempConnection) {
                         tempConnection.classList.remove('connection-hover');
@@ -1991,7 +2023,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blockId = block.id;
 
         // Remove all connections to/from this block
-        connections = connections.filter(conn =>
+        window.connections = window.connections.filter(conn =>
             conn.source !== blockId && conn.target !== blockId
         );
 
@@ -2166,6 +2198,11 @@ document.addEventListener('DOMContentLoaded', () => {
             isDragging = true;
             currentBlock = block;
 
+            // Mark the block as being dragged - critical for connection positioning
+            block.classList.add('dragging');
+            block.setAttribute('data-dragging', 'true');
+            document.body.setAttribute('data-block-dragging', block.id);
+
             // Get current block position from its transform style
             const transform = window.getComputedStyle(block).transform;
             const matrix = new DOMMatrixReadOnly(transform);
@@ -2178,7 +2215,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Set cursor and add dragging class
             document.body.style.cursor = 'grabbing';
-            block.classList.add('dragging');
             block.style.zIndex = '1000';
 
             // Prevent default to avoid text selection
@@ -2200,7 +2236,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply the new position
             currentBlock.style.transform = `translate(${newX}px, ${newY}px)`;
 
-            // Update connections
+            // Update connections with every move to keep them accurate
             updateConnections();
         });
 
@@ -2211,8 +2247,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isDragging = false;
             if (currentBlock) {
                 currentBlock.classList.remove('dragging');
+                currentBlock.removeAttribute('data-dragging');
+                document.body.removeAttribute('data-block-dragging');
                 currentBlock.style.zIndex = '1';
                 currentBlock = null;
+
+                // Final update to ensure connections are correct
+                updateConnections();
             }
             document.body.style.cursor = '';
         });
@@ -2258,6 +2299,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return block;
     }
+
+    // Click handler to clear text selection when clicking on canvas
+    canvas.addEventListener('mousedown', (e) => {
+        // Only clear selection if clicking directly on canvas (not on a block)
+        if (e.target === canvas) {
+            window.getSelection().removeAllRanges();
+        }
+    });
 
 });
 
