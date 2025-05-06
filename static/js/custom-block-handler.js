@@ -177,6 +177,20 @@ class CustomBlockHandler {
 
         // Load available libraries
         this.loadLibraries();
+
+        // Add event delegation for RST dropdown toggles
+        this.modal.addEventListener('click', (e) => {
+            const btn = e.target.closest('.rst-dropdown-toggle');
+            if (btn) {
+                const targetId = btn.getAttribute('data-target');
+                const content = document.getElementById(targetId);
+                if (content) {
+                    const isOpen = content.style.display === 'block';
+                    content.style.display = isOpen ? 'none' : 'block';
+                    btn.innerHTML = (isOpen ? '▼' : '▲') + btn.innerHTML.slice(1);
+                }
+            }
+        });
     }
 
     /**
@@ -515,14 +529,6 @@ class CustomBlockHandler {
             // Initialize collapsible sections
             this.initCollapsibleSections();
 
-            // Add common input/output nodes based on the component type
-            // if (data.component_type) {
-            //     console.log(`Auto-suggesting nodes for component type: ${data.component_type}`);
-            //     this.suggestDefaultNodesForType(data.component_type);
-            // } else {
-            //     // If no component_type, use the class name to guess
-            //     this.suggestDefaultNodes();
-            // }
 
             // Update methods container
             this.updateMethodsContainer();
@@ -564,118 +570,6 @@ class CustomBlockHandler {
         return docstringHandler.formatDocstring(parsedDocstring);
     }
 
-    /**
-     * Suggest default input/output nodes based on component type from API
-     * @param {string} componentType - The component type from the API
-     */
-    // suggestDefaultNodesForType(componentType) {
-    //     // Clear previous suggestions
-    //     this.inputNodes = [];
-    //     this.outputNodes = [];
-
-    //     // Set nodes based on component type
-    //     switch(componentType) {
-    //         case 'document_loaders':
-    //             this.outputNodes.push('Documents');
-    //             break;
-
-    //         case 'text_splitters':
-    //             this.inputNodes.push('Documents');
-    //             this.outputNodes.push('Chunks');
-    //             break;
-
-    //         case 'embeddings':
-    //             this.inputNodes.push('Text');
-    //             this.outputNodes.push('Embeddings');
-    //             break;
-
-    //         case 'vectorstores':
-    //             this.inputNodes.push('Embeddings');
-    //             this.inputNodes.push('Query');
-    //             this.outputNodes.push('Results');
-    //             break;
-
-    //         case 'retrievers':
-    //             this.inputNodes.push('Query');
-    //             this.outputNodes.push('Documents');
-    //             break;
-
-    //         case 'llms':
-    //         case 'chat_models':
-    //             this.inputNodes.push('Prompt');
-    //             this.outputNodes.push('Completion');
-    //             break;
-
-    //         case 'chains':
-    //             this.inputNodes.push('Input');
-    //             this.outputNodes.push('Output');
-    //             break;
-
-    //         default:
-    //             // If no specific type matches, fall back to the name-based approach
-    //             this.suggestDefaultNodes();
-    //             return;
-    //     }
-
-    //     // Update nodes display
-    //     this.updateNodesDisplay();
-    // }
-
-    /**
-     * Suggest default input/output nodes based on class type
-     */
-    // suggestDefaultNodes() {
-    //     // Clear previous suggestions
-    //     this.inputNodes = [];
-    //     this.outputNodes = [];
-
-    //     // Check if this.selectedClass exists before using it
-    //     if (!this.selectedClass) {
-    //         console.warn('No class selected when attempting to suggest default nodes');
-    //         return;
-    //     }
-
-    //     const className = this.selectedClass.toLowerCase();
-
-    //     // Document loaders generally have a document output
-    //     if (className.includes('loader') || className.includes('reader') || className.includes('parser')) {
-    //         this.outputNodes.push('Documents');
-    //     }
-
-    //     // Text splitters have document inputs and chunk outputs
-    //     if (className.includes('splitter')) {
-    //         this.inputNodes.push('Documents');
-    //         this.outputNodes.push('Chunks');
-    //     }
-
-    //     // Embedding models have text input and vector output
-    //     if (className.includes('embedding')) {
-    //         this.inputNodes.push('Text');
-    //         this.outputNodes.push('Embeddings');
-    //     }
-
-    //     // Vector stores have vector inputs and search outputs
-    //     if (className.includes('vectorstore') || className.includes('vector_store')) {
-    //         this.inputNodes.push('Embeddings');
-    //         this.inputNodes.push('Query');
-    //         this.outputNodes.push('Results');
-    //     }
-
-    //     // LLMs have prompt inputs and completion outputs
-    //     if (className.includes('llm') || className.includes('model') || className.includes('chat')) {
-    //         this.inputNodes.push('Prompt');
-    //         this.outputNodes.push('Completion');
-    //     }
-
-    //     // Chains have various inputs and outputs depending on type
-    //     if (className.includes('chain')) {
-    //         this.inputNodes.push('Input');
-    //         this.outputNodes.push('Output');
-    //     }
-
-    //     // Update nodes display
-    //     this.updateNodesDisplay();
-    // }
 
     /**
      * Update the methods container with available methods
@@ -884,9 +778,10 @@ class CustomBlockHandler {
      * Render parameter input fields
      * @param {string} methodName - The method name
      * @param {Array} parameters - The parameters to render inputs for
+     * @param {string} blockId - The ID of the block these parameters belong to
      * @returns {string} - HTML for parameter inputs
      */
-    renderParameterInputs(methodName, parameters) {
+    renderParameterInputs(methodName, parameters, blockId = '') {
         let html = '<div class="param-group">';
 
         parameters.forEach(param => {
@@ -906,6 +801,9 @@ class CustomBlockHandler {
             const isFilePath = param.name.toLowerCase().includes('file') ||
                                param.name.toLowerCase().includes('path');
 
+            // Block ID attribute for targeting the right block
+            const blockIdAttr = blockId ? ` data-block-id="${blockId}"` : '';
+
             // Create input field with parameter details
             html += `
                 <div class="param-row ${isFilePath ? 'file-param-row' : ''}">
@@ -919,6 +817,7 @@ class CustomBlockHandler {
                             class="param-input"
                             data-method="${methodName}"
                             data-param="${param.name}"
+                            ${blockIdAttr}
                             value="${storedValue}"
                             placeholder="${param.default || ''}">
                         ${isFilePath ? `
@@ -926,6 +825,7 @@ class CustomBlockHandler {
                             class="file-upload-btn"
                             data-method="${methodName}"
                             data-param="${param.name}"
+                            ${blockIdAttr}
                             title="Upload files">
                             <span>📁</span>
                         </button>` : ''}
@@ -1024,11 +924,6 @@ class CustomBlockHandler {
             showToast('Please select a class', 'error');
             return false;
         }
-
-        // if (this.inputNodes.length === 0 && this.outputNodes.length === 0) {
-        //     showToast('Please add at least one input or output node', 'error');
-        //     return false;
-        // }
 
         return true;
     }
@@ -2222,7 +2117,6 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
     paramRow.setAttribute('data-param-name', paramName);
-    console.log("this is happening")
 
     // Create param name label
     const paramNameLabel = document.createElement('div');
@@ -2256,6 +2150,10 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     valueInput.placeholder = 'Value';
     valueInput.value = value;
 
+    // Add data attribute to mark which block this parameter belongs to
+    valueInput.setAttribute('data-block-id', blockId);
+    valueInput.setAttribute('data-param-name', paramName);
+
     // Save value on input instead of just change event to be more responsive
     valueInput.addEventListener('input', () => {
         saveParameterValue(blockId, paramName, valueInput.value);
@@ -2276,7 +2174,23 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
         fileUploadBtn.className = 'file-upload-btn';
         fileUploadBtn.title = 'Upload files';
         fileUploadBtn.setAttribute('data-param', paramName);
+        fileUploadBtn.setAttribute('data-block-id', blockId); // Add block ID
+        fileUploadBtn.setAttribute('data-param-name', paramName); // Add param name for easier lookup
         fileUploadBtn.innerHTML = '<span>📁</span>';
+
+        // Add click event to directly handle file uploads for this specific block and parameter
+        fileUploadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log(`File upload button clicked for block ${blockId}, parameter ${paramName}`);
+
+            if (typeof FilePathHandler === 'object' && typeof FilePathHandler.showFileSelectionModal === 'function') {
+                // Get current value from input
+                const currentValue = valueInput.value;
+                // Use function from FilePathHandler namespace but ensure we pass blockId
+                FilePathHandler.showFileSelectionModal('__init__', paramName, currentValue, blockId, valueInput);
+            }
+        });
 
         inputContainer.appendChild(fileUploadBtn);
         paramRow.classList.add('file-param-row');
@@ -2350,6 +2264,14 @@ const FilePathHandler = {
                 // Get the method name and parameter name
                 const methodName = button.getAttribute('data-method') || '__init__';
                 const paramName = button.getAttribute('data-param');
+                const blockId = button.getAttribute('data-block-id');
+
+                if (!blockId) {
+                    console.error('Missing block ID for file upload button');
+                    return;
+                }
+
+                console.log(`File upload clicked for block ${blockId}, parameter ${paramName}`);
 
                 // Find the input element - try multiple selectors to ensure we find it
                 let inputElement = null;
@@ -2372,8 +2294,8 @@ const FilePathHandler = {
 
                 console.log('File upload clicked:', { methodName, paramName, currentValue });
 
-                // Show file selection modal
-                this.showFileSelectionModal(methodName, paramName, currentValue);
+                // Show file selection modal with block ID
+                this.showFileSelectionModal(methodName, paramName, currentValue, blockId, inputElement);
             }
         });
     },
@@ -2467,31 +2389,17 @@ const FilePathHandler = {
     },
 
     // Show file selection modal
-    showFileSelectionModal(methodName, paramName, currentValue) {
+    showFileSelectionModal(methodName, paramName, currentValue, blockId, targetInputElement) {
         // First check if there's already an open file selection modal and remove it
         const existingModal = document.querySelector('.file-selection-modal');
         if (existingModal) {
             document.body.removeChild(existingModal);
         }
 
-        // Generate a unique key for this parameter
-        const paramKey = `${methodName}_${paramName}`;
+// Generate a unique key for this parameter that includes the block ID
+const paramKey = `${blockId}_${methodName}_${paramName}`;
 
-        // Store the current input element reference for when we save
-        let targetInputElement = null;
-
-        // Try to find by data attributes
-        if (methodName && paramName) {
-            targetInputElement = document.querySelector(`.param-input[data-method="${methodName}"][data-param="${paramName}"]`);
-        }
-
-        // Try to find by parameter row
-        if (!targetInputElement) {
-            const paramRows = document.querySelectorAll(`.parameter-row[data-param-name="${paramName}"]`);
-            if (paramRows.length > 0) {
-                targetInputElement = paramRows[0].querySelector('.param-value');
-            }
-        }
+console.log(`Opening file selection modal with paramKey: ${paramKey}`);
 
         // Initialize selected files for this parameter if not already done
         if (!this.selectedFiles[paramKey]) {
@@ -2505,10 +2413,13 @@ const FilePathHandler = {
         modal.className = 'file-selection-modal';
         // Store reference to the target input element
         modal.dataset.targetInput = paramKey;
+        modal.dataset.blockId = blockId;
+        modal.dataset.paramName = paramName;
         modal.innerHTML = `
             <div class="file-selection-content">
                 <div class="file-selection-header">
                     <h3>Select Files for ${paramName}</h3>
+                    <span class="file-selection-block-id">Block ID: ${blockId}</span>
                     <button class="close-modal">×</button>
                 </div>
                 <div class="file-selection-body">
@@ -2580,7 +2491,19 @@ const FilePathHandler = {
                 const event = new Event('change', { bubbles: true });
                 inputElement.dispatchEvent(event);
 
-                console.log('Updated input with file paths:', inputElement.value);
+                console.log(`Updated input for block ${blockId} with file paths:`, inputElement.value);
+
+                // Also save to localStorage directly to ensure it's stored properly
+                if (blockId && paramName) {
+                    try {
+                        const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+                        savedParams[paramName] = inputElement.value;
+                        localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(savedParams));
+                        console.log(`Also saved file paths directly to localStorage for block ${blockId}`);
+                    } catch (e) {
+                        console.error('Error saving file paths to localStorage:', e);
+                    }
+                }
             } else {
                 console.warn('Could not find input element to update with file paths');
             }

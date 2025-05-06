@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %} - Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-container">
+        <nav class="admin-sidebar" aria-label="Admin navigation">
+            <div class="admin-header">
+                <h1 style="color: #10b981;">RAGgie Admin</h1>
+            </div>
+            <ul class="admin-menu" role="menu">
+                <li role="none"><a href="{{ url_for('admin.admin_panel') }}" class="sidebar-link {% if request.endpoint == 'admin.admin_panel' %}active{% endif %}" role="menuitem" aria-label="Dashboard"><img src="/static/images/icons/admin-panel/dashboard.svg" alt="Dashboard" class="menu-icon"> <span>Dashboard</span></a></li>
+                <li role="none"><a href="{{ url_for('admin.manage_users') }}" class="sidebar-link {% if request.endpoint == 'admin.manage_users' %}active{% endif %}" role="menuitem" aria-label="Users"><img src="/static/images/icons/welcome-screen/user.svg" alt="Users" class="menu-icon"> <span>Users</span></a></li>
+                <li role="none"><a href="{{ url_for('admin.admin_settings') }}" class="sidebar-link {% if request.endpoint == 'admin.admin_settings' %}active{% endif %}" role="menuitem" aria-label="Settings"><img src="/static/images/icons/action-buttons/edit.svg" alt="Settings" class="menu-icon"> <span>Settings</span></a></li>
+            </ul>
+            <div class="sidebar-spacer"></div>
+            <ul class="admin-menu sidebar-bottom" role="menu">
+                <li role="none"><a href="{{ url_for('index') }}" class="sidebar-link" role="menuitem" aria-label="Back to App"><img src="/static/images/icons/theme-controls/toggle.svg" alt="Back to App" class="menu-icon"> <span>Back to App</span></a></li>
+                <li role="none"><a href="{{ url_for('auth.logout') }}" class="sidebar-link" role="menuitem" aria-label="Logout"><img src="/static/images/icons/action-buttons/delete.svg" alt="Logout" class="menu-icon"> <span>Logout</span></a></li>
+            </ul>
+        </nav>
+        
+        <main class="admin-content">
+            <div class="admin-header">
+                <h2>{% block header %}{% endblock %}</h2>
+            </div>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}" role="alert">
+                            {% if category == 'error' %}
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8-4a1 1 0 00-1 1v2a1 1 0 002 0V7a1 1 0 00-1-1zm0 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 15z"/></svg>
+                            {% elif category == 'success' %}
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M16.707 6.293a1 1 0 00-1.414 0L9 12.586l-2.293-2.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l7-7a1 1 0 000-1.414z"/></svg>
+                            {% elif category == 'info' %}
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8-4a1 1 0 100 2 1 1 0 000-2zm1 4a1 1 0 10-2 0v4a1 1 0 102 0v-4z"/></svg>
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

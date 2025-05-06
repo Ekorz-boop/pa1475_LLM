@@ -4,10 +4,8 @@ import importlib
 import inspect
 import pkgutil
 import traceback
-from blocks import (
-    Canvas,
-    Block,
-)
+from blocks import Canvas, Block
+
 import os
 import logging
 
