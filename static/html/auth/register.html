@@ -37,7 +37,7 @@
         {{ form.submit(class="btn btn-primary") }}
     </div>
     <div class="auth-links">
-        Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>
+        Already have an account? <a href="{{ url_for('auth.login', next=request.args.get('next', '')) }}">Login here</a>
     </div>
 </form>
 {% endblock %} 

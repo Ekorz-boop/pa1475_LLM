@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from flask_cors import CORS
 from flask_login import current_user
 import importlib
@@ -1274,23 +1274,26 @@ def check_maintenance_mode():
 
 @app.before_request
 def enforce_public_mode():
-    # Skip for static files and auth routes
-    if request.path.startswith("/static") or request.path.startswith("/auth"):
+    # Skip for static files
+    if request.path.startswith("/static"):
         return
     # Skip for admin routes - they are handled by @login_required and @admin_required
     if request.path.startswith("/admin"):
         return
-    # Prevent redirect loop: if already on /login, do not redirect
-    if request.path == "/login":
+    # Skip for auth routes and their subpaths
+    if request.path.startswith("/auth") or request.path in [
+        "/login",
+        "/register",
+        "/reset_password_request",
+    ]:
         return
+
     settings = AdminPanel.query.first()
     if settings and not settings.public_mode:
         if not current_user.is_authenticated:
-            # Prevent redirect loop: do not set next to /login or /auth/login
-            if request.path == "/login" or request.path.startswith("/auth/login"):
-                return
-            # Store the current URL as the next parameter only if it's not /login
-            return redirect(url_for("auth.login", next=request.url))
+            # Store the current URL in the session
+            session["next"] = request.url
+            return redirect(url_for("auth.login"))
 
 
 # Create database tables

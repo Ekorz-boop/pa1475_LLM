@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.urls import url_parse
 from datetime import datetime, timedelta
@@ -31,8 +31,10 @@ def login():
         user.login_count = (user.login_count or 0) + 1
         db.session.commit()
 
-        # Get the next page from the request args
-        next_page = request.args.get("next")
+        # Get the next page from the session or request args
+        next_page = session.get("next") or request.args.get("next")
+        # Clear the session
+        session.pop("next", None)
         # If no next page or next page is not safe, redirect to index
         if not next_page or url_parse(next_page).netloc != "":
             next_page = url_for("index")
@@ -65,6 +67,11 @@ def register():
         db.session.add(user)
         db.session.commit()
         flash("Congratulations, you are now a registered user!", "success")
+        # Get the next page from the session
+        next_page = session.get("next")
+        if next_page and url_parse(next_page).netloc == "":
+            session.pop("next", None)
+            return redirect(url_for("auth.login", next=next_page))
         return redirect(url_for("auth.login"))
     return render_template("auth/register.html", form=form)
 
@@ -94,6 +101,11 @@ If you did not make this request then simply ignore this email.
 """
             mail.send(msg)
         flash("Check your email for the instructions to reset your password", "info")
+        # Get the next page from the session
+        next_page = session.get("next")
+        if next_page and url_parse(next_page).netloc == "":
+            session.pop("next", None)
+            return redirect(url_for("auth.login", next=next_page))
         return redirect(url_for("auth.login"))
     return render_template("auth/reset_password_request.html", form=form)
 

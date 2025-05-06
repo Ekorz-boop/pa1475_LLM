@@ -31,9 +31,9 @@
         {{ form.submit(class="btn btn-primary") }}
     </div>
     <div class="auth-links">
-        <a href="{{ url_for('auth.register') }}">Create an account</a>
+        <a href="{{ url_for('auth.register', next=request.args.get('next', '')) }}">Create an account</a>
         <span class="separator">|</span>
-        <a href="{{ url_for('auth.reset_password_request') }}">Forgot password?</a>
+        <a href="{{ url_for('auth.reset_password_request', next=request.args.get('next', '')) }}">Forgot password?</a>
     </div>
 </form>
 
