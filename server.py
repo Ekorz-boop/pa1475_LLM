@@ -1281,14 +1281,18 @@ def enforce_public_mode():
     if request.path.startswith("/admin"):
         return
     # Skip for auth routes and their subpaths
-    if request.path.startswith("/auth") or request.path in ["/login", "/register", "/reset_password_request"]:
+    if request.path.startswith("/auth") or request.path in [
+        "/login",
+        "/register",
+        "/reset_password_request",
+    ]:
         return
-        
+
     settings = AdminPanel.query.first()
     if settings and not settings.public_mode:
         if not current_user.is_authenticated:
             # Store the current URL in the session
-            session['next'] = request.url
+            session["next"] = request.url
             return redirect(url_for("auth.login"))
 
 
