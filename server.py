@@ -17,6 +17,8 @@ import logging
 log = logging.getLogger("werkzeug")  # Suppress werkzeug logging
 log.setLevel(logging.ERROR)
 
+print("Probably running on http://127.0.0.1:5000")
+
 app = Flask(__name__, static_folder="static", template_folder="static/html")
 CORS(app)
 
@@ -229,25 +231,15 @@ def export_blocks():
                         self.selected_methods = config["methods"]
                     elif "selected_methods" in config:
                         self.selected_methods = config["selected_methods"]
-                        print(
-                            f"Found methods in config.selected_methods: {self.selected_methods}"
-                        )
                     elif "selected_methods" in config.get("config", {}):
                         self.selected_methods = config["config"]["selected_methods"]
-                        print(
-                            f"Found methods in config.config.selected_methods: {self.selected_methods}"
-                        )
 
                     # Look for a selected method that might not be in the methods list yet
                     selected_method = None
                     if "selected_method" in config:
                         selected_method = config["selected_method"]
-                        print(f"Found selected_method in config: {selected_method}")
                     elif "selected_method" in config.get("config", {}):
                         selected_method = config["config"]["selected_method"]
-                        print(
-                            f"Found selected_method in config.config: {selected_method}"
-                        )
 
                     # If we have a selected method but it's not in our list yet, add it
                     if selected_method and (
@@ -258,9 +250,6 @@ def export_blocks():
                             self.selected_methods = [selected_method]
                         else:
                             self.selected_methods.append(selected_method)
-                        print(
-                            f"Added selected_method {selected_method} to methods list"
-                        )
 
                     # Create placeholder for methods list (all available methods)
                     self.methods = (
@@ -286,7 +275,6 @@ def export_blocks():
 
         # Create a plain connections dict format for execution order
         canvas_connections = {}
-        print("\nconnection data found:", connections_data)
         for conn in connections_data:
             source_id = conn.get("source")
             target_id = conn.get("target")
@@ -327,7 +315,6 @@ def export_blocks():
         # Look for method-specific connections
         # This additional loop processes the original connections data
         # to extract method-specific info
-        print("\nProcessing connections for method-specific information:")
         for conn in connections_data:
             source_id = conn.get("source")
             target_id = conn.get("target")
@@ -349,15 +336,9 @@ def export_blocks():
             # If we don't have explicit method information, try to extract it from input/output nodes
             if not source_method and source_node and "_output" in source_node:
                 source_method = source_node.split("_")[0]
-                print(
-                    f"Extracted source_method '{source_method}' from source_node '{source_node}'"
-                )
 
             if not target_method and input_id and "_input" in input_id:
                 target_method = input_id.split("_")[0]
-                print(
-                    f"Extracted target_method '{target_method}' from input_id '{input_id}'"
-                )
 
             # Always add to method_connection_map - even if we don't have explicit method information
             if target_id not in method_connection_map:
@@ -372,9 +353,7 @@ def export_blocks():
                 # Add source to this target method's connections
                 if source_id not in method_connection_map[target_id][target_method]:
                     method_connection_map[target_id][target_method].append(source_id)
-                    print(
-                        f"Added source {source_id} to target {target_id}'s {target_method} method connections"
-                    )
+
             else:
                 # No target method, use default
                 if "default" not in method_connection_map[target_id]:
@@ -383,9 +362,6 @@ def export_blocks():
                 # Add source to default connections
                 if source_id not in method_connection_map[target_id]["default"]:
                     method_connection_map[target_id]["default"].append(source_id)
-                    print(
-                        f"Added source {source_id} to target {target_id}'s default connections"
-                    )
 
             # Log all connections with detailed information
             # connection_type = (
@@ -447,7 +423,6 @@ def generate_python_code(
     init_code_lines = []
     method_code_lines = []
 
-
     # Check if we need to create files directory
     has_file_paths = False
 
@@ -487,7 +462,6 @@ def generate_python_code(
         )
         var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
-
 
         # Check if this block uses file paths
         if hasattr(block, "config") and block.config:
@@ -738,11 +712,8 @@ def generate_python_code(
                 methods_to_execute.remove(selected_method)
             methods_to_execute.insert(0, selected_method)
 
-# Make sure we have unique methods
+        # Make sure we have unique methods
         methods_to_execute = list(dict.fromkeys(methods_to_execute))
-
-        # Print methods to execute for this block
-        print(f"Methods to execute for {class_name}: {methods_to_execute}")
 
         # If no methods are available, don't execute any methods
         if not methods_to_execute:
@@ -810,9 +781,7 @@ def generate_python_code(
                     else:
                         # Otherwise use the general output variable
                         source_params.append(f"{source_var}_output")
-                        print(
-                            f"Using {source_var}_output as input for {var_name}.{method_name} (no specific source method found)"
-                        )
+
             else:
                 # Try to find any connection between this block and any source blocks
                 # that might be relevant for this method
@@ -843,22 +812,14 @@ def generate_python_code(
                                     "sourceMethod"
                                 ):
                                     source_method = conn.get("sourceMethod")
-                                    print(
-                                        f"Found possible source method {source_method} from {source_id} to use with {method_name}"
-                                    )
 
                         # If we found a related source method, use its output
                         if source_method:
                             source_params.append(f"{source_var}_{source_method}_output")
-                            print(
-                                f"Using {source_var}_{source_method}_output as input for {var_name}.{method_name}"
-                            )
+
                         else:
                             # Otherwise use the default output variable from that source
                             source_params.append(f"{source_var}_output")
-                            print(
-                                f"Using {source_var}_output as input for {var_name}.{method_name}"
-                            )
 
             # Now generate the method call code, with or without parameters
             if source_params:
@@ -1145,7 +1106,6 @@ def list_langchain_classes():
         # Add the module itself to the list of modules to check
         modules_to_check = [module_path] + submodules
 
-
         # Check each module for classes
         for mod_path in modules_to_check:
             try:
@@ -1187,8 +1147,6 @@ def list_langchain_classes():
                     regular_classes.append(cls)
 
             classes = priority_classes + regular_classes
-
-        print(f"Found {len(classes)} classes in {module_path}")
 
         # Cache the result
         module_classes_cache.set(module_path, classes)
