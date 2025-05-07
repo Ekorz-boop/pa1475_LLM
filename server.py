@@ -1,10 +1,15 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_cors import CORS
+from flask_login import current_user
 import importlib
 import inspect
 import pkgutil
 import traceback
 from blocks import Canvas, Block
+from extensions import db, login_manager, init_app
+from models import AdminPanel, User
+from auth import auth as auth_blueprint
+from admin import admin as admin_blueprint
 
 import os
 import logging
@@ -12,8 +17,33 @@ import logging
 log = logging.getLogger("werkzeug")  # Suppress werkzeug logging
 log.setLevel(logging.ERROR)
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder="static", template_folder="static/html")
 CORS(app)
+
+# Configuration
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-please-change")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+    "DATABASE_URL", "sqlite:///app.db"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", True)
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+
+# Initialize extensions
+init_app(app)
+
+
+@login_manager.user_loader
+def load_user(id):
+    return User.query.get(int(id))
+
+
+# Register blueprints
+app.register_blueprint(auth_blueprint)
+app.register_blueprint(admin_blueprint, url_prefix="/admin")
 
 # Global canvas instance
 canvas = Canvas()
@@ -47,8 +77,8 @@ class_details_cache = SimpleCache(max_size=50)
 
 
 @app.route("/")
-def serve_static():
-    return app.send_static_file("html/index.html")
+def index():
+    return render_template("index.html")
 
 
 @app.route("/api/connect", methods=["POST"])
@@ -57,8 +87,8 @@ def connect_blocks():
     source_id = data.get("source")
     target_id = data.get("target")
     input_id = data.get("inputId")
-
-    # Store the connection
+    print("\n\nTHIS IS BEING USED")
+    # Store the connectio
     connection_id = f"{source_id}-{target_id}-{input_id}"
     block_connections[connection_id] = {
         "source": source_id,
@@ -78,7 +108,6 @@ def get_connections():
 @app.route("/api/blocks/create", methods=["POST"])
 def create_block():
     data = request.json
-    print(f"Creating block with data: {data}")
     block_type = data.get("type")
     block_id = data.get("id")
 
@@ -118,7 +147,7 @@ def export_blocks():
     output_file = data.get("output_file", "generated_pipeline.py")
     blocks_data = data.get("blocks", {})
     connections_data = data.get("connections", [])  # Array of connection objects
-
+    print("\nconnections:", connections_data, "\n")
     try:
         # Create a temporary Canvas with the blocks from the request
         temp_canvas = Canvas()
@@ -134,9 +163,7 @@ def export_blocks():
                     super().__init__()
                     self.block_type = block_type
                     self.class_name = None  # Will be set properly based on block_type
-                    self.module_path = request.args.get(
-                        "module", ""
-                    )  # Default empty module path
+                    self.module_path = ""  # Default empty module path
                     self.config = config
                     self.component_type = ""  # Default empty component type
                     self.selected_methods = []
@@ -144,16 +171,12 @@ def export_blocks():
 
                     # Extract module path and class name from block_type
                     if block_type.startswith("custom_"):
-                        print(f"Processing custom block: {block_type}")
                         # Remove 'custom_' prefix to get the full class path
                         full_class_path = block_type[
                             7:
                         ]  # e.g. "langchain_community.llms.OpenAI"
 
                         # Split the path to get module and class name
-                        print(
-                            f"Full class path: {full_class_path}, module path: {self.module_path}, class name: {self.class_name}"
-                        )
                         parts = full_class_path.split(".")
                         if len(parts) > 1:
                             self.class_name = parts[-1]  # Last part is class name
@@ -201,12 +224,9 @@ def export_blocks():
                         f"# Placeholder for {self.class_name} function"
                     )
 
-                    # Extract methods - check all config properties
+                    # Extract methods from block info or config
                     if "methods" in config:
                         self.selected_methods = config["methods"]
-                        print(
-                            f"Found methods in config.methods: {self.selected_methods}"
-                        )
                     elif "selected_methods" in config:
                         self.selected_methods = config["selected_methods"]
                         print(
@@ -247,9 +267,6 @@ def export_blocks():
                         list(self.selected_methods) if self.selected_methods else []
                     )
 
-                    # Print final methods list for debugging
-                    print(f"Block {block_id} final methods list: {self.methods}")
-
                     # Always add __init__ to methods if not present
                     if "__init__" not in self.methods:
                         self.methods.append("__init__")
@@ -269,6 +286,7 @@ def export_blocks():
 
         # Create a plain connections dict format for execution order
         canvas_connections = {}
+        print("\nconnection data found:", connections_data)
         for conn in connections_data:
             source_id = conn.get("source")
             target_id = conn.get("target")
@@ -429,9 +447,6 @@ def generate_python_code(
     init_code_lines = []
     method_code_lines = []
 
-    # Add common imports
-    # imports.add("import os")
-    # imports.add("import sys")
 
     # Check if we need to create files directory
     has_file_paths = False
@@ -467,19 +482,12 @@ def generate_python_code(
     block_vars = {}
     for i, block_id in enumerate(execution_order):
         block = blocks[block_id]
-
-        # Get class name from block attributes
         class_name = (
             block.class_name if hasattr(block, "class_name") else type(block).__name__
         )
-
-        # Create a sanitized variable name based on class name
         var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
-        # print(
-        #     f"Assigned variable name '{var_name}' to block {block_id} of type {class_name}"
-        # )
 
         # Check if this block uses file paths
         if hasattr(block, "config") and block.config:
@@ -571,10 +579,21 @@ def generate_python_code(
                                         special_init_blocks.add(block_id)
 
                                         # Add extra code for multi-file loading
-                                        init_code_lines.append(
+                                        init_params = []
+                                        multi_load_comment = (
                                             f"# Handle multiple files for {class_name}"
                                         )
-                                        init_code_lines.append(f"{var_name} = []")
+                                        init_code_lines.append(multi_load_comment)
+
+                                        # Find next available variable name
+                                        i = 1
+                                        while f"docs_{i}" in block_vars.values():
+                                            i += 1
+
+                                        result_var = f"docs_{i}"
+
+                                        # Generate code to load multiple documents - ensure path normalization
+                                        init_code_lines.append(f"{result_var} = []")
                                         # Use raw strings for file paths to avoid issues with Windows backslashes
                                         init_code_lines.append(
                                             "# Normalize paths for cross-platform compatibility"
@@ -593,7 +612,7 @@ def generate_python_code(
                                             f"        loader = {class_name}(file_path)"
                                         )
                                         init_code_lines.append(
-                                            f"        {var_name}.extend(loader.load())"
+                                            f"        {result_var}.extend(loader.load())"
                                         )
                                         init_code_lines.append(
                                             '        print(f"Successfully loaded {file_path}")'
@@ -614,7 +633,7 @@ def generate_python_code(
                                             f"    {var_name} = {class_name}(file_paths[0])"
                                         )
                                         init_code_lines.append(
-                                            f"    {var_name}_output = {var_name}"
+                                            f"    {var_name}_output = {result_var}"
                                         )
                                         init_code_lines.append("else:")
                                         init_code_lines.append(
@@ -694,7 +713,6 @@ def generate_python_code(
 
         # Get methods for this block (excluding __init__)
         methods_to_execute = []
-
         # First check for explicitly selected methods
         if hasattr(block, "config") and block.config:
             if "selected_methods" in block.config and isinstance(
@@ -715,11 +733,12 @@ def generate_python_code(
 
         # Prioritize specific selected method if available
         if selected_method and selected_method != "__init__":
+            # Make sure selected_method is at the start of the list
             if selected_method in methods_to_execute:
                 methods_to_execute.remove(selected_method)
             methods_to_execute.insert(0, selected_method)
 
-        # Make sure we have unique methods
+# Make sure we have unique methods
         methods_to_execute = list(dict.fromkeys(methods_to_execute))
 
         # Print methods to execute for this block
@@ -729,7 +748,7 @@ def generate_python_code(
         if not methods_to_execute:
             continue
 
-        # Process selected methods in order - with better method-specific connection handling
+        # Execute methods for this block
         for method_name in methods_to_execute:
             # if method_name == "load" and block_id in special_init_blocks:
             #     continue
@@ -797,6 +816,7 @@ def generate_python_code(
             else:
                 # Try to find any connection between this block and any source blocks
                 # that might be relevant for this method
+
                 if block_id in reverse_connection_map:
                     source_ids = reverse_connection_map[block_id]
 
@@ -816,9 +836,6 @@ def generate_python_code(
                                 ):
                                     source_method = conn.get("sourceNode").replace(
                                         "_output", ""
-                                    )
-                                    print(
-                                        f"Found source method {source_method} for connection {source_id} -> {block_id} (target method: {method_name})"
                                     )
                                     break
                                 # Then check if there's any source method that might be used
@@ -872,8 +889,6 @@ def generate_python_code(
             processed_methods[block_id].add(method_name)
 
             # If it's the selected method, we can stop after processing it
-            # if method_name == selected_method:
-            #     break
 
     # Collect clean lines for the final code
     clean_code_lines = []
@@ -1066,7 +1081,6 @@ def list_langchain_classes():
     # Check cache first
     cached_result = module_classes_cache.get(module_path)
     if cached_result:
-        # print(f"Using cached classes for {module_path}")
         return jsonify({"classes": cached_result})
 
     try:
@@ -1090,12 +1104,10 @@ def list_langchain_classes():
 
             # Sort and cache the results
             classes = sorted(classes)
-            # print(f"Found {len(classes)} classes in {module_path}")
             module_classes_cache.set(module_path, classes)
             return jsonify({"classes": classes})
 
         # Import the base package
-        # print(f"Importing module: {module_path}")
         module = importlib.import_module(module_path)
         classes = []
 
@@ -1104,7 +1116,6 @@ def list_langchain_classes():
         try:
             # Check if module has __path__ attribute (indicating it's a package)
             if hasattr(module, "__path__"):
-                # print(f"Scanning submodules in {module_path}")
                 # Get all modules in the package (both modules and packages)
                 for finder, name, ispkg in pkgutil.iter_modules(module.__path__):
                     submodule_name = f"{module_path}.{name}"
@@ -1134,7 +1145,6 @@ def list_langchain_classes():
         # Add the module itself to the list of modules to check
         modules_to_check = [module_path] + submodules
 
-        # print(f"Found {len(modules_to_check)} modules/submodules to check for classes")
 
         # Check each module for classes
         for mod_path in modules_to_check:
@@ -1195,7 +1205,6 @@ def get_langchain_class_details():
     """Get details about a specific class in LangChain."""
     # library = request.args.get("library", "langchain")
     module_path = request.args.get("module", "")
-    print(f"Getting class details for {module_path}")
     class_name = request.args.get("class_name", "")
 
     # Generate cache key
@@ -1204,7 +1213,6 @@ def get_langchain_class_details():
     # Check cache first
     cached_result = class_details_cache.get(cache_key)
     if cached_result:
-        # print(f"Using cached details for {cache_key}")
         return jsonify(cached_result)
 
     if not module_path or not class_name:
@@ -1376,7 +1384,6 @@ def get_langchain_class_details():
 def create_custom_block():
     """Create a custom block based on a LangChain class."""
     data = request.json
-    print(f"Creating custom block with data: {data}")
     module_path = data.get("module_path")
     class_name = data.get("class_name")
     block_id = data.get("id")
@@ -1444,6 +1451,103 @@ def create_custom_block():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/templates/save", methods=["POST"])
+def save_template():
+    """Save the current pipeline state as a template."""
+    try:
+        data = request.json
+        template_name = data.get("template_name", "My Template")
+        blocks_data = data.get("blocks", {})
+        connections_data = data.get("connections", [])
+
+        # Create a template object with all necessary data
+        template = {
+            "name": template_name,
+            "created_at": __import__("datetime").datetime.now().isoformat(),
+            "blocks": blocks_data,
+            "connections": connections_data,
+        }
+
+        # Just return the template JSON for the client to download
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Template ready for download",
+                "template": template,
+            }
+        )
+    except Exception as e:
+        print(f"Template save error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/templates/load", methods=["POST"])
+def load_template():
+    """Process an uploaded template file to restore a pipeline."""
+    try:
+        data = request.json
+        template_data = data.get("template")
+
+        if not template_data:
+            return jsonify({"error": "No template data provided"}), 400
+
+        # Basic validation of the template structure
+        if "blocks" not in template_data or "connections" not in template_data:
+            return jsonify({"error": "Invalid template format"}), 400
+
+        # Return success - client will handle the actual restoration
+        return jsonify({"status": "success", "message": "Template loaded successfully"})
+    except Exception as e:
+        print(f"Template load error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.before_request
+def check_maintenance_mode():
+    # Skip for static files and auth routes
+    if request.path.startswith("/static") or request.path.startswith("/auth"):
+        return
+
+    settings = AdminPanel.query.first()
+    if settings and settings.maintenance_mode:
+        # Allow admins to access everything
+        if current_user.is_authenticated and getattr(current_user, "is_admin", False):
+            return
+        # Show maintenance page to everyone else
+        return (
+            render_template("maintenance.html", message=settings.maintenance_message),
+            503,
+        )
+
+
+@app.before_request
+def enforce_public_mode():
+    # Skip for static files and auth routes
+    if request.path.startswith("/static") or request.path.startswith("/auth"):
+        return
+    # Skip for admin routes - they are handled by @login_required and @admin_required
+    if request.path.startswith("/admin"):
+        return
+    # Prevent redirect loop: if already on /login, do not redirect
+    if request.path == "/login":
+        return
+    settings = AdminPanel.query.first()
+    if settings and not settings.public_mode:
+        if not current_user.is_authenticated:
+            # Prevent redirect loop: do not set next to /login or /auth/login
+            if request.path == "/login" or request.path.startswith("/auth/login"):
+                return
+            # Store the current URL as the next parameter only if it's not /login
+            return redirect(url_for("auth.login", next=request.url))
+
+
+# Create database tables
+with app.app_context():
+    db.create_all()
 
 
 if __name__ == "__main__":

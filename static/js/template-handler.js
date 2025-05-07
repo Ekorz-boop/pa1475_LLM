@@ -53,6 +53,7 @@ class TemplateHandler {
         // Same for saveMethods
         if (typeof window.saveMethods !== 'function' && typeof saveMethods === 'function') {
             window.saveMethods = saveMethods;
+            console.log(saveMethods)
         }
         
         // Same for saveParameterValue
@@ -435,16 +436,20 @@ class TemplateHandler {
                     }
                     
                     if (blockData) {
+                        console.log("\nblock data:", blockData)
                         // Get module info
                         blockConfig.moduleInfo = blockData.moduleInfo || this.findModuleInfoForClass(className);
+                        console.log("\nblock data moduleinfo", blockData.moduleInfo)
                         
                         // Get methods
                         blockConfig.methods = blockData.methods || [];
+                        console.log("\nblock data methods")
                         
                         // Get selected method
                         const methodSelect = blockEl.querySelector('.method-select');
                         if (methodSelect) {
                             blockConfig.selectedMethod = methodSelect.value;
+                            console.log("\nselected methods", methodSelect)
                         }
                         
                         // Get parameters
@@ -477,7 +482,7 @@ class TemplateHandler {
             // CRITICAL FIX: Use the helper method to get connections
             const connections = this.getConnectionsData();
             console.log(`Found ${connections.length} connections for template`);
-            
+            console.log("\nconnections found were:", connections) // maybe format them?
             this.updateProgress(80, 'Creating template');
             
             // Create template object
@@ -1322,8 +1327,8 @@ class TemplateHandler {
         console.log("Creating connection from template:", connectionData);
         
         // Get source and target blocks by ID from the DOM
-        const sourceBlock = document.getElementById(connectionData.source.blockId);
-        const targetBlock = document.getElementById(connectionData.target.blockId);
+        const sourceBlock = document.getElementById(connectionData.source);
+        const targetBlock = document.getElementById(connectionData.target);
         
         if (!sourceBlock || !targetBlock) {
             console.error("Cannot create connection: blocks not found", {
@@ -1341,10 +1346,10 @@ class TemplateHandler {
                 console.log("Using global createConnection function");
                 
                 // Get inputId and find the correct target node
-                const inputId = connectionData.target.inputId;
+                const inputId = connectionData.inputId;
                 
                 // Find the correct input node index if inputId is specified
-                let targetInputIndex = connectionData.target.inputIndex || 0;
+                let targetInputIndex = connectionData.inputIndex || 0;
                 
                 if (inputId) {
                     // Try to find the input node with this inputId
@@ -1374,53 +1379,48 @@ class TemplateHandler {
                     console.error("SVG connections container not found!");
                     return null;
                 }
-                
-                // Get the source output node
-                const sourceNodeIndex = connectionData.source.outputIndex || 0;
-                const sourceNodes = sourceBlock.querySelectorAll('.output-node');
-                const sourceNode = sourceNodes[sourceNodeIndex] || sourceNodes[0];
-                
-                // Get the target input node
-                let targetNode = null;
-                const inputId = connectionData.target.inputId;
-                
-                if (inputId) {
-                    // Try to find input node with matching data-input
-                    const inputNodes = targetBlock.querySelectorAll('.input-node');
-                    for (let i = 0; i < inputNodes.length; i++) {
-                        if (inputNodes[i].getAttribute('data-input') === inputId) {
-                            targetNode = inputNodes[i];
-                            break;
-                        }
-                    }
+
+                const inputId = connectionData.inputId;
+                const sourceNode = connectionData.sourceNode;
+
+                // Determine output node based on the connection source node if available
+                let outputNode;
+                if (connectionData.sourceNode) {
+                    // Use the specified source node
+                    outputNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceNode}"]`);
+                } else if (connectionData.sourceMethod) {
+                    // Try to find by method
+                    outputNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceMethod}_output"]`);
+                } else {
+                    // Default to the first output node
+                    outputNode = sourceBlock.querySelector('.output-node');
                 }
-                
-                // Fallback to index if no inputId match
-                if (!targetNode) {
-                    const targetNodeIndex = connectionData.target.inputIndex || 0;
-                    const targetNodes = targetBlock.querySelectorAll('.input-node');
-                    targetNode = targetNodes[targetNodeIndex] || targetNodes[0];
+
+                // Determine input node from connection inputId
+                let inputNode;
+                if (connectionData.inputId) {
+                    inputNode = targetBlock.querySelector(`.input-node[data-input="${connectionData.inputId}"]`);
                 }
-                
-                if (!sourceNode || !targetNode) {
-                    console.error("Could not find source or target node for connection");
-                    return null;
+
+                if (!inputNode) {
+                    // Fallback to first input node if we couldn't find a matching one
+                    inputNode = targetBlock.querySelector('.input-node');
                 }
                 
                 // Calculate positions for the connection line
                 const canvasContainer = document.querySelector('.canvas-container');
                 const canvasRect = canvasContainer.getBoundingClientRect();
-                const sourceRect = sourceNode.getBoundingClientRect();
-                const targetRect = targetNode.getBoundingClientRect();
+                const outputRect = outputNode.getBoundingClientRect();
+                const inputRect = inputNode.getBoundingClientRect();
                 
                 // Calculate positions with zoom and translation
                 const zoom = window.zoom || 1;
                 const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
                 
-                const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
-                const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
-                const x2 = ((targetRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
-                const y2 = ((targetRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight/2;
+                const x1 = ((outputRect.right - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((outputRect.top + outputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+                const x2 = ((inputRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y2 = ((inputRect.top + inputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
                 
                 // Create SVG line element
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -1433,24 +1433,23 @@ class TemplateHandler {
                 line.setAttribute('class', 'connection-line');
                 
                 // Set data attributes to track connection info
-                line.setAttribute('data-source-id', sourceBlock.id);
-                line.setAttribute('data-target-id', targetBlock.id);
-                line.setAttribute('data-input-id', inputId || '');
+                line.setAttribute('data-source', sourceBlock);
+                line.setAttribute('data-target', targetBlock);
                 
                 // Add to connections container
                 connectionsContainer.appendChild(line);
-                
                 // Add to global connections array 
                 if (window.connections && Array.isArray(window.connections)) {
                     const connection = {
-                        source: sourceBlock.id,
-                        target: targetBlock.id,
-                        inputId: inputId || ''
+                        source: connectionData.source,
+                        target: connectionData.target,
+                        inputId: inputId,
+                        sourceNode: connectionData.sourceNode
                     };
                     window.connections.push(connection);
                 }
                 
-                return { source: sourceBlock.id, target: targetBlock.id, inputId: inputId || '' };
+                return { source: sourceBlock, target: targetBlock, inputId: inputId, sourceNode: sourceNode};
             }
         } catch (error) {
             console.error("Error in createConnectionFromTemplate:", error);
@@ -2175,32 +2174,28 @@ class TemplateHandler {
         if (window.connections && Array.isArray(window.connections)) {
             console.log('Using global window.connections array', window.connections.length);
             
-            connections = window.connections.map((conn, index) => {
-                let sourceId = conn.source;
-                let targetId = conn.target;
-                let inputId = conn.inputId;
-                
-                // Handle different connection formats
-                if (typeof conn.source === 'object' && conn.source.id) {
-                    sourceId = conn.source.id;
-                }
-                
-                if (typeof conn.target === 'object' && conn.target.id) {
-                    targetId = conn.target.id;
-                }
-                
-                return {
-                    id: conn.id || `conn_${index}`,
-                    source: {
-                        blockId: sourceId,
-                        outputIndex: 0
-                    },
-                    target: {
-                        blockId: targetId,
-                        inputIndex: 0,
-                        inputId: inputId
-                    }
+            connections = window.connections.map(conn => {
+                // Create a basic connection object
+                const formattedConn = {
+                    source: conn.source,
+                    target: conn.target,
+                    inputId: conn.inputId
                 };
+
+                // Add method-specific information if available
+                if (conn.sourceMethod) {
+                    formattedConn.sourceMethod = conn.sourceMethod;
+                }
+
+                if (conn.targetMethod) {
+                    formattedConn.targetMethod = conn.targetMethod;
+                }
+
+                if (conn.sourceNode) {
+                    formattedConn.sourceNode = conn.sourceNode;
+                }
+
+                return formattedConn;
             });
         }
         
