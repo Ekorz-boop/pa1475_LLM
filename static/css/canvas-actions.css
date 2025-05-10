@@ -1,0 +1,51 @@
+/* Canvas Actions */
+.canvas-actions {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+}
+
+.export-button,
+.template-button,
+.run-button {
+    background: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.export-button:hover,
+.template-button:hover,
+.run-button:hover {
+    background: #f1f1f1;
+    transform: scale(1.05);
+}
+
+.dark-mode .export-button,
+.dark-mode .template-button,
+.dark-mode .run-button {
+    background: #333;
+}
+
+.dark-mode .export-button:hover,
+.dark-mode .template-button:hover,
+.dark-mode .run-button:hover {
+    background: #444;
+}
+
+.dark-mode .export-button img,
+.dark-mode .template-button svg,
+.dark-mode .run-button img {
+    filter: invert(1);
+} 
