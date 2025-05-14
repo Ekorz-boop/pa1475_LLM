@@ -1073,6 +1073,64 @@ class TemplateHandler {
                     return this.createBlockManually(blockData);
                 }
                 
+                // CRITICAL FIX: Explicitly initialize the block with ALL parameters immediately
+                if (block) {
+                    console.log("CRITICAL FIX: Explicitly updating block parameters on creation");
+                    
+                    // 1. Find the method select element 
+                    const methodSelect = block.querySelector('.method-select');
+                    
+                    // 2. If it exists, select the first method from savedMethods if any
+                    if (methodSelect && blockData.config && blockData.config.methods && blockData.config.methods.length > 0) {
+                        // Get all the selected methods, should include __init__ and any other methods
+                        const selectedMethods = blockData.config.methods;
+                        
+                        // Make sure to update method rows for multi-method blocks
+                        if (typeof window.updateMethodsDisplay === 'function' && selectedMethods.length > 1) {
+                            window.updateMethodsDisplay(block, selectedMethods, blockData.id);
+                        }
+                        
+                        // Ensure init is explicitly chosen as first method
+                        if (methodSelect.options.length > 0) {
+                            // Try to find __init__ option
+                            let initOption = null;
+                            for (let i = 0; i < methodSelect.options.length; i++) {
+                                if (methodSelect.options[i].value === '__init__') {
+                                    initOption = methodSelect.options[i];
+                                    break;
+                                }
+                            }
+                            
+                            // If found, select it
+                            if (initOption) {
+                                methodSelect.value = '__init__';
+                                
+                                // Trigger change event to update parameters
+                                const event = new Event('change');
+                                methodSelect.dispatchEvent(event);
+                                
+                                console.log("Selected __init__ method and triggered parameter update");
+                            }
+                        }
+                        
+                        // Now explicitly call updateBlockParameters for each method with staggered timing 
+                        if (typeof window.updateBlockParameters === 'function') {
+                            // Start with __init__
+                            window.updateBlockParameters(block, '__init__');
+                            
+                            // Then update each additional method with a small delay
+                            selectedMethods.forEach((method, index) => {
+                                if (method !== '__init__') {
+                                    setTimeout(() => {
+                                        window.updateBlockParameters(block, method);
+                                        console.log(`Updated parameters for method ${method}`);
+                                    }, 300 * (index + 1)); // Stagger by 300ms
+                                }
+                            });
+                        }
+                    }
+                }
+                
                 // Apply saved configuration
                 if (block && blockData.config) {
                     const methodSelect = block.querySelector('.method-select');
@@ -1101,28 +1159,71 @@ class TemplateHandler {
                             
                             // Wait for parameter rows to be created before setting values
                             const waitForParametersToLoad = () => {
-                                const paramRows = block.querySelectorAll('.parameter-row');
-                                const paramNames = Object.keys(parameters);
-                                let allParamsFound = true;
+                                // First, get the selected methods for this block
+                                let selectedMethods = [];
                                 
-                                // Check if all parameter rows exist
-                                for (const paramName of paramNames) {
-                                    const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
-                                    if (!paramRow) {
-                                        allParamsFound = false;
-                                        break;
-                                    }
+                                // Add selected method from config
+                                if (blockData.config.selectedMethod) {
+                                    selectedMethods.push(blockData.config.selectedMethod);
                                 }
                                 
-                                if (!allParamsFound && paramRows.length < paramNames.length) {
-                                    // Parameters are not yet loaded, wait and try again
+                                // Add methods from config.selected_methods (multi method blocks)
+                                if (blockData.config.selected_methods && Array.isArray(blockData.config.selected_methods)) {
+                                    // Add without duplicates
+                                    blockData.config.selected_methods.forEach(method => {
+                                        if (!selectedMethods.includes(method)) {
+                                            selectedMethods.push(method);
+                                        }
+                                    });
+                                }
+                                
+                                // For multi method blocks, we need to ensure all method rows are created
+                                if (selectedMethods.length > 1) {
+                                    const methodsContainer = block.querySelector('.block-methods');
+                                    if (methodsContainer) {
+                                        const existingMethodRows = methodsContainer.querySelectorAll('.method-row');
+                                        
+                                        // If some method rows are missing, update the display
+                                        if (existingMethodRows.length < selectedMethods.length - 1) { // -1 for __init__
+                                            console.log(`Adding method rows for multi method block: ${blockData.id}`);
+                                            // Filter out __init__ since it's not displayed as a row
+                                            const methodsToDisplay = selectedMethods.filter(m => m !== '__init__');
+                                            updateMethodsDisplay(block, methodsToDisplay, blockData.id);
+                                            
+                                            // Wait another cycle to ensure method rows are created
+                                            setTimeout(waitForParametersToLoad, 250);
+                                            return;
+                                        }
+                                    }
+                                }
+                                    
+                                // Now check if parameter rows are created
+                                const paramRows = block.querySelectorAll('.parameter-row');
+                                const paramNames = Object.keys(parameters);
+                                
+                                // Consider the parameter loading ready if we have some rows or after several attempts
+                                if (paramRows.length === 0 && paramNames.length > 0) {
                                     console.log(`Waiting for parameters to load for ${blockData.className}...`);
                                     setTimeout(waitForParametersToLoad, 250);
                                     return;
                                 }
                                 
+                                console.log(`Setting ${paramNames.length} parameters for ${blockData.className}`);
+                                
+                                // Make sure we load parameters from localStorage (they might be stored there too)
+                                let localStorageParams = {};
+                                try {
+                                    const localParams = JSON.parse(localStorage.getItem(`blockParams-${blockData.id}`) || '{}');
+                                    localStorageParams = localParams;
+                                } catch (e) {
+                                    console.warn('Error loading parameters from localStorage:', e);
+                                }
+                                
+                                // Combine parameters from config and localStorage
+                                const allParameters = {...parameters, ...localStorageParams};
+                                
                                 // Now parameters are loaded, set their values
-                                Object.entries(parameters).forEach(([paramName, value]) => {
+                                Object.entries(allParameters).forEach(([paramName, value]) => {
                                     const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
                                     if (paramRow) {
                                         const input = paramRow.querySelector('input, select, textarea');
@@ -1135,9 +1236,59 @@ class TemplateHandler {
                                             console.log(`Set parameter ${paramName} = ${value} for ${blockData.className}`);
                                         }
                                     } else {
-                                        console.warn(`Parameter row for ${paramName} not found`);
+                                        // Parameter row doesn't exist - we may need to add it
+                                        // We should update parameters for each method to ensure all parameters are shown
+                                        console.log(`Parameter row for ${paramName} not found, may need to add it`);
+                                        
+                                        // For multi method blocks, we need to ensure parameters are displayed
+                                        if (selectedMethods.length > 1) {
+                                            const paramsContainer = block.querySelector('.block-parameters');
+                                            if (paramsContainer && paramsContainer.querySelector('.active-parameters')) {
+                                                const activeParamsContainer = paramsContainer.querySelector('.active-parameters');
+                                                const genericParams = [{name: paramName, type: 'Any', required: false}];
+                                                
+                                                if (typeof addParameterRowForMethod === 'function') {
+                                                    // Add parameter row if the function exists
+                                                    const newRow = addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockData.id);
+                                                    console.log(`Added missing parameter row for ${paramName}`);
+                                                }
+                                            }
+                                        }
                                     }
                                 });
+                                
+                                // CRITICAL FIX: Force immediate display of parameters
+                                console.log(`CRITICAL: Forcing immediate parameter display for block ${blockData.id}`);
+                                
+                                // Force immediate parameter updates for all methods
+                                if (selectedMethods.length > 0) {
+                                    // Start with the first method (usually __init__)
+                                    if (typeof updateBlockParameters === 'function') {
+                                        // First update for the selected method (immediate)
+                                        const firstMethod = selectedMethods[0];
+                                        updateBlockParameters(block, firstMethod);
+                                        console.log(`Immediately updated parameters for ${firstMethod}`);
+                                        
+                                        // Then update for each additional method with staggered timing
+                                        selectedMethods.slice(1).forEach((method, index) => {
+                                            setTimeout(() => {
+                                                console.log(`Updating parameters for method ${method} (delayed)`);
+                                                updateBlockParameters(block, method);
+                                            }, 300 * (index + 1)); // Stagger by 300ms per method
+                                        });
+                                    }
+                                }
+                                
+                                // Update the block parameters for all methods to ensure everything is properly displayed
+                                if (selectedMethods.length > 1) {
+                                    // For each method in the multi method block, make sure its parameters are shown
+                                    selectedMethods.forEach(method => {
+                                        if (method !== '__init__' && typeof updateBlockParameters === 'function') {
+                                            console.log(`Updating parameters for method ${method}`);
+                                            setTimeout(() => updateBlockParameters(block, method), 300);
+                                        }
+                                    });
+                                }
                             };
                             
                             // Start waiting for parameters
@@ -1562,6 +1713,18 @@ class TemplateHandler {
                 customBlocksSession[blockIndex].parameters = customBlocksSession[blockIndex].parameters || {};
                 customBlocksSession[blockIndex].parameters[paramName] = value;
                 sessionStorage.setItem('customBlocks', JSON.stringify(customBlocksSession));
+                
+                // Also sync with localStorage for persistence
+                // This is critical for multi method blocks to keep parameters across sessions
+                try {
+                    const blockParamsKey = `blockParams-${blockId}`;
+                    const localStorageParams = JSON.parse(localStorage.getItem(blockParamsKey) || '{}');
+                    localStorageParams[paramName] = value;
+                    localStorage.setItem(blockParamsKey, JSON.stringify(localStorageParams));
+                    console.log(`Saved parameter ${paramName}=${value} to localStorage for block ${blockId}`);
+                } catch (e) {
+                    console.warn('Failed to save parameter to localStorage:', e);
+                }
             }
         } catch (e) {
             console.warn('Failed to save parameter value to storage:', e);
@@ -2021,6 +2184,18 @@ class TemplateHandler {
                 if (!existingParams) {
                     localStorage.setItem(key, JSON.stringify(parameters));
                     console.log(`Initialized blockParams for ${blockData.id}`);
+                } else {
+                    // Merge with existing parameters for multi method blocks
+                    try {
+                        const savedParams = JSON.parse(existingParams);
+                        const mergedParams = {...savedParams, ...parameters};
+                        localStorage.setItem(key, JSON.stringify(mergedParams));
+                        console.log(`Updated blockParams for ${blockData.id} with ${Object.keys(parameters).length} parameters`);
+                    } catch (e) {
+                        // If there's an error, overwrite with new parameters
+                        localStorage.setItem(key, JSON.stringify(parameters));
+                        console.warn('Error merging parameters, overwrote with new values:', e);
+                    }
                 }
             }
             

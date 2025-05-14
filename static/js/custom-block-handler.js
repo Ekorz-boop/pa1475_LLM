@@ -1651,6 +1651,147 @@ function populateMethodsForBlock(block, className, blockId) {
         if (savedMethodSelections.length > 0) {
             // Update method rows display
             updateMethodsDisplay(block, savedMethodSelections, blockId);
+            
+            // Restore parameters for all methods, not just the active one
+            setTimeout(() => {
+                console.log('Restoring parameters for all methods in the block');
+                
+                // First update parameters for the active method
+                if (methodSelect.value) {
+                    updateBlockParameters(block, methodSelect.value);
+                }
+                
+                // Then update for all other selected methods
+                savedMethodSelections.forEach(method => {
+                    if (method !== '__init__' && method !== methodSelect.value) {
+                        setTimeout(() => {
+                            updateBlockParameters(block, method);
+                        }, 200); // Stagger updates to avoid race conditions
+                    }
+                });
+                
+                // CRITICAL FIX: Also update for first method even if active method is empty
+                // This ensures parameters show immediately after loading, without requiring user interaction
+                if (!methodSelect.value && savedMethodSelections.length > 0) {
+                    console.log('CRITICAL: Force immediate parameter display on load');
+                    
+                    // Try to use __init__ first, then fall back to first method
+                    const firstMethod = savedMethodSelections.includes('__init__') ? 
+                        '__init__' : savedMethodSelections[0];
+                    
+                    // Force immediate update for this method
+                    updateBlockParameters(block, firstMethod);
+                    console.log(`Forced immediate parameters display for ${firstMethod}`);
+                    
+                    // If we have a file_path parameter, make sure it's displayed
+                    setTimeout(() => {
+                        // Get saved parameters from localStorage
+                        try {
+                            const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+                            if (savedParams.file_path) {
+                                console.log(`Found file_path parameter: ${savedParams.file_path}`);
+                                
+                                // Look for an empty parameter container and add the file_path
+                                const paramsContainer = block.querySelector('.block-parameters');
+                                if (paramsContainer) {
+                                    const existingParam = paramsContainer.querySelector(`.parameter-row[data-param-name="file_path"]`);
+                                    if (!existingParam) {
+                                        // If active-parameters exists, use it, otherwise use paramsContainer
+                                        const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
+                                        const genericParams = [{name: 'file_path', type: 'Any', required: false}];
+                                        
+                                        if (typeof addParameterRowForMethod === 'function') {
+                                            const newRow = addParameterRowForMethod(
+                                                activeParamsContainer, 
+                                                'file_path', 
+                                                savedParams.file_path, 
+                                                genericParams, 
+                                                blockId
+                                            );
+                                            console.log(`Added missing file_path parameter row with value: ${savedParams.file_path}`);
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Error checking for file_path parameter:', e);
+                        }
+                    }, 500);
+                }
+            }, 500); // Give the method rows time to be created first
+        } else {
+            // If no methods found, fetch them from the server or use defaults
+            console.log(`No methods found for ${blockId || className}, fetching from server...`);
+
+            // Find module info from sessionStorage
+            const moduleInfo = findModuleInfoForClass(className);
+
+            if (moduleInfo) {
+                console.log(`Found module info for ${className}: ${moduleInfo.library}/${moduleInfo.module}`);
+
+                // Fetch methods from the server
+                fetch(`/api/langchain/class_details?library=${moduleInfo.library}&module=${moduleInfo.module}&class_name=${className}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch methods: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`Fetched methods for ${blockId || className}:`, data);
+
+                        // Add constructor
+                        const constructorOption = document.createElement('option');
+                        constructorOption.value = '__init__';
+                        constructorOption.textContent = 'Constructor (__init__)';
+                        methodSelect.appendChild(constructorOption);
+
+                        // Add other methods
+                        if (data.methods && data.methods.length > 0) {
+                            data.methods.forEach(method => {
+                                if (method === '__init__') return; // Skip constructor, already added
+
+                                const option = document.createElement('option');
+                                option.value = method;
+                                option.textContent = method;
+                                methodSelect.appendChild(option);
+                            });
+
+                            // Save methods to sessionStorage for this specific block
+                            const methodsToSave = ['__init__', ...data.methods];
+                            saveMethods(className, methodsToSave, blockId);
+                            console.log(`Saved ${methodsToSave.length} methods from API for ${blockId || className}`);
+
+                            // Set constructor as selected by default
+                            if (methodSelect.options.length > 1) {
+                                methodSelect.selectedIndex = 1;
+                                // Trigger change event to update parameters
+                                const changeEvent = new Event('change');
+                                methodSelect.dispatchEvent(changeEvent);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error fetching methods for ${blockId || className}:`, error);
+                        // Set first method as selected
+                        if (methodSelect.options.length > 1) {
+                            methodSelect.selectedIndex = 1;
+                            // Trigger change event
+                            const changeEvent = new Event('change');
+                            methodSelect.dispatchEvent(changeEvent);
+                        }
+                    });
+            } else {
+                console.warn(`No module info found for ${blockId || className}`);
+
+                // Set first method as selected
+                if (methodSelect.options.length > 1) {
+                    methodSelect.selectedIndex = 1;
+                    // Trigger change event
+                    const changeEvent = new Event('change');
+                    methodSelect.dispatchEvent(changeEvent);
+                }
+            }
         }
     } else {
         // If no methods found, fetch them from the server or use defaults
@@ -2763,12 +2904,24 @@ function addMethodRow(block, methodName, blockId = '') {
         setupNodeListener(outputNode, true);
     }
 
+    // Add click event to open method parameter configuration
+    methodRow.addEventListener('click', () => {
+        // When a method row is clicked, update the parameters for this method
+        console.log(`Method row clicked: ${methodName}`);
+        updateBlockParameters(block, methodName);
+    });
+
     // Update node positions for even spacing
     updateBlockNodesForMethods(block);
 
     // Save the method selection
     saveMethodSelection(blockId, methodName);
-
+    
+    // Update parameters for this method
+    setTimeout(() => {
+        updateBlockParameters(block, methodName);
+    }, 250);
+    
     return methodRow;
 }
 
@@ -2913,6 +3066,67 @@ function updateMethodsDisplay(block, methods, blockId = '') {
 
     // Update the node positions after changing method rows
     updateBlockNodesForMethods(block);
+    
+    // CRITICAL FIX: Update the parameters for each method
+    console.log('updateMethodsDisplay - Forcing parameter update for all methods');
+    
+    // Immediate: Update parameters for the first method (usually __init__)
+    const methodSelect = block.querySelector('.method-select');
+    if (methodSelect && methodSelect.value) {
+        updateBlockParameters(block, methodSelect.value);
+    } else if (methods.includes('__init__')) {
+        updateBlockParameters(block, '__init__');
+    }
+    
+    // Staggered: Update parameters for other methods with delays
+    // Skip the method that's already selected in the dropdown
+    const selectedMethod = methodSelect ? methodSelect.value : '';
+    
+    methods.forEach((method, index) => {
+        if (method !== '__init__' && method !== selectedMethod) {
+            setTimeout(() => {
+                console.log(`updateMethodsDisplay - Delayed update for method ${method}`);
+                updateBlockParameters(block, method);
+            }, 300 * (index + 1)); // Staggered delay
+        }
+    });
+    
+    // Also make sure we load any parameters from localStorage
+    setTimeout(() => {
+        try {
+            const savedParams = JSON.parse(localStorage.getItem(`blockParams-${blockId}`) || '{}');
+            const paramKeys = Object.keys(savedParams);
+            
+            if (paramKeys.length > 0) {
+                console.log(`updateMethodsDisplay - Found ${paramKeys.length} saved parameters for block ${blockId}`);
+                
+                // Get active parameters container
+                const paramsContainer = block.querySelector('.block-parameters');
+                if (paramsContainer) {
+                    const activeParamsContainer = paramsContainer.querySelector('.active-parameters') || paramsContainer;
+                    
+                    // Check each parameter
+                    paramKeys.forEach(paramName => {
+                        // Only add if not already displayed
+                        const existingParam = paramsContainer.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
+                        if (!existingParam) {
+                            console.log(`updateMethodsDisplay - Adding missing param ${paramName} from localStorage`);
+                            
+                            // Add the parameter row with a generic param spec
+                            if (typeof addParameterRowForMethod === 'function') {
+                                const genericParams = [{name: paramName, type: 'Any', required: false}];
+                                const paramValue = savedParams[paramName];
+                                
+                                addParameterRowForMethod(activeParamsContainer, paramName, paramValue, genericParams, blockId);
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('updateMethodsDisplay - Error loading parameters from localStorage:', e);
+        }
+    }, 800); // After all method-specific updates
 }
 
 /**
@@ -3049,7 +3263,7 @@ function updateBlockNodesForMethods(block) {
                     const sourceId = line.getAttribute('data-source');
                     return sourceId === block.id && 
                            window.connections.some(conn => conn.source === block.id && 
-                                                 conn.sourceNode === outputName);
+                                                  conn.sourceNode === outputName);
                 });
                 
                 if (!isConnected) {
