@@ -22,15 +22,16 @@
     <link rel="stylesheet" href="/static/css/dark-mode.css">
     <link rel="stylesheet" href="/static/css/welcome.css">
     <link rel="stylesheet" href="/static/css/templates.css">
+    <link rel="stylesheet" href="/static/css/templates.css">
 </head>
 
 <body>
     <div id="app">
         <!-- Add sidebar toggle button -->
         <div id="sidebar-toggle">
-            <img src="/static/images/icons/sidebar-menu/hamburger.svg" alt="Menu">
+            <img src="/static/images/icons/icons/sidebar-menu/hamburger.svg" alt="Menu">
         </div>
-        
+
         <div class="main-content">
             <div id="sidebar">
                 <div class="main-menu">
@@ -38,30 +39,30 @@
                     <div class="menu-content" id="main-menu-content">
                         <div class="menu-section">
                             <div class="menu-item" data-menu="blocks">
-                                <img src="/static/images/icons/sidebar-menu/blocks.svg" alt="Blocks">
+                                <img src="/static/images/icons/icons/sidebar-menu/blocks.svg" alt="Blocks">
                                 <span>Blocks</span>
                             </div>
                             <div class="menu-item" data-menu="templates">
-                                <img src="/static/images/icons/sidebar-menu/templates.svg" alt="Templates">
+                                <img src="/static/images/icons/icons/sidebar-menu/templates.svg" alt="Templates">
                                 <span>Templates</span>
                             </div>
                         </div>
-                        
+
                         <div class="menu-section">
                             <div class="section-title">Theme</div>
                             <div class="theme-options">
                                 <div class="theme-option" data-theme="light" title="Light mode">
-                                    <img src="/static/images/icons/theme-controls/sun.svg" alt="Light mode" width="16" height="16">
+                                    <img src="/static/images/icons/icons/theme-controls/sun.svg" alt="Light mode" width="16" height="16">
                                 </div>
                                 <div class="theme-option" data-theme="dark" title="Dark mode">
-                                    <img src="/static/images/icons/theme-controls/moon.svg" alt="Dark mode" width="16" height="16">
+                                    <img src="/static/images/icons/icons/theme-controls/moon.svg" alt="Dark mode" width="16" height="16">
                                 </div>
                                 <div class="theme-option" data-theme="system" title="System default">
-                                    <img src="/static/images/icons/sidebar-menu/computer.svg" alt="System default" width="16" height="16">
+                                    <img src="/static/images/icons/icons/sidebar-menu/computer.svg" alt="System default" width="16" height="16">
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="menu-section">
                             <div class="section-title">Canvas Background</div>
                             <div class="bg-color-options">
@@ -92,12 +93,12 @@
                             <div class="section-title">User</div>
                             {% if current_user.is_admin %}
                             <a href="/admin" class="menu-item" id="admin-button">
-                                <img src="/static/images/icons/admin-panel/admin.svg" alt="Admin">
+                                <img src="/static/images/icons/icons/admin-panel/admin.svg" alt="Admin">
                                 <span>Admin Panel</span>
                             </a>
                             {% endif %}
                             <a href="/logout" class="menu-item" id="logout-button">
-                                <img src="/static/images/icons/action-buttons/logout.svg" alt="Logout">
+                                <img src="/static/images/icons/icons/action-buttons/logout.svg" alt="Logout">
                                 <span>Logout</span>
                             </a>
                         </div>
@@ -149,10 +150,10 @@
                         <div class="templates-section">
                             <div class="template-actions-menu">
                                 <div id="saveTemplateBtn" class="action-button" title="Save Pipeline Template">
-                                    <img src="/static/images/icons/action-buttons/save.svg" alt="Save Template">
+                                    <img src="/static/images/icons/icons/action-buttons/save.svg" alt="Save Template">
                                 </div>
                                 <div id="loadTemplateBtn" class="action-button" title="Load Pipeline Template">
-                                    <img src="/static/images/icons/action-buttons/load.svg" alt="Load Template">
+                                    <img src="/static/images/icons/icons/action-buttons/load.svg" alt="Load Template">
                                 </div>
                             </div>
                             <div class="saved-templates-preview">
@@ -167,15 +168,15 @@
             </div>
             <div id="canvas">
                 <div class="canvas-actions">
-                    <button id="export-pipeline" class="export-button" title="Export Pipeline">
-                        <img src="/static/images/icons/action-buttons/export.svg" alt="Export Pipeline">
-                    </button>
+                <button id="export-pipeline" class="export-button" title="Export Pipeline">
+                        <img src="/static/images/icons/icons/action-buttons/export.svg" alt="Export Pipeline">
+                </button>
                 </div>
                 <div class="debug-mode-container" title="Enable to run partial pipelines for debugging" style="display: none;">
                     <input type="checkbox" id="debug-mode">
                     <label for="debug-mode">Debug Mode</label>
                 </div>
-                
+
                 <!-- Welcome Screen -->
                 <div id="simple-welcome">
                     <div class="welcome-container">
@@ -188,7 +189,7 @@
                         <p class="info-text"><span class="text-content">Fit to view</span></p>
                     </div>
                 </div>
-                
+
                 <div class="canvas-container">
                     <div class="canvas-grid"></div>
                     <svg id="connections"></svg>
@@ -203,7 +204,7 @@
                     <button class="zoom-button" id="zoom-in">+</button>
                     <button class="zoom-button" id="zoom-fit" title="Reset zoom">⟲</button>
                 </div>
-                
+
                 <button id="fit-to-view" class="fit-to-view-button" title="Fit all blocks to view">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
@@ -212,7 +213,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- JS -->
     <script src="/static/js/app.js"></script>
     <script src="/static/js/docstring-handler.js"></script>
@@ -238,7 +239,7 @@
     </div>
 
     <style>
-    
+
     /* Toast Notifications */
     #toast-container {
         position: fixed;
@@ -378,13 +379,13 @@
         filter: invert(1);
     }
     </style>
-    
+
     <!-- Simplified fit-to-view script -->
     <script>
         // Wait for the DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
             console.log("Initializing fit-to-view functionality");
-            
+
             // The single, definitive fit-to-view function
             function fitBlocksToView() {
                 console.log("Fitting blocks to view");
@@ -392,28 +393,28 @@
                     // Get all blocks and canvas container
                     var blocks = document.querySelectorAll('.block');
                     var container = document.querySelector('.canvas-container');
-                    
+
                     if (!blocks.length || !container) {
                         console.log("No blocks or container found");
                         return;
                     }
-                    
+
                     console.log("Found " + blocks.length + " blocks");
-                    
+
                     // Reset transform to measure
                     const originalTransform = container.style.transform;
                     container.style.transform = 'none';
-                    
+
                     // Force a reflow to ensure the transform is applied
                     void container.offsetHeight;
-                    
+
                     // Measure blocks in reset state
                     setTimeout(function() {
                         try {
                             // Find bounds of all blocks
                             var minX = Infinity, minY = Infinity;
                             var maxX = -Infinity, maxY = -Infinity;
-                            
+
                             blocks.forEach(function(block) {
                                 var rect = block.getBoundingClientRect();
                                 minX = Math.min(minX, rect.left);
@@ -421,50 +422,50 @@
                                 maxX = Math.max(maxX, rect.right);
                                 maxY = Math.max(maxY, rect.bottom);
                             });
-                            
+
                             // Restore original transform if no valid blocks
                             if (minX === Infinity) {
                                 console.log("Could not determine block bounds");
                                 container.style.transform = originalTransform;
                                 return;
                             }
-                            
+
                             // Calculate content dimensions with 20% padding
                             var contentWidth = maxX - minX;
                             var contentHeight = maxY - minY;
                             var centerX = (minX + maxX) / 2;
                             var centerY = (minY + maxY) / 2;
-                            
+
                             var paddedWidth = contentWidth * 1.2;
                             var paddedHeight = contentHeight * 1.2;
-                            
+
                             // Calculate scale for fitting
                             var scaleX = window.innerWidth / paddedWidth;
                             var scaleY = window.innerHeight / paddedHeight;
                             var scale = Math.min(scaleX, scaleY, 2.0);
-                            
+
                             // Ensure minimum scale
                             scale = Math.max(scale, 0.2);
-                            
+
                             // Calculate translation to center content
                             var tx = (window.innerWidth / 2) - (centerX * scale);
                             var ty = (window.innerHeight / 2) - (centerY * scale);
-                            
+
                             console.log("New transform: translate(" + tx + "px, " + ty + "px) scale(" + scale + ")");
-                            
+
                             // Store values for protection
                             window.fitToViewActive = true;
                             window.fittedZoom = scale;
                             window.fittedTranslateX = tx;
                             window.fittedTranslateY = ty;
-                            
+
                             // Update the global variables
                             if (typeof window.zoom !== 'undefined') window.zoom = scale;
                             if (typeof window.currentTranslate !== 'undefined') {
                                 window.currentTranslate.x = tx;
                                 window.currentTranslate.y = ty;
                             }
-                            
+
                             // Fix for accurate block placement after zoom
                             // This ensures that blocks drop where expected regardless of zoom level
                             if (typeof window.handleDragStart === 'function') {
@@ -476,7 +477,7 @@
                                     return originalHandleDragStart.apply(this, arguments);
                                 };
                             }
-                            
+
                             if (typeof window.handleBlockDrop === 'function') {
                                 const originalHandleBlockDrop = window.handleBlockDrop;
                                 window.handleBlockDrop = function(e) {
@@ -484,7 +485,7 @@
                                     if (window.fitToViewActive && window.dragStartZoom) {
                                         // Calculate zoom compensation factor
                                         const zoomCompensation = window.zoom / window.dragStartZoom;
-                                        
+
                                         // Clone and modify the event to adjust coordinates
                                         const adjustedEvent = {...e};
                                         if (adjustedEvent.clientX !== undefined && adjustedEvent.clientY !== undefined) {
@@ -492,82 +493,82 @@
                                             const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
                                             const centerX = canvasRect.left + canvasRect.width / 2;
                                             const centerY = canvasRect.top + canvasRect.height / 2;
-                                            
+
                                             // Calculate adjusted position based on center point
                                             adjustedEvent.clientX = centerX + (adjustedEvent.clientX - centerX) * zoomCompensation;
                                             adjustedEvent.clientY = centerY + (adjustedEvent.clientY - centerY) * zoomCompensation;
                                         }
-                                        
+
                                         // Call original with adjusted coordinates
                                         return originalHandleBlockDrop.apply(this, [adjustedEvent]);
                                     }
-                                    
+
                                     // Call original function normally if no zoom adjustment needed
                                     return originalHandleBlockDrop.apply(this, arguments);
                                 };
                             }
-                            
+
                             // Update zoom display
                             var zoomDisplay = document.querySelector('.zoom-level');
                             if (zoomDisplay) {
                                 zoomDisplay.textContent = Math.round(scale * 100) + '%';
                             }
-                            
+
                             // Add transition for smooth animation
                             container.style.transition = 'transform 0.5s cubic-bezier(0.215, 0.61, 0.355, 1)';
-                            
+
                             // Apply transform with animation
                             container.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-                            
+
                             // Remove transition after animation completes
                             setTimeout(function() {
                                 container.style.transition = '';
-                                
+
                                 // Update connections and mini-map after transition
                                 if (typeof window.updateConnections === 'function') {
                                     window.updateConnections();
                                 }
-                                
+
                                 if (typeof window.updateMiniMap === 'function') {
                                     window.updateMiniMap();
                                 }
                             }, 600);
-                            
+
                             // Create a MutationObserver to protect the zoom level during dragging
                             const transformObserver = new MutationObserver(function(mutations) {
                                 if (window.fitToViewActive) {
                                     mutations.forEach(function(mutation) {
-                                        if (mutation.attributeName === 'style' && 
+                                        if (mutation.attributeName === 'style' &&
                                             mutation.target === container &&
                                             !container.style.transition) {  // Only apply when not animating
-                                            
+
                                             // Get the current transform
                                             const currentTransform = container.style.transform;
-                                            
+
                                             // Check if it contains our expected zoom
-                                            if (currentTransform && 
+                                            if (currentTransform &&
                                                 !currentTransform.includes('scale(' + window.fittedZoom + ')')) {
-                                                
+
                                                 console.log('Transform changed, restoring fitted zoom');
-                                                
+
                                                 // Extract the translation values from the current transform
                                                 const translateMatch = currentTransform.match(/translate\(([^,]+),\s*([^)]+)\)/);
-                                                
+
                                                 if (translateMatch) {
                                                     // Allow translation to change (panning) but keep zoom fixed
                                                     const currentTranslateX = parseFloat(translateMatch[1]);
                                                     const currentTranslateY = parseFloat(translateMatch[2]);
-                                                    
+
                                                     // Apply transform with current translation but our fixed zoom
                                                     // Do not use transition during drag operations - this makes it feel snappy
-                                                    container.style.transform = 
+                                                    container.style.transform =
                                                         `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${window.fittedZoom})`;
-                                                    
+
                                                     // Update the global variables
                                                     if (typeof window.zoom !== 'undefined') {
                                                         window.zoom = window.fittedZoom;
                                                     }
-                                                    
+
                                                     // Update zoom display
                                                     var zoomDisplay = document.querySelector('.zoom-level');
                                                     if (zoomDisplay) {
@@ -579,29 +580,29 @@
                                     });
                                 }
                             });
-                            
+
                             // Start observing the canvas container for style changes
                             transformObserver.observe(container, {
                                 attributes: true,
                                 attributeFilter: ['style']
                             });
-                            
+
                             // 4. Add our custom event listeners to disable protection when user explicitly zooms
                             function disableProtection() {
                                 if (window.fitToViewActive) {
                                     console.log('User manually zoomed, disabling fit-to-view protection');
                                     window.fitToViewActive = false;
-                                    
+
                                     // Stop the observer to prevent further interference
                                     transformObserver.disconnect();
                                 }
                             }
-                            
+
                             // Zoom buttons
                             document.getElementById('zoom-in')?.addEventListener('click', disableProtection);
                             document.getElementById('zoom-out')?.addEventListener('click', disableProtection);
                             document.getElementById('zoom-fit')?.addEventListener('click', disableProtection);
-                            
+
                             // Wheel zoom
                             document.addEventListener('wheel', function(e) {
                                 // Check if Ctrl key is pressed (typical for zoom)
@@ -618,7 +619,7 @@
                     console.error("Error in fitBlocksToView:", e);
                 }
             }
-            
+
             // Add event listener to the button
             var fitButton = document.getElementById('fit-to-view');
             if (fitButton) {
@@ -629,17 +630,17 @@
                     fitBlocksToView();
                 });
             }
-            
+
             // Make the function available globally
             window.fitBlocksToView = fitBlocksToView;
-            
+
             // Also patch the updateCanvasTransform function to respect our settings
             if (typeof window.updateCanvasTransform === 'function') {
                 const originalUpdateCanvasTransform = window.updateCanvasTransform;
                 window.updateCanvasTransform = function() {
                     // Call the original function
                     originalUpdateCanvasTransform.apply(this, arguments);
-                    
+
                     // Always update the zoom display after transform updates
                     var zoomDisplay = document.querySelector('.zoom-level');
                     if (zoomDisplay && typeof window.zoom !== 'undefined') {
@@ -659,7 +660,7 @@
                     window.templateHandler.saveTemplateModal();
                 }
             });
-            
+
             document.getElementById('load-template')?.addEventListener('click', () => {
                 if (window.templateHandler) {
                     window.templateHandler.showLoadTemplateModal();
@@ -671,29 +672,29 @@
                 if (window.templateHandler) {
                     const templates = window.templateHandler.loadSavedTemplates();
                     const templatesList = document.getElementById('recent-templates-list');
-                    
+
                     if (!templatesList) return;
-                    
+
                     if (templates.length === 0) {
                         templatesList.innerHTML = '<p class="no-templates">No saved templates found</p>';
                         return;
                     }
-                    
+
                     // Sort templates by creation date (newest first)
                     templates.sort((a, b) => {
                         return new Date(b.created_at || 0) - new Date(a.created_at || 0);
                     });
-                    
+
                     // Display only the 3 most recent templates
                     const recentTemplates = templates.slice(0, 3);
-                    
+
                     // Generate HTML for each template
                     let templatesHtml = '';
                     recentTemplates.forEach(template => {
-                        const date = template.created_at 
-                            ? new Date(template.created_at).toLocaleDateString() 
+                        const date = template.created_at
+                            ? new Date(template.created_at).toLocaleDateString()
                             : 'Unknown date';
-                            
+
                         templatesHtml += `
                             <div class="template-item" data-id="${template.id}">
                                 <div class="template-info">
@@ -706,21 +707,21 @@
                             </div>
                         `;
                     });
-                    
+
                     templatesList.innerHTML = templatesHtml;
                 }
             };
-            
+
             // Helper function for HTML escaping
             window.escapeHtml = function(text) {
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             };
-            
+
             // Initially populate recent templates
             setTimeout(populateRecentTemplates, 500);
-            
+
             // Update recent templates whenever the templates tab is shown
             document.querySelector('.menu-item[data-menu="templates"]')?.addEventListener('click', () => {
                 setTimeout(populateRecentTemplates, 100);

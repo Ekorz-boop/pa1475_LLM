@@ -53,6 +53,7 @@ class TemplateHandler {
         // Same for saveMethods
         if (typeof window.saveMethods !== 'function' && typeof saveMethods === 'function') {
             window.saveMethods = saveMethods;
+            console.log(saveMethods)
         }
         
         // Same for saveParameterValue
@@ -435,16 +436,20 @@ class TemplateHandler {
                     }
                     
                     if (blockData) {
+                        console.log("\nblock data:", blockData)
                         // Get module info
                         blockConfig.moduleInfo = blockData.moduleInfo || this.findModuleInfoForClass(className);
+                        console.log("\nblock data moduleinfo", blockData.moduleInfo)
                         
                         // Get methods
                         blockConfig.methods = blockData.methods || [];
+                        console.log("\nblock data methods")
                         
                         // Get selected method
                         const methodSelect = blockEl.querySelector('.method-select');
                         if (methodSelect) {
                             blockConfig.selectedMethod = methodSelect.value;
+                            console.log("\nselected methods", methodSelect)
                         }
                         
                         // Get parameters
@@ -477,7 +482,7 @@ class TemplateHandler {
             // CRITICAL FIX: Use the helper method to get connections
             const connections = this.getConnectionsData();
             console.log(`Found ${connections.length} connections for template`);
-            
+            console.log("\nconnections found were:", connections) // maybe format them?
             this.updateProgress(80, 'Creating template');
             
             // Create template object
@@ -811,36 +816,20 @@ class TemplateHandler {
      */
     async applyTemplate(templateData) {
         try {
-            this.showProgress(true, 'Loading template...', 'Preparing template data');
+            // Clear the current workspace
+            this.updateProgress(10, 'Clearing workspace');
+            await this.clearWorkspace();
             
-            // If templateData is a string, assume it's a template ID and try to load it
-            let template = templateData;
-            if (typeof templateData === 'string') {
-                template = this.getTemplate(templateData);
-                if (!template) {
-                    throw new Error(`Template "${templateData}" not found`);
-                }
+            // Parse template blocks and connections
+            this.updateProgress(20, 'Parsing template data');
+            if (!templateData.blocks) {
+                throw new Error('No blocks found in template data');
             }
             
-            // Validate template
-            if (!template || !template.blocks || !template.connections) {
-                throw new Error('Invalid template format');
-            }
-            
-            console.log('Applying template:', template);
-            
-            // Clear existing pipeline
-            this.clearCanvas();
-            
-            this.updateProgress(30, 'Creating blocks');
-            
-            // Create all blocks first
-            const blocks = template.blocks || {};
-            
-            // Check if we have any blocks to create
-            if (Object.keys(blocks).length === 0) {
-                throw new Error('Template contains no blocks');
-            }
+            const blocks = templateData.blocks || {};
+            const connections = templateData.connections || [];
+            const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]'); 
+            const customBlocksLocal = JSON.parse(localStorage.getItem('customBlocks') || '[]');
             
             try {
                 // First, add all custom blocks to the sidebar to ensure session storage is properly populated
@@ -870,177 +859,96 @@ class TemplateHandler {
                 
                 // Create all blocks in the canvas
                 this.updateProgress(50, 'Creating blocks in canvas');
+                const createdBlocks = {};
                 
-                // Create all blocks (in parallel)
-                const blockPromises = Object.entries(blocks).map(async ([blockId, blockData]) => {
-                    try {
-                        // Make sure the ID is properly set in the block data
-                        blockData.id = blockId;
-                        await this.createBlockFromTemplate(blockData);
-                        return blockId;
-                    } catch (error) {
-                        console.error(`Failed to create block ${blockId}:`, error);
-                        return null;
+                for (const blockId in blocks) {
+                    const blockData = blocks[blockId];
+                    blockData.id = blockId; // Ensure ID is set in block data
+                    
+                    // Skip any blocks with missing required data
+                    if (!blockData.type && !blockData.className) {
+                        console.warn(`Skipping block ${blockId} due to missing type or className`);
+                        continue;
                     }
-                });
-                
-                const createdBlocks = await Promise.all(blockPromises);
-                const successfulBlocks = createdBlocks.filter(id => id !== null);
-                
-                console.log(`Successfully created ${successfulBlocks.length} of ${Object.keys(blocks).length} blocks`);
-                
-                if (successfulBlocks.length === 0) {
-                    throw new Error('Failed to create any blocks from template');
-                }
-                
-                this.updateProgress(70, 'Creating connections');
-                
-                // CRITICAL FIX: Add a delay to ensure block elements are fully initialized
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Force block transform into translate format on all blocks
-                document.querySelectorAll('.block').forEach(blockEl => {
-                    const transform = blockEl.style.transform;
-                    if (!transform || !transform.includes('translate')) {
-                        // Try to get position from left/top
-                        const left = parseInt(blockEl.style.left) || 0;
-                        const top = parseInt(blockEl.style.top) || 0;
-                        blockEl.style.transform = `translate(${left}px, ${top}px)`;
-                        // Clear left/top to avoid conflicts
-                        blockEl.style.left = '';
-                        blockEl.style.top = '';
-                    }
-                });
-                
-                // Apply draggable to all blocks again to ensure they can be moved
-                const allBlockElements = document.querySelectorAll('.block');
-                allBlockElements.forEach(blockElement => {
-                    if (typeof window.makeBlockDraggable === 'function') {
-                        window.makeBlockDraggable(blockElement);
-                        console.log(`Made block ${blockElement.id} draggable`);
-                    } else {
-                        this.makeBlockDraggableManually(blockElement);
-                    }
-                });
-                
-                // Clear all existing connections from the connections container
-                const connectionsContainer = document.getElementById('connections');
-                if (connectionsContainer) {
-                    connectionsContainer.innerHTML = '';
-                }
-                
-                // CRITICAL FIX: Remove any old div-based connections that might have been created
-                const oldConnectionDivs = document.querySelectorAll('div.connection');
-                oldConnectionDivs.forEach(connDiv => {
-                    console.log(`Removing old connection div: ${connDiv.id}`);
-                    connDiv.remove();
-                });
-                
-                // Reset global connections array if present
-                if (window.connections && Array.isArray(window.connections)) {
-                    window.connections.length = 0;
-                    console.log('Cleared global connections array');
-                }
-                
-                // Then create connections
-                const connections = template.connections || [];
-                let successfulConnections = 0;
-                
-                console.log(`Creating ${connections.length} connections`);
-                
-                // Create connections sequentially with slight delay between each to ensure proper initialization
-                for (const connectionData of connections) {
-                    try {
-                        await this.createConnectionFromTemplate(connectionData);
-                        successfulConnections++;
+                    
+                    const block = this.createBlockFromTemplate(blockData);
+                    if (block) {
+                        createdBlocks[blockId] = block;
                         
-                        // Small delay between connections to allow DOM to update
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                    } catch (error) {
-                        console.error('Failed to create connection:', connectionData, error);
+                        // Set up custom block if needed
+                        if (blockData.custom && typeof window.setupCustomBlock === 'function') {
+                            window.setupCustomBlock(block);
+                        }
                     }
                 }
                 
-                console.log(`Created ${successfulConnections} of ${connections.length} connections`);
-                
-                this.updateProgress(90, 'Finalizing');
-                
-                // Update connections visualization
-                if (typeof window.updateConnections === 'function') {
-                    window.updateConnections();
+                // Ensure all blocks have their nodes positioned correctly
+                this.updateProgress(70, 'Positioning nodes on blocks');
+                for (const blockId in createdBlocks) {
+                    const block = createdBlocks[blockId];
+                    // Make sure the block is fully initialized
+                    if (typeof window.updateBlockNodesForMethods === 'function') {
+                        // Ensure all method nodes are properly positioned
+                        window.updateBlockNodesForMethods(block);
+                    }
                 }
                 
-                // Update mini-map if exists
-                if (typeof window.updateMiniMap === 'function') {
-                    window.updateMiniMap();
-                }
-                
-                // Give some time for the DOM to update
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Re-apply draggable functionality one more time to ensure everything is movable
-                document.querySelectorAll('.block').forEach(blockEl => {
-                    if (typeof window.makeBlockDraggable === 'function') {
-                        window.makeBlockDraggable(blockEl);
-                    } else {
-                        this.makeBlockDraggableManually(blockEl);
+                // Create connections between blocks
+                this.updateProgress(80, 'Creating connections');
+                if (connections && connections.length > 0) {
+                    for (const connectionData of connections) {
+                        this.createConnectionFromTemplate(connectionData);
                     }
                     
-                    // CRITICAL FIX: Use our improved node connection setup
-                    this.setupNodeConnections(blockEl);
-                    
-                    // Add enhanced drag event listeners
-                    this.addDragEventListeners(blockEl);
-                    
-                    // Apply setupCustomBlock if it's a custom block
-                    if (blockEl.classList.contains('custom-block') && typeof window.setupCustomBlock === 'function') {
-                        window.setupCustomBlock(blockEl);
-                    }
-                });
-                
-                // CRITICAL FIX: Ensure all global variables are properly set
-                window.draggingConnection = false;
-                window.sourceNode = null;
-                window.hoveredInputNode = null;
-                window.tempConnection = null;
-                
-                // Update connections visualization one final time
-                if (typeof window.updateConnections === 'function') {
-                    window.updateConnections();
-                }
-                
-                // Fit all blocks to view
-                setTimeout(() => {
-                    if (typeof window.fitBlocksToView === 'function') {
-                        window.fitBlocksToView();
-                    } else if (typeof window.fitAllBlocksToView === 'function') {
-                        window.fitAllBlocksToView();
-                    }
-                }, 500);
-                
-                this.updateProgress(100, 'Template loaded successfully');
-                this.showProgress(false);
-                
-                // Force one final connections update after everything is complete
-                setTimeout(() => {
+                    // Update all connections visually
                     if (typeof window.updateConnections === 'function') {
-                        console.log('Performing final connections update');
                         window.updateConnections();
                     }
-                }, 1000);
+                }
                 
-                this.showToast('Pipeline template loaded successfully', 'success');
+                this.updateProgress(90, 'Loading configuration');
+                
+                // Show success message
+                this.updateProgress(100, 'Template loaded successfully');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Template loaded successfully', 'success');
+                }
+                
                 return true;
-            } catch (error) {
-                console.error('Error processing blocks:', error);
-                throw error;
+            } catch (e) {
+                console.error('Error applying template:', e);
+                this.updateProgress(100, 'Error loading template');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Error loading template: ' + e.message, 'error');
+                }
+                return false;
             }
         } catch (error) {
             console.error('Error applying template:', error);
-            this.showProgress(false);
-            this.showToast('Error applying template: ' + error.message, 'error');
+            this.updateProgress(100, 'Error loading template');
+            if (typeof window.showToast === 'function') {
+                window.showToast('Error loading template: ' + error.message, 'error');
+            }
             return false;
         }
+    }
+    
+    /**
+     * Clears the workspace of all blocks and connections
+     * @returns {Promise<boolean>} - Promise that resolves to true if workspace was cleared
+     */
+    clearWorkspace() {
+        return new Promise((resolve) => {
+            try {
+                // Clear the canvas
+                this.clearCanvas();
+                console.log('Workspace cleared successfully');
+                resolve(true);
+            } catch (error) {
+                console.error('Error clearing workspace:', error);
+                resolve(false);
+            }
+        });
     }
     
     /**
@@ -1165,6 +1073,64 @@ class TemplateHandler {
                     return this.createBlockManually(blockData);
                 }
                 
+                // CRITICAL FIX: Explicitly initialize the block with ALL parameters immediately
+                if (block) {
+                    console.log("CRITICAL FIX: Explicitly updating block parameters on creation");
+                    
+                    // 1. Find the method select element 
+                    const methodSelect = block.querySelector('.method-select');
+                    
+                    // 2. If it exists, select the first method from savedMethods if any
+                    if (methodSelect && blockData.config && blockData.config.methods && blockData.config.methods.length > 0) {
+                        // Get all the selected methods, should include __init__ and any other methods
+                        const selectedMethods = blockData.config.methods;
+                        
+                        // Make sure to update method rows for multi-method blocks
+                        if (typeof window.updateMethodsDisplay === 'function' && selectedMethods.length > 1) {
+                            window.updateMethodsDisplay(block, selectedMethods, blockData.id);
+                        }
+                        
+                        // Ensure init is explicitly chosen as first method
+                        if (methodSelect.options.length > 0) {
+                            // Try to find __init__ option
+                            let initOption = null;
+                            for (let i = 0; i < methodSelect.options.length; i++) {
+                                if (methodSelect.options[i].value === '__init__') {
+                                    initOption = methodSelect.options[i];
+                                    break;
+                                }
+                            }
+                            
+                            // If found, select it
+                            if (initOption) {
+                                methodSelect.value = '__init__';
+                                
+                                // Trigger change event to update parameters
+                                const event = new Event('change');
+                                methodSelect.dispatchEvent(event);
+                                
+                                console.log("Selected __init__ method and triggered parameter update");
+                            }
+                        }
+                        
+                        // Now explicitly call updateBlockParameters for each method with staggered timing 
+                        if (typeof window.updateBlockParameters === 'function') {
+                            // Start with __init__
+                            window.updateBlockParameters(block, '__init__');
+                            
+                            // Then update each additional method with a small delay
+                            selectedMethods.forEach((method, index) => {
+                                if (method !== '__init__') {
+                                    setTimeout(() => {
+                                        window.updateBlockParameters(block, method);
+                                        console.log(`Updated parameters for method ${method}`);
+                                    }, 300 * (index + 1)); // Stagger by 300ms
+                                }
+                            });
+                        }
+                    }
+                }
+                
                 // Apply saved configuration
                 if (block && blockData.config) {
                     const methodSelect = block.querySelector('.method-select');
@@ -1193,28 +1159,71 @@ class TemplateHandler {
                             
                             // Wait for parameter rows to be created before setting values
                             const waitForParametersToLoad = () => {
-                                const paramRows = block.querySelectorAll('.parameter-row');
-                                const paramNames = Object.keys(parameters);
-                                let allParamsFound = true;
+                                // First, get the selected methods for this block
+                                let selectedMethods = [];
                                 
-                                // Check if all parameter rows exist
-                                for (const paramName of paramNames) {
-                                    const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
-                                    if (!paramRow) {
-                                        allParamsFound = false;
-                                        break;
-                                    }
+                                // Add selected method from config
+                                if (blockData.config.selectedMethod) {
+                                    selectedMethods.push(blockData.config.selectedMethod);
                                 }
                                 
-                                if (!allParamsFound && paramRows.length < paramNames.length) {
-                                    // Parameters are not yet loaded, wait and try again
+                                // Add methods from config.selected_methods (multi method blocks)
+                                if (blockData.config.selected_methods && Array.isArray(blockData.config.selected_methods)) {
+                                    // Add without duplicates
+                                    blockData.config.selected_methods.forEach(method => {
+                                        if (!selectedMethods.includes(method)) {
+                                            selectedMethods.push(method);
+                                        }
+                                    });
+                                }
+                                
+                                // For multi method blocks, we need to ensure all method rows are created
+                                if (selectedMethods.length > 1) {
+                                    const methodsContainer = block.querySelector('.block-methods');
+                                    if (methodsContainer) {
+                                        const existingMethodRows = methodsContainer.querySelectorAll('.method-row');
+                                        
+                                        // If some method rows are missing, update the display
+                                        if (existingMethodRows.length < selectedMethods.length - 1) { // -1 for __init__
+                                            console.log(`Adding method rows for multi method block: ${blockData.id}`);
+                                            // Filter out __init__ since it's not displayed as a row
+                                            const methodsToDisplay = selectedMethods.filter(m => m !== '__init__');
+                                            updateMethodsDisplay(block, methodsToDisplay, blockData.id);
+                                            
+                                            // Wait another cycle to ensure method rows are created
+                                            setTimeout(waitForParametersToLoad, 250);
+                                            return;
+                                        }
+                                    }
+                                }
+                                    
+                                // Now check if parameter rows are created
+                                const paramRows = block.querySelectorAll('.parameter-row');
+                                const paramNames = Object.keys(parameters);
+                                
+                                // Consider the parameter loading ready if we have some rows or after several attempts
+                                if (paramRows.length === 0 && paramNames.length > 0) {
                                     console.log(`Waiting for parameters to load for ${blockData.className}...`);
                                     setTimeout(waitForParametersToLoad, 250);
                                     return;
                                 }
                                 
+                                console.log(`Setting ${paramNames.length} parameters for ${blockData.className}`);
+                                
+                                // Make sure we load parameters from localStorage (they might be stored there too)
+                                let localStorageParams = {};
+                                try {
+                                    const localParams = JSON.parse(localStorage.getItem(`blockParams-${blockData.id}`) || '{}');
+                                    localStorageParams = localParams;
+                                } catch (e) {
+                                    console.warn('Error loading parameters from localStorage:', e);
+                                }
+                                
+                                // Combine parameters from config and localStorage
+                                const allParameters = {...parameters, ...localStorageParams};
+                                
                                 // Now parameters are loaded, set their values
-                                Object.entries(parameters).forEach(([paramName, value]) => {
+                                Object.entries(allParameters).forEach(([paramName, value]) => {
                                     const paramRow = block.querySelector(`.parameter-row[data-param-name="${paramName}"]`);
                                     if (paramRow) {
                                         const input = paramRow.querySelector('input, select, textarea');
@@ -1227,9 +1236,59 @@ class TemplateHandler {
                                             console.log(`Set parameter ${paramName} = ${value} for ${blockData.className}`);
                                         }
                                     } else {
-                                        console.warn(`Parameter row for ${paramName} not found`);
+                                        // Parameter row doesn't exist - we may need to add it
+                                        // We should update parameters for each method to ensure all parameters are shown
+                                        console.log(`Parameter row for ${paramName} not found, may need to add it`);
+                                        
+                                        // For multi method blocks, we need to ensure parameters are displayed
+                                        if (selectedMethods.length > 1) {
+                                            const paramsContainer = block.querySelector('.block-parameters');
+                                            if (paramsContainer && paramsContainer.querySelector('.active-parameters')) {
+                                                const activeParamsContainer = paramsContainer.querySelector('.active-parameters');
+                                                const genericParams = [{name: paramName, type: 'Any', required: false}];
+                                                
+                                                if (typeof addParameterRowForMethod === 'function') {
+                                                    // Add parameter row if the function exists
+                                                    const newRow = addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockData.id);
+                                                    console.log(`Added missing parameter row for ${paramName}`);
+                                                }
+                                            }
+                                        }
                                     }
                                 });
+                                
+                                // CRITICAL FIX: Force immediate display of parameters
+                                console.log(`CRITICAL: Forcing immediate parameter display for block ${blockData.id}`);
+                                
+                                // Force immediate parameter updates for all methods
+                                if (selectedMethods.length > 0) {
+                                    // Start with the first method (usually __init__)
+                                    if (typeof updateBlockParameters === 'function') {
+                                        // First update for the selected method (immediate)
+                                        const firstMethod = selectedMethods[0];
+                                        updateBlockParameters(block, firstMethod);
+                                        console.log(`Immediately updated parameters for ${firstMethod}`);
+                                        
+                                        // Then update for each additional method with staggered timing
+                                        selectedMethods.slice(1).forEach((method, index) => {
+                                            setTimeout(() => {
+                                                console.log(`Updating parameters for method ${method} (delayed)`);
+                                                updateBlockParameters(block, method);
+                                            }, 300 * (index + 1)); // Stagger by 300ms per method
+                                        });
+                                    }
+                                }
+                                
+                                // Update the block parameters for all methods to ensure everything is properly displayed
+                                if (selectedMethods.length > 1) {
+                                    // For each method in the multi method block, make sure its parameters are shown
+                                    selectedMethods.forEach(method => {
+                                        if (method !== '__init__' && typeof updateBlockParameters === 'function') {
+                                            console.log(`Updating parameters for method ${method}`);
+                                            setTimeout(() => updateBlockParameters(block, method), 300);
+                                        }
+                                    });
+                                }
                             };
                             
                             // Start waiting for parameters
@@ -1322,48 +1381,79 @@ class TemplateHandler {
         console.log("Creating connection from template:", connectionData);
         
         // Get source and target blocks by ID from the DOM
-        const sourceBlock = document.getElementById(connectionData.source.blockId);
-        const targetBlock = document.getElementById(connectionData.target.blockId);
+        const sourceBlock = document.getElementById(connectionData.source);
+        const targetBlock = document.getElementById(connectionData.target);
         
         if (!sourceBlock || !targetBlock) {
             console.error("Cannot create connection: blocks not found", {
-                sourceId: connectionData.source.blockId,
-                targetId: connectionData.target.blockId,
+                sourceId: connectionData.source,
+                targetId: connectionData.target,
                 sourceFound: !!sourceBlock,
                 targetFound: !!targetBlock
             });
             return null;
         }
-        
+
         try {
-            // First check if window.createConnection function exists and use it
+            // IMPORTANT: Ensure nodes are properly positioned before creating connections
+            if (typeof window.updateBlockNodesForMethods === 'function') {
+                // Update node positions for both source and target blocks
+                window.updateBlockNodesForMethods(sourceBlock);
+                window.updateBlockNodesForMethods(targetBlock);
+            }
+            
+            // Check if a global createConnection function is available
             if (typeof window.createConnection === 'function') {
                 console.log("Using global createConnection function");
                 
-                // Get inputId and find the correct target node
-                const inputId = connectionData.target.inputId;
+                // If we have source method information, find the correct source node
+                let sourceNode = null;
                 
-                // Find the correct input node index if inputId is specified
-                let targetInputIndex = connectionData.target.inputIndex || 0;
-                
-                if (inputId) {
-                    // Try to find the input node with this inputId
-                    const inputNodes = targetBlock.querySelectorAll('.input-node');
-                    for (let i = 0; i < inputNodes.length; i++) {
-                        if (inputNodes[i].getAttribute('data-input') === inputId) {
-                            targetInputIndex = i;
-                            break;
-                        }
+                if (connectionData.sourceNode) {
+                    // Source node ID is directly specified
+                    sourceNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceNode}"]`);
+                    
+                    // If not found, try with a different approach (method_output format)
+                    if (!sourceNode && connectionData.sourceMethod) {
+                        sourceNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceMethod}_output"]`);
                     }
-                    console.log(`Found input node with inputId ${inputId} at index ${targetInputIndex}`);
+                } else if (connectionData.sourceMethod) {
+                    // Try to find by method name with _output suffix
+                    sourceNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceMethod}_output"]`);
                 }
                 
-                // Create connection with the correct input node
-                return window.createConnection(
-                    sourceBlock, 
-                    targetBlock, 
-                    inputId
-                );
+                // Fall back to first output node if needed
+                if (!sourceNode) {
+                    sourceNode = sourceBlock.querySelector('.output-node');
+                }
+                
+                // Get input node by ID if specified
+                let inputNode = null;
+                if (connectionData.inputId) {
+                    inputNode = targetBlock.querySelector(`.input-node[data-input="${connectionData.inputId}"]`);
+                }
+                
+                // Fall back to first input node if needed
+                if (!inputNode) {
+                    inputNode = targetBlock.querySelector('.input-node');
+                }
+                
+                if (!sourceNode || !inputNode) {
+                    console.error("Could not find nodes for connection", {
+                        sourceNodeFound: !!sourceNode,
+                        inputNodeFound: !!inputNode,
+                        connectionData
+                    });
+                    return null;
+                }
+                
+                // Create the connection using the global function
+                return window.createConnection(sourceBlock, targetBlock, connectionData.inputId, {
+                    sourceNode: sourceNode,
+                    inputNode: inputNode,
+                    sourceMethod: connectionData.sourceMethod,
+                    targetMethod: connectionData.targetMethod
+                });
             } else {
                 // If window.createConnection is not available, create the connection directly in the SVG container
                 console.log("No global createConnection function found, creating connection manually via SVG");
@@ -1374,53 +1464,57 @@ class TemplateHandler {
                     console.error("SVG connections container not found!");
                     return null;
                 }
-                
-                // Get the source output node
-                const sourceNodeIndex = connectionData.source.outputIndex || 0;
-                const sourceNodes = sourceBlock.querySelectorAll('.output-node');
-                const sourceNode = sourceNodes[sourceNodeIndex] || sourceNodes[0];
-                
-                // Get the target input node
-                let targetNode = null;
-                const inputId = connectionData.target.inputId;
-                
-                if (inputId) {
-                    // Try to find input node with matching data-input
-                    const inputNodes = targetBlock.querySelectorAll('.input-node');
-                    for (let i = 0; i < inputNodes.length; i++) {
-                        if (inputNodes[i].getAttribute('data-input') === inputId) {
-                            targetNode = inputNodes[i];
-                            break;
-                        }
-                    }
+
+                const inputId = connectionData.inputId;
+                const sourceNode = connectionData.sourceNode;
+
+                // Determine output node based on the connection source node if available
+                let outputNode;
+                if (connectionData.sourceNode) {
+                    // Use the specified source node
+                    outputNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceNode}"]`);
+                } else if (connectionData.sourceMethod) {
+                    // Try to find by method
+                    outputNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceMethod}_output"]`);
+                } else {
+                    // Default to the first output node
+                    outputNode = sourceBlock.querySelector('.output-node');
+                }
+
+                // Determine input node from connection inputId
+                let inputNode;
+                if (connectionData.inputId) {
+                    inputNode = targetBlock.querySelector(`.input-node[data-input="${connectionData.inputId}"]`);
+                }
+
+                if (!inputNode) {
+                    // Fallback to first input node if we couldn't find a matching one
+                    inputNode = targetBlock.querySelector('.input-node');
                 }
                 
-                // Fallback to index if no inputId match
-                if (!targetNode) {
-                    const targetNodeIndex = connectionData.target.inputIndex || 0;
-                    const targetNodes = targetBlock.querySelectorAll('.input-node');
-                    targetNode = targetNodes[targetNodeIndex] || targetNodes[0];
-                }
-                
-                if (!sourceNode || !targetNode) {
-                    console.error("Could not find source or target node for connection");
+                if (!outputNode || !inputNode) {
+                    console.error("Failed to find connection nodes", {
+                        outputNodeFound: !!outputNode,
+                        inputNodeFound: !!inputNode,
+                        connectionData
+                    });
                     return null;
                 }
                 
                 // Calculate positions for the connection line
                 const canvasContainer = document.querySelector('.canvas-container');
                 const canvasRect = canvasContainer.getBoundingClientRect();
-                const sourceRect = sourceNode.getBoundingClientRect();
-                const targetRect = targetNode.getBoundingClientRect();
+                const outputRect = outputNode.getBoundingClientRect();
+                const inputRect = inputNode.getBoundingClientRect();
                 
                 // Calculate positions with zoom and translation
                 const zoom = window.zoom || 1;
                 const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
                 
-                const x1 = ((sourceRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + sourceNode.offsetWidth/2;
-                const y1 = ((sourceRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + sourceNode.offsetHeight/2;
-                const x2 = ((targetRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + targetNode.offsetWidth/2;
-                const y2 = ((targetRect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + targetNode.offsetHeight/2;
+                const x1 = ((outputRect.right - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y1 = ((outputRect.top + outputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+                const x2 = ((inputRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+                const y2 = ((inputRect.top + inputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
                 
                 // Create SVG line element
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -1433,24 +1527,25 @@ class TemplateHandler {
                 line.setAttribute('class', 'connection-line');
                 
                 // Set data attributes to track connection info
-                line.setAttribute('data-source-id', sourceBlock.id);
-                line.setAttribute('data-target-id', targetBlock.id);
-                line.setAttribute('data-input-id', inputId || '');
+                line.setAttribute('data-source', sourceBlock.id);
+                line.setAttribute('data-target', targetBlock.id);
                 
                 // Add to connections container
                 connectionsContainer.appendChild(line);
-                
                 // Add to global connections array 
                 if (window.connections && Array.isArray(window.connections)) {
                     const connection = {
-                        source: sourceBlock.id,
-                        target: targetBlock.id,
-                        inputId: inputId || ''
+                        source: connectionData.source,
+                        target: connectionData.target,
+                        inputId: inputId,
+                        sourceNode: connectionData.sourceNode,
+                        sourceMethod: connectionData.sourceMethod,
+                        targetMethod: connectionData.targetMethod
                     };
                     window.connections.push(connection);
                 }
                 
-                return { source: sourceBlock.id, target: targetBlock.id, inputId: inputId || '' };
+                return { source: sourceBlock, target: targetBlock, inputId: inputId, sourceNode: sourceNode};
             }
         } catch (error) {
             console.error("Error in createConnectionFromTemplate:", error);
@@ -1618,6 +1713,18 @@ class TemplateHandler {
                 customBlocksSession[blockIndex].parameters = customBlocksSession[blockIndex].parameters || {};
                 customBlocksSession[blockIndex].parameters[paramName] = value;
                 sessionStorage.setItem('customBlocks', JSON.stringify(customBlocksSession));
+                
+                // Also sync with localStorage for persistence
+                // This is critical for multi method blocks to keep parameters across sessions
+                try {
+                    const blockParamsKey = `blockParams-${blockId}`;
+                    const localStorageParams = JSON.parse(localStorage.getItem(blockParamsKey) || '{}');
+                    localStorageParams[paramName] = value;
+                    localStorage.setItem(blockParamsKey, JSON.stringify(localStorageParams));
+                    console.log(`Saved parameter ${paramName}=${value} to localStorage for block ${blockId}`);
+                } catch (e) {
+                    console.warn('Failed to save parameter to localStorage:', e);
+                }
             }
         } catch (e) {
             console.warn('Failed to save parameter value to storage:', e);
@@ -2077,6 +2184,18 @@ class TemplateHandler {
                 if (!existingParams) {
                     localStorage.setItem(key, JSON.stringify(parameters));
                     console.log(`Initialized blockParams for ${blockData.id}`);
+                } else {
+                    // Merge with existing parameters for multi method blocks
+                    try {
+                        const savedParams = JSON.parse(existingParams);
+                        const mergedParams = {...savedParams, ...parameters};
+                        localStorage.setItem(key, JSON.stringify(mergedParams));
+                        console.log(`Updated blockParams for ${blockData.id} with ${Object.keys(parameters).length} parameters`);
+                    } catch (e) {
+                        // If there's an error, overwrite with new parameters
+                        localStorage.setItem(key, JSON.stringify(parameters));
+                        console.warn('Error merging parameters, overwrote with new values:', e);
+                    }
                 }
             }
             
@@ -2175,32 +2294,28 @@ class TemplateHandler {
         if (window.connections && Array.isArray(window.connections)) {
             console.log('Using global window.connections array', window.connections.length);
             
-            connections = window.connections.map((conn, index) => {
-                let sourceId = conn.source;
-                let targetId = conn.target;
-                let inputId = conn.inputId;
-                
-                // Handle different connection formats
-                if (typeof conn.source === 'object' && conn.source.id) {
-                    sourceId = conn.source.id;
-                }
-                
-                if (typeof conn.target === 'object' && conn.target.id) {
-                    targetId = conn.target.id;
-                }
-                
-                return {
-                    id: conn.id || `conn_${index}`,
-                    source: {
-                        blockId: sourceId,
-                        outputIndex: 0
-                    },
-                    target: {
-                        blockId: targetId,
-                        inputIndex: 0,
-                        inputId: inputId
-                    }
+            connections = window.connections.map(conn => {
+                // Create a basic connection object
+                const formattedConn = {
+                    source: conn.source,
+                    target: conn.target,
+                    inputId: conn.inputId
                 };
+
+                // Add method-specific information if available
+                if (conn.sourceMethod) {
+                    formattedConn.sourceMethod = conn.sourceMethod;
+                }
+
+                if (conn.targetMethod) {
+                    formattedConn.targetMethod = conn.targetMethod;
+                }
+
+                if (conn.sourceNode) {
+                    formattedConn.sourceNode = conn.sourceNode;
+                }
+
+                return formattedConn;
             });
         }
         
