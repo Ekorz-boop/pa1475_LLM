@@ -199,7 +199,6 @@ class Canvas:
                 )
                 results[block_id] = f"{block_id}_result"
 
-
         # Add final result printing
         if results:
             last_block_id = execution_order[-1]
