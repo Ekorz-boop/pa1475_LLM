@@ -1572,6 +1572,11 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         });
     }
 
+    // Ensure nodes are properly positioned
+    if (typeof updateBlockNodesForMethods === 'function') {
+        updateBlockNodesForMethods(block);
+    }
+
     return block;
 }
 
@@ -2987,34 +2992,126 @@ function removeMethodSelection(blockId, methodName) {
  * @param {HTMLElement} block - The block to update node positions for
  */
 function updateBlockNodesForMethods(block) {
-    // Update spacing for input nodes
+    if (!block) {
+        console.warn('No block provided to updateBlockNodesForMethods');
+        return;
+    }
+
+    // CRITICAL FIX: Check for and remove duplicate nodes
+    // This addresses the issue where templates create duplicate input/output nodes
+    const inputNodeGroup = block.querySelector('.input-node-group');
+    const outputNodeGroup = block.querySelector('.output-node-group');
+    
+    if (inputNodeGroup) {
+        const inputNodes = inputNodeGroup.querySelectorAll('.input-node');
+        
+        // If we find duplicate nodes (nodes with the same data-input attribute), remove the duplicates
+        const uniqueInputs = new Map();
+        inputNodes.forEach(node => {
+            const inputName = node.getAttribute('data-input');
+            
+            // If this is a duplicate and not the first occurrence
+            if (uniqueInputs.has(inputName)) {
+                // Check if this node has any connections - if not, it's safe to remove
+                const isConnected = Array.from(document.querySelectorAll('.connection-line')).some(line => {
+                    const targetId = line.getAttribute('data-target');
+                    return targetId === block.id && 
+                           window.connections.some(conn => conn.target === block.id && 
+                                                  conn.inputId === inputName);
+                });
+                
+                if (!isConnected) {
+                    node.remove();
+                } else {
+                    // If this one is connected, remove the previous one
+                    const previousNode = uniqueInputs.get(inputName);
+                    previousNode.remove();
+                    uniqueInputs.set(inputName, node);
+                }
+            } else {
+                uniqueInputs.set(inputName, node);
+            }
+        });
+    }
+    
+    if (outputNodeGroup) {
+        const outputNodes = outputNodeGroup.querySelectorAll('.output-node');
+        
+        // Handle duplicate output nodes
+        const uniqueOutputs = new Map();
+        outputNodes.forEach(node => {
+            const outputName = node.getAttribute('data-output');
+            
+            // If this is a duplicate and not the first occurrence
+            if (uniqueOutputs.has(outputName)) {
+                // Check if this node has any connections - if not, it's safe to remove
+                const isConnected = Array.from(document.querySelectorAll('.connection-line')).some(line => {
+                    const sourceId = line.getAttribute('data-source');
+                    return sourceId === block.id && 
+                           window.connections.some(conn => conn.source === block.id && 
+                                                 conn.sourceNode === outputName);
+                });
+                
+                if (!isConnected) {
+                    node.remove();
+                } else {
+                    // If this one is connected, remove the previous one
+                    const previousNode = uniqueOutputs.get(outputName);
+                    previousNode.remove();
+                    uniqueOutputs.set(outputName, node);
+                }
+            } else {
+                uniqueOutputs.set(outputName, node);
+            }
+        });
+    }
+    
+    // After removing duplicates, get the remaining nodes
     const inputNodes = block.querySelectorAll('.input-node');
-    const inputNodeCount = inputNodes.length;
+    const outputNodes = block.querySelectorAll('.output-node');
+    console.log(`Positioning ${inputNodes.length} input nodes and ${outputNodes.length} output nodes for block ${block.id}`);
 
-    if (inputNodeCount > 0) {
-        const inputNodeGroup = block.querySelector('.input-node-group');
-        const blockHeight = block.offsetHeight;
-
+    // Update spacing for input nodes
+    if (inputNodes.length > 0) {
+        const blockHeight = block.offsetHeight || 100; // Use 100px as fallback if height is 0
+        
         // Distribute input nodes evenly
         inputNodes.forEach((node, index) => {
-            const position = (blockHeight / (inputNodeCount + 1)) * (index + 1);
+            const position = (blockHeight / (inputNodes.length + 1)) * (index + 1);
+            
+            // Set positions with !important to override any inline styles
+            node.style.position = 'absolute';
+            node.style.left = '-8px';
             node.style.top = `${position}px`;
+            node.style.transform = 'none';  // Clear any transform that might interfere
+            
+            // Also add a data attribute for debugging
+            node.setAttribute('data-position-index', index);
+            node.setAttribute('data-position-y', position);
         });
     }
 
     // Update spacing for output nodes
-    const outputNodes = block.querySelectorAll('.output-node');
-    const outputNodeCount = outputNodes.length;
-
-    if (outputNodeCount > 0) {
-        const outputNodeGroup = block.querySelector('.output-node-group');
-        const blockHeight = block.offsetHeight;
-
+    if (outputNodes.length > 0) {
+        const blockHeight = block.offsetHeight || 100; // Use 100px as fallback if height is 0
+        
         // Distribute output nodes evenly
         outputNodes.forEach((node, index) => {
-            const position = (blockHeight / (outputNodeCount + 1)) * (index + 1);
+            const position = (blockHeight / (outputNodes.length + 1)) * (index + 1);
+            
+            // Set positions with !important to override any inline styles
+            node.style.position = 'absolute';
+            node.style.right = '-8px';
             node.style.top = `${position}px`;
+            node.style.transform = 'none';  // Clear any transform that might interfere
+            
+            // Also add a data attribute for debugging
+            node.setAttribute('data-position-index', index);
+            node.setAttribute('data-position-y', position);
         });
     }
+    
+    // Force a reflow to ensure the browser applies these styles
+    void block.offsetHeight;
 }
 

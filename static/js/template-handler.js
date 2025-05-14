@@ -816,36 +816,20 @@ class TemplateHandler {
      */
     async applyTemplate(templateData) {
         try {
-            this.showProgress(true, 'Loading template...', 'Preparing template data');
+            // Clear the current workspace
+            this.updateProgress(10, 'Clearing workspace');
+            await this.clearWorkspace();
             
-            // If templateData is a string, assume it's a template ID and try to load it
-            let template = templateData;
-            if (typeof templateData === 'string') {
-                template = this.getTemplate(templateData);
-                if (!template) {
-                    throw new Error(`Template "${templateData}" not found`);
-                }
+            // Parse template blocks and connections
+            this.updateProgress(20, 'Parsing template data');
+            if (!templateData.blocks) {
+                throw new Error('No blocks found in template data');
             }
             
-            // Validate template
-            if (!template || !template.blocks || !template.connections) {
-                throw new Error('Invalid template format');
-            }
-            
-            console.log('Applying template:', template);
-            
-            // Clear existing pipeline
-            this.clearCanvas();
-            
-            this.updateProgress(30, 'Creating blocks');
-            
-            // Create all blocks first
-            const blocks = template.blocks || {};
-            
-            // Check if we have any blocks to create
-            if (Object.keys(blocks).length === 0) {
-                throw new Error('Template contains no blocks');
-            }
+            const blocks = templateData.blocks || {};
+            const connections = templateData.connections || [];
+            const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]'); 
+            const customBlocksLocal = JSON.parse(localStorage.getItem('customBlocks') || '[]');
             
             try {
                 // First, add all custom blocks to the sidebar to ensure session storage is properly populated
@@ -875,177 +859,96 @@ class TemplateHandler {
                 
                 // Create all blocks in the canvas
                 this.updateProgress(50, 'Creating blocks in canvas');
+                const createdBlocks = {};
                 
-                // Create all blocks (in parallel)
-                const blockPromises = Object.entries(blocks).map(async ([blockId, blockData]) => {
-                    try {
-                        // Make sure the ID is properly set in the block data
-                        blockData.id = blockId;
-                        await this.createBlockFromTemplate(blockData);
-                        return blockId;
-                    } catch (error) {
-                        console.error(`Failed to create block ${blockId}:`, error);
-                        return null;
+                for (const blockId in blocks) {
+                    const blockData = blocks[blockId];
+                    blockData.id = blockId; // Ensure ID is set in block data
+                    
+                    // Skip any blocks with missing required data
+                    if (!blockData.type && !blockData.className) {
+                        console.warn(`Skipping block ${blockId} due to missing type or className`);
+                        continue;
                     }
-                });
-                
-                const createdBlocks = await Promise.all(blockPromises);
-                const successfulBlocks = createdBlocks.filter(id => id !== null);
-                
-                console.log(`Successfully created ${successfulBlocks.length} of ${Object.keys(blocks).length} blocks`);
-                
-                if (successfulBlocks.length === 0) {
-                    throw new Error('Failed to create any blocks from template');
-                }
-                
-                this.updateProgress(70, 'Creating connections');
-                
-                // CRITICAL FIX: Add a delay to ensure block elements are fully initialized
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Force block transform into translate format on all blocks
-                document.querySelectorAll('.block').forEach(blockEl => {
-                    const transform = blockEl.style.transform;
-                    if (!transform || !transform.includes('translate')) {
-                        // Try to get position from left/top
-                        const left = parseInt(blockEl.style.left) || 0;
-                        const top = parseInt(blockEl.style.top) || 0;
-                        blockEl.style.transform = `translate(${left}px, ${top}px)`;
-                        // Clear left/top to avoid conflicts
-                        blockEl.style.left = '';
-                        blockEl.style.top = '';
-                    }
-                });
-                
-                // Apply draggable to all blocks again to ensure they can be moved
-                const allBlockElements = document.querySelectorAll('.block');
-                allBlockElements.forEach(blockElement => {
-                    if (typeof window.makeBlockDraggable === 'function') {
-                        window.makeBlockDraggable(blockElement);
-                        console.log(`Made block ${blockElement.id} draggable`);
-                    } else {
-                        this.makeBlockDraggableManually(blockElement);
-                    }
-                });
-                
-                // Clear all existing connections from the connections container
-                const connectionsContainer = document.getElementById('connections');
-                if (connectionsContainer) {
-                    connectionsContainer.innerHTML = '';
-                }
-                
-                // CRITICAL FIX: Remove any old div-based connections that might have been created
-                const oldConnectionDivs = document.querySelectorAll('div.connection');
-                oldConnectionDivs.forEach(connDiv => {
-                    console.log(`Removing old connection div: ${connDiv.id}`);
-                    connDiv.remove();
-                });
-                
-                // Reset global connections array if present
-                if (window.connections && Array.isArray(window.connections)) {
-                    window.connections.length = 0;
-                    console.log('Cleared global connections array');
-                }
-                
-                // Then create connections
-                const connections = template.connections || [];
-                let successfulConnections = 0;
-                
-                console.log(`Creating ${connections.length} connections`);
-                
-                // Create connections sequentially with slight delay between each to ensure proper initialization
-                for (const connectionData of connections) {
-                    try {
-                        await this.createConnectionFromTemplate(connectionData);
-                        successfulConnections++;
+                    
+                    const block = this.createBlockFromTemplate(blockData);
+                    if (block) {
+                        createdBlocks[blockId] = block;
                         
-                        // Small delay between connections to allow DOM to update
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                    } catch (error) {
-                        console.error('Failed to create connection:', connectionData, error);
+                        // Set up custom block if needed
+                        if (blockData.custom && typeof window.setupCustomBlock === 'function') {
+                            window.setupCustomBlock(block);
+                        }
                     }
                 }
                 
-                console.log(`Created ${successfulConnections} of ${connections.length} connections`);
-                
-                this.updateProgress(90, 'Finalizing');
-                
-                // Update connections visualization
-                if (typeof window.updateConnections === 'function') {
-                    window.updateConnections();
+                // Ensure all blocks have their nodes positioned correctly
+                this.updateProgress(70, 'Positioning nodes on blocks');
+                for (const blockId in createdBlocks) {
+                    const block = createdBlocks[blockId];
+                    // Make sure the block is fully initialized
+                    if (typeof window.updateBlockNodesForMethods === 'function') {
+                        // Ensure all method nodes are properly positioned
+                        window.updateBlockNodesForMethods(block);
+                    }
                 }
                 
-                // Update mini-map if exists
-                if (typeof window.updateMiniMap === 'function') {
-                    window.updateMiniMap();
-                }
-                
-                // Give some time for the DOM to update
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Re-apply draggable functionality one more time to ensure everything is movable
-                document.querySelectorAll('.block').forEach(blockEl => {
-                    if (typeof window.makeBlockDraggable === 'function') {
-                        window.makeBlockDraggable(blockEl);
-                    } else {
-                        this.makeBlockDraggableManually(blockEl);
+                // Create connections between blocks
+                this.updateProgress(80, 'Creating connections');
+                if (connections && connections.length > 0) {
+                    for (const connectionData of connections) {
+                        this.createConnectionFromTemplate(connectionData);
                     }
                     
-                    // CRITICAL FIX: Use our improved node connection setup
-                    this.setupNodeConnections(blockEl);
-                    
-                    // Add enhanced drag event listeners
-                    this.addDragEventListeners(blockEl);
-                    
-                    // Apply setupCustomBlock if it's a custom block
-                    if (blockEl.classList.contains('custom-block') && typeof window.setupCustomBlock === 'function') {
-                        window.setupCustomBlock(blockEl);
-                    }
-                });
-                
-                // CRITICAL FIX: Ensure all global variables are properly set
-                window.draggingConnection = false;
-                window.sourceNode = null;
-                window.hoveredInputNode = null;
-                window.tempConnection = null;
-                
-                // Update connections visualization one final time
-                if (typeof window.updateConnections === 'function') {
-                    window.updateConnections();
-                }
-                
-                // Fit all blocks to view
-                setTimeout(() => {
-                    if (typeof window.fitBlocksToView === 'function') {
-                        window.fitBlocksToView();
-                    } else if (typeof window.fitAllBlocksToView === 'function') {
-                        window.fitAllBlocksToView();
-                    }
-                }, 500);
-                
-                this.updateProgress(100, 'Template loaded successfully');
-                this.showProgress(false);
-                
-                // Force one final connections update after everything is complete
-                setTimeout(() => {
+                    // Update all connections visually
                     if (typeof window.updateConnections === 'function') {
-                        console.log('Performing final connections update');
                         window.updateConnections();
                     }
-                }, 1000);
+                }
                 
-                this.showToast('Pipeline template loaded successfully', 'success');
+                this.updateProgress(90, 'Loading configuration');
+                
+                // Show success message
+                this.updateProgress(100, 'Template loaded successfully');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Template loaded successfully', 'success');
+                }
+                
                 return true;
-            } catch (error) {
-                console.error('Error processing blocks:', error);
-                throw error;
+            } catch (e) {
+                console.error('Error applying template:', e);
+                this.updateProgress(100, 'Error loading template');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Error loading template: ' + e.message, 'error');
+                }
+                return false;
             }
         } catch (error) {
             console.error('Error applying template:', error);
-            this.showProgress(false);
-            this.showToast('Error applying template: ' + error.message, 'error');
+            this.updateProgress(100, 'Error loading template');
+            if (typeof window.showToast === 'function') {
+                window.showToast('Error loading template: ' + error.message, 'error');
+            }
             return false;
         }
+    }
+    
+    /**
+     * Clears the workspace of all blocks and connections
+     * @returns {Promise<boolean>} - Promise that resolves to true if workspace was cleared
+     */
+    clearWorkspace() {
+        return new Promise((resolve) => {
+            try {
+                // Clear the canvas
+                this.clearCanvas();
+                console.log('Workspace cleared successfully');
+                resolve(true);
+            } catch (error) {
+                console.error('Error clearing workspace:', error);
+                resolve(false);
+            }
+        });
     }
     
     /**
@@ -1332,43 +1235,74 @@ class TemplateHandler {
         
         if (!sourceBlock || !targetBlock) {
             console.error("Cannot create connection: blocks not found", {
-                sourceId: connectionData.source.blockId,
-                targetId: connectionData.target.blockId,
+                sourceId: connectionData.source,
+                targetId: connectionData.target,
                 sourceFound: !!sourceBlock,
                 targetFound: !!targetBlock
             });
             return null;
         }
-        
+
         try {
-            // First check if window.createConnection function exists and use it
+            // IMPORTANT: Ensure nodes are properly positioned before creating connections
+            if (typeof window.updateBlockNodesForMethods === 'function') {
+                // Update node positions for both source and target blocks
+                window.updateBlockNodesForMethods(sourceBlock);
+                window.updateBlockNodesForMethods(targetBlock);
+            }
+            
+            // Check if a global createConnection function is available
             if (typeof window.createConnection === 'function') {
                 console.log("Using global createConnection function");
                 
-                // Get inputId and find the correct target node
-                const inputId = connectionData.inputId;
+                // If we have source method information, find the correct source node
+                let sourceNode = null;
                 
-                // Find the correct input node index if inputId is specified
-                let targetInputIndex = connectionData.inputIndex || 0;
-                
-                if (inputId) {
-                    // Try to find the input node with this inputId
-                    const inputNodes = targetBlock.querySelectorAll('.input-node');
-                    for (let i = 0; i < inputNodes.length; i++) {
-                        if (inputNodes[i].getAttribute('data-input') === inputId) {
-                            targetInputIndex = i;
-                            break;
-                        }
+                if (connectionData.sourceNode) {
+                    // Source node ID is directly specified
+                    sourceNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceNode}"]`);
+                    
+                    // If not found, try with a different approach (method_output format)
+                    if (!sourceNode && connectionData.sourceMethod) {
+                        sourceNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceMethod}_output"]`);
                     }
-                    console.log(`Found input node with inputId ${inputId} at index ${targetInputIndex}`);
+                } else if (connectionData.sourceMethod) {
+                    // Try to find by method name with _output suffix
+                    sourceNode = sourceBlock.querySelector(`.output-node[data-output="${connectionData.sourceMethod}_output"]`);
                 }
                 
-                // Create connection with the correct input node
-                return window.createConnection(
-                    sourceBlock, 
-                    targetBlock, 
-                    inputId
-                );
+                // Fall back to first output node if needed
+                if (!sourceNode) {
+                    sourceNode = sourceBlock.querySelector('.output-node');
+                }
+                
+                // Get input node by ID if specified
+                let inputNode = null;
+                if (connectionData.inputId) {
+                    inputNode = targetBlock.querySelector(`.input-node[data-input="${connectionData.inputId}"]`);
+                }
+                
+                // Fall back to first input node if needed
+                if (!inputNode) {
+                    inputNode = targetBlock.querySelector('.input-node');
+                }
+                
+                if (!sourceNode || !inputNode) {
+                    console.error("Could not find nodes for connection", {
+                        sourceNodeFound: !!sourceNode,
+                        inputNodeFound: !!inputNode,
+                        connectionData
+                    });
+                    return null;
+                }
+                
+                // Create the connection using the global function
+                return window.createConnection(sourceBlock, targetBlock, connectionData.inputId, {
+                    sourceNode: sourceNode,
+                    inputNode: inputNode,
+                    sourceMethod: connectionData.sourceMethod,
+                    targetMethod: connectionData.targetMethod
+                });
             } else {
                 // If window.createConnection is not available, create the connection directly in the SVG container
                 console.log("No global createConnection function found, creating connection manually via SVG");
@@ -1407,6 +1341,15 @@ class TemplateHandler {
                     inputNode = targetBlock.querySelector('.input-node');
                 }
                 
+                if (!outputNode || !inputNode) {
+                    console.error("Failed to find connection nodes", {
+                        outputNodeFound: !!outputNode,
+                        inputNodeFound: !!inputNode,
+                        connectionData
+                    });
+                    return null;
+                }
+                
                 // Calculate positions for the connection line
                 const canvasContainer = document.querySelector('.canvas-container');
                 const canvasRect = canvasContainer.getBoundingClientRect();
@@ -1433,8 +1376,8 @@ class TemplateHandler {
                 line.setAttribute('class', 'connection-line');
                 
                 // Set data attributes to track connection info
-                line.setAttribute('data-source', sourceBlock);
-                line.setAttribute('data-target', targetBlock);
+                line.setAttribute('data-source', sourceBlock.id);
+                line.setAttribute('data-target', targetBlock.id);
                 
                 // Add to connections container
                 connectionsContainer.appendChild(line);
@@ -1444,7 +1387,9 @@ class TemplateHandler {
                         source: connectionData.source,
                         target: connectionData.target,
                         inputId: inputId,
-                        sourceNode: connectionData.sourceNode
+                        sourceNode: connectionData.sourceNode,
+                        sourceMethod: connectionData.sourceMethod,
+                        targetMethod: connectionData.targetMethod
                     };
                     window.connections.push(connection);
                 }

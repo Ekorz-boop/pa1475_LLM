@@ -946,7 +946,13 @@ document.addEventListener('DOMContentLoaded', () => {
         updateConnections();
     }
 
-    function createConnection(source, target, inputId) {
+    function createConnection(source, target, inputId, options = {}) {
+        // Ensure source and target blocks have properly positioned nodes
+        if (typeof updateBlockNodesForMethods === 'function') {
+            updateBlockNodesForMethods(source);
+            updateBlockNodesForMethods(target);
+        }
+
         const connection = {
             source: source.id,
             target: target.id,
@@ -954,8 +960,19 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Store additional information for method nodes
-        // When connecting, we already have the source node which is the clicked output node
-        if (sourceNode && sourceNode.getAttribute('data-output')) {
+        // First check if explicit nodes were provided in options
+        if (options && options.sourceNode) {
+            // Use the provided source node
+            const outputId = options.sourceNode.getAttribute('data-output');
+            if (outputId && outputId.includes('_output')) {
+                const methodName = outputId.split('_')[0];
+                connection.sourceMethod = methodName;
+                connection.sourceNode = outputId;
+                console.log(`Source method from options: ${methodName}, Source node: ${outputId}`);
+            }
+        }
+        // Otherwise use the global sourceNode
+        else if (sourceNode && sourceNode.getAttribute('data-output')) {
             const outputId = sourceNode.getAttribute('data-output');
             // Check if this is a method-specific output node
             if (outputId && outputId.includes('_output')) {
@@ -976,6 +993,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Log the complete connection object for debugging
         console.log('Creating connection:', connection);
 
+        // Before adding the connection, make sure we remove any existing
+        // connections to the same target input
+        removeConnectionsToInput(target.id, inputId);
+
         window.connections.push(connection);
 
         // Save to sessionStorage
@@ -987,6 +1008,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateConnections();
         processBlock(target);
+        
+        return connection;
     }
 
     // Zoom controls
@@ -1608,6 +1631,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Define action buttons for the UI
+    const actionButtons = {
+        'fit-to-view': function() {
+            if (typeof fitAllBlocksToView === 'function') {
+                fitAllBlocksToView();
+            }
+        },
+        'zoom-in': function() {
+            if (zoom < MAX_ZOOM) {
+                zoom += ZOOM_SPEED;
+                updateCanvasTransform();
+            }
+        },
+        'zoom-out': function() {
+            if (zoom > MIN_ZOOM) {
+                zoom -= ZOOM_SPEED;
+                updateCanvasTransform();
+            }
+        },
+        'zoom-fit': function() {
+            zoom = 1;
+            currentTranslate = { x: 0, y: 0 };
+            updateCanvasTransform();
+        }
+    };
+
+    // Add event listeners to action buttons
     Object.entries(actionButtons).forEach(([id, handler]) => {
         const button = document.getElementById(id);
         if (button) {
@@ -2294,6 +2344,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 const y = (Math.random() * 200) + 100;
                 block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             }
+        }
+
+        // Always ensure nodes are properly positioned as the final step
+        if (typeof updateBlockNodesForMethods === 'function') {
+            // If the block seems to have no height yet, wait a moment for rendering
+            if (block.offsetHeight < 20) {
+                setTimeout(() => updateBlockNodesForMethods(block), 100);
+            } else {
+                updateBlockNodesForMethods(block);
+            }
+            
+            // Also queue an additional positioning after a delay to handle
+            // cases where methods are loaded asynchronously
+            setTimeout(() => {
+                if (typeof updateBlockNodesForMethods === 'function') {
+                    updateBlockNodesForMethods(block);
+                    // Update connections to reflect node positions
+                    if (typeof updateConnections === 'function') {
+                        updateConnections();
+                    }
+                }
+            }, 500);
         }
 
         return block;
