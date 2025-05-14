@@ -1423,9 +1423,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const x2 = ((inputRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
             const y2 = ((inputRect.top + inputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
 
-            // Calculate control points for curve
-            const dx = Math.abs(x2 - x1) * 0.6;
-            const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+            // Use straight line instead of curve
+            const d = `M ${x1} ${y1} L ${x2} ${y2}`;
 
             svgLine.setAttribute('d', d);
             svgLine.setAttribute('class', 'connection-line');
