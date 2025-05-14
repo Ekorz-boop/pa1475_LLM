@@ -14,14 +14,14 @@
                 <h1 style="color: #10b981;">RAGgie Admin</h1>
             </div>
             <ul class="admin-menu" role="menu">
-                <li role="none"><a href="{{ url_for('admin.admin_panel') }}" class="sidebar-link {% if request.endpoint == 'admin.admin_panel' %}active{% endif %}" role="menuitem" aria-label="Dashboard"><img src="/static/images/icons/admin-panel/dashboard.svg" alt="Dashboard" class="menu-icon"> <span>Dashboard</span></a></li>
-                <li role="none"><a href="{{ url_for('admin.manage_users') }}" class="sidebar-link {% if request.endpoint == 'admin.manage_users' %}active{% endif %}" role="menuitem" aria-label="Users"><img src="/static/images/icons/welcome-screen/user.svg" alt="Users" class="menu-icon"> <span>Users</span></a></li>
-                <li role="none"><a href="{{ url_for('admin.admin_settings') }}" class="sidebar-link {% if request.endpoint == 'admin.admin_settings' %}active{% endif %}" role="menuitem" aria-label="Settings"><img src="/static/images/icons/action-buttons/edit.svg" alt="Settings" class="menu-icon"> <span>Settings</span></a></li>
+                <li role="none"><a href="{{ url_for('admin.admin_panel') }}" class="sidebar-link {% if request.endpoint == 'admin.admin_panel' %}active{% endif %}" role="menuitem" aria-label="Dashboard"><img src="/static/images/icons/icons/admin-panel/dashboard.svg" alt="Dashboard" class="menu-icon"> <span>Dashboard</span></a></li>
+                <li role="none"><a href="{{ url_for('admin.manage_users') }}" class="sidebar-link {% if request.endpoint == 'admin.manage_users' %}active{% endif %}" role="menuitem" aria-label="Users"><img src="/static/images/icons/icons/welcome-screen/user.svg" alt="Users" class="menu-icon"> <span>Users</span></a></li>
+                <li role="none"><a href="{{ url_for('admin.admin_settings') }}" class="sidebar-link {% if request.endpoint == 'admin.admin_settings' %}active{% endif %}" role="menuitem" aria-label="Settings"><img src="/static/images/icons/icons/action-buttons/edit.svg" alt="Settings" class="menu-icon"> <span>Settings</span></a></li>
             </ul>
             <div class="sidebar-spacer"></div>
             <ul class="admin-menu sidebar-bottom" role="menu">
-                <li role="none"><a href="{{ url_for('index') }}" class="sidebar-link" role="menuitem" aria-label="Back to App"><img src="/static/images/icons/theme-controls/toggle.svg" alt="Back to App" class="menu-icon"> <span>Back to App</span></a></li>
-                <li role="none"><a href="{{ url_for('auth.logout') }}" class="sidebar-link" role="menuitem" aria-label="Logout"><img src="/static/images/icons/action-buttons/delete.svg" alt="Logout" class="menu-icon"> <span>Logout</span></a></li>
+                <li role="none"><a href="{{ url_for('index') }}" class="sidebar-link" role="menuitem" aria-label="Back to App"><img src="/static/images/icons/icons/theme-controls/toggle.svg" alt="Back to App" class="menu-icon"> <span>Back to App</span></a></li>
+                <li role="none"><a href="{{ url_for('auth.logout') }}" class="sidebar-link" role="menuitem" aria-label="Logout"><img src="/static/images/icons/icons/action-buttons/delete.svg" alt="Logout" class="menu-icon"> <span>Logout</span></a></li>
             </ul>
         </nav>
         
