@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     const savedTheme = localStorage.getItem('theme') || 'system';
-    
+
     // Set initial dark mode state
     if (savedDarkMode || (!localStorage.getItem('darkMode') && prefersDarkMode)) {
         document.body.classList.add('dark-mode');
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems.forEach(item => {
         // Skip the logout button
         if (item.id === 'logout-button') return;
-        
+
         item.addEventListener('click', () => {
             const menuType = item.dataset.menu;
 
@@ -329,180 +329,187 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the exportPipeline function
     async function exportPipeline() {
-        // Show progress indicator
-        showProgress(true, 'Exporting Pipeline', 'Validating pipeline');
-
-        // Validate the pipeline
-        const validationResult = validatePipeline();
-        if (!validationResult.valid) {
-            showProgress(false);
-            showToast(validationResult.error, 'error');
-            return;
-        }
-
-        updateProgress(25, 'Collecting block configurations');
+        console.log('Starting export process...');
+        showProgress(true, 'Exporting Pipeline', 'Starting export process');
 
         try {
-            // Get the block configurations and connections
-            const blockConfigs = {};
-            document.querySelectorAll('.block').forEach(block => {
-                const blockId = block.getAttribute('id');
-                const blockType = block.getAttribute('data-block-type');
-
-                // For custom blocks, include the full module path and class name
-                let finalBlockType = blockType;
-                if (blockType === 'custom') {
-                    const className = block.getAttribute('data-class-name');
-
-                    // Find module info from sessionStorage to get the full path
-                    let moduleInfo = null;
-
-                    // First try to find in customBlocks array in sessionStorage
-                    try {
-                        const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-                        const blockData = customBlocks.find(b => b.className === className || b.id === blockId);
-                        if (blockData && blockData.moduleInfo) {
-                            moduleInfo = blockData.moduleInfo;
-                        }
-                    } catch (e) {
-                        console.warn('Error finding module info in sessionStorage:', e);
-                    }
-
-                    // If not found, try localStorage as a fallback
-                    if (!moduleInfo) {
-                        try {
-                            const localStorageData = JSON.parse(localStorage.getItem('customBlocks') || '[]');
-                            const localData = localStorageData.find(b => b.className === className);
-                            if (localData && localData.moduleInfo) {
-                                moduleInfo = localData.moduleInfo;
-                            }
-                        } catch (e) {
-                            console.warn('Error finding module info in localStorage:', e);
-                        }
-                    }
-
-                    // If we found module info, build the full path
-                    if (moduleInfo && moduleInfo.module) {
-                        finalBlockType = `custom_${moduleInfo.module}.${className}`;
-                        console.log(`Using full path for custom block: ${finalBlockType}`);
-                    } else {
-                        // Default to just using the class name
-                        finalBlockType = `custom_${className}`;
-                        console.log(`Using just class name for custom block: ${finalBlockType}`);
-                    }
-                }
-
-                // Get methods from sessionStorage if available
-                let methods = [];
-                try {
-                    const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-                    const blockData = customBlocks.find(b => b.id === blockId);
-                    if (blockData && blockData.methods) {
-                        methods = blockData.methods;
-                    }
-                } catch (e) {
-                    console.warn('Error reading methods from sessionStorage:', e);
-                }
-
-                blockConfigs[blockId] = {
-                    id: blockId,
-                    type: finalBlockType,
-                    config: {
-                        ...getBlockConfig(block),
-                        methods: methods
-                    }
-                };
-            });
-
-
-            updateProgress(50, 'Generating Python code');
-
-            // Call the export API
-            const response = await fetch('/api/blocks/export', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    blocks: blockConfigs,
-                    connections: window.connections,
-                    output_file: 'generated_pipeline.py'
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Export failed: ' + (await response.text()));
+            // Validate the pipeline before exporting
+            if (!validatePipeline()) {
+                showProgress(false);
+                return;
             }
 
-            const result = await response.json();
-            updateProgress(100, 'Export complete');
+            updateProgress(25, 'Collecting block configurations');
 
-            // Create a modal to display the code
-            const modal = document.createElement('div');
-            modal.className = 'code-preview-modal';
-            modal.innerHTML = `
-                <div class="code-preview-content">
-                    <div class="code-preview-header">
-                        <h3>Generated Python Code</h3>
-                        <button class="close-button">&times;</button>
-                    </div>
-                    <pre class="code-preview-body">${escapeHtml(result.code)}</pre>
-                    <div class="code-preview-footer">
-                        <button class="copy-button">Copy to Clipboard</button>
-                        <button class="save-button">Save as File</button>
-                    </div>
-                </div>
-            `;
+            try {
+                // Get the block configurations and connections
+                const blockConfigs = {};
+                document.querySelectorAll('.block').forEach(block => {
+                    const blockId = block.getAttribute('id');
 
-            document.body.appendChild(modal);
+                    const blockType = block.getAttribute('data-block-type');
 
-            // Close modal when clicking the close button or outside the content
-            const closeButton = modal.querySelector('.close-button');
-            closeButton.addEventListener('click', () => {
-                document.body.removeChild(modal);
-            });
+                    // For custom blocks, include the full module path and class name
+                    let finalBlockType = blockType;
+                    if (blockType === 'custom') {
+                        const className = block.getAttribute('data-class-name');
 
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    document.body.removeChild(modal);
-                }
-            });
+                        // Find module info from sessionStorage to get the full path
+                        let moduleInfo = null;
+                        try {
+                            const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                            const blockData = customBlocks.find(b => b.id === blockId || b.className === className);
 
-            // Copy to clipboard functionality
-            const copyButton = modal.querySelector('.copy-button');
-            copyButton.addEventListener('click', () => {
-                const codeText = result.code;
-                navigator.clipboard.writeText(codeText)
-                    .then(() => {
-                        showToast('Code copied to clipboard', 'success');
+                            moduleInfo = {
+                                module: blockData.moduleInfo.module,
+                                library: blockData.moduleInfo.library
+                            };
+
+                        } catch (e) {
+                        console.warn('Error finding module info in sessionStorage:', e);
+                        }
+                            // Create a custom type identifier
+                        const modulePath = moduleInfo.module;
+                        finalBlockType = `custom_${modulePath}.${className}`;
+
+                    }
+
+                    // Generate configuration for this block
+                    blockConfigs[blockId] = {
+                        type: finalBlockType,
+                        config: getBlockConfig(block)
+                    };
+                });
+
+                // Format connections for the server
+                const formattedConnections = window.connections.map(conn => {
+                    // Create a basic connection object
+                    const formattedConn = {
+                        source: conn.source,
+                        target: conn.target,
+                        inputId: conn.inputId
+                    };
+
+                    // Add method-specific information if available
+                    if (conn.sourceMethod) {
+                        formattedConn.sourceMethod = conn.sourceMethod;
+                    }
+
+                    if (conn.targetMethod) {
+                        formattedConn.targetMethod = conn.targetMethod;
+                    }
+
+                    if (conn.sourceNode) {
+                        formattedConn.sourceNode = conn.sourceNode;
+                    }
+
+                    return formattedConn;
+                });
+
+                // Log the formatted connections for debugging
+                console.log('Formatted connections for export:', formattedConnections);
+
+                updateProgress(50, 'Sending pipeline data to server');
+            // Call the export API
+                const response = await fetch('/api/blocks/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        blocks: blockConfigs,
+                        connections: formattedConnections,
+                        output_file: 'generated_pipeline.py'
                     })
-                    .catch(() => {
-                        showToast('Failed to copy code', 'error');
-                    });
-            });
+                });
 
-            // Save as file functionality
-            const saveButton = modal.querySelector('.save-button');
-            saveButton.addEventListener('click', () => {
-                const blob = new Blob([result.code], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'generated_pipeline.py';
-                document.body.appendChild(a);
-                a.click();
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to export pipeline');
+                }
+
+                const result = await response.json();
+                updateProgress(100, 'Export complete');
+
+                // Create a modal to display the code
+                const modal = document.createElement('div');
+                modal.className = 'code-preview-modal';
+                modal.innerHTML = `
+                    <div class="code-preview-content">
+                        <div class="code-preview-header">
+                            <h3>Generated Python Code</h3>
+                            <button class="close-button">&times;</button>
+                        </div>
+                        <pre class="code-preview-body">${escapeHtml(result.code)}</pre>
+                        <div class="code-preview-footer">
+                            <button class="copy-button">Copy to Clipboard</button>
+                            <button class="save-button">Save as File</button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+                // Close modal when clicking the close button or outside the content
+                const closeButton = modal.querySelector('.close-button');
+                closeButton.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        document.body.removeChild(modal);
+                    }
+                });
+
+                // Copy to clipboard functionality
+                const copyButton = modal.querySelector('.copy-button');
+                copyButton.addEventListener('click', () => {
+                    const codeText = result.code;
+                    navigator.clipboard.writeText(codeText)
+                        .then(() => {
+                            showToast('Code copied to clipboard', 'success');
+                        })
+                        .catch(() => {
+                            showToast('Failed to copy code', 'error');
+                        });
+                });
+
+                // Save as file functionality
+                const saveButton = modal.querySelector('.save-button');
+                saveButton.addEventListener('click', () => {
+                    const blob = new Blob([result.code], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'generated_pipeline.py';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 0);
+                });
+
+                updateProgress(100, 'Export complete');
+
+                // Hide progress after a short delay
                 setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 0);
-            });
+                    showProgress(false);
+                    showToast('Pipeline exported successfully', 'success');
+                }, 1000);
 
-            showProgress(false);
-            showToast('Code generated successfully', 'success');
+                return result.code;
+            } catch (error) {
+                console.error('Export error:', error);
+                showProgress(false);
+                showToast(`Export failed: ${error.message}`, 'error');
+                throw error;
+            }
         } catch (error) {
             console.error('Export error:', error);
             showProgress(false);
-            showToast('Failed to generate code: ' + error.message, 'error');
+            showToast(`Export failed: ${error.message}`, 'error');
         }
     }
 
@@ -793,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (draggingConnection && tempConnection && sourceNode) {
             const canvasRect = canvas.getBoundingClientRect();
-            
+
             // IMPROVED: Calculate more accurately using node center
             const sourceRect = sourceNode.getBoundingClientRect();
             const sourceCenterX = sourceRect.left + (sourceRect.width / 2);
@@ -821,7 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     hoveredInputNode = elemUnderMouse;
                     hoveredInputNode.classList.add('input-node-hover');
-                    
+
                     // Add hover effect to connection
                     tempConnection.classList.add('connection-hover');
                 }
@@ -851,11 +858,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (draggingConnection) {
             // Get the element under the mouse - be more thorough in checking for input nodes
             let elemUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
-            
+
             // Search up for an input-node parent if element is a child of input-node
             let inputNodeFound = null;
             let currentElem = elemUnderMouse;
-            
+
             // Check if it's directly an input-node or traverse up to find one
             while (currentElem && !inputNodeFound) {
                 if (currentElem.classList && currentElem.classList.contains('input-node')) {
@@ -870,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     }
                     // Check for tooltip-container parent
-                    if (parent.classList && parent.classList.contains('tooltip-container') && 
+                    if (parent.classList && parent.classList.contains('tooltip-container') &&
                         parent.parentElement && parent.parentElement.classList.contains('input-node')) {
                         inputNodeFound = parent.parentElement;
                         break;
@@ -878,12 +885,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 currentElem = currentElem.parentElement;
             }
-            
+
             // If we found an input node and have a source node, create the connection
             if (inputNodeFound && sourceNode) {
                 const sourceBlock = sourceNode.closest('.block');
                 const targetBlock = inputNodeFound.closest('.block');
-                
+
                 if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                     const inputId = inputNodeFound.getAttribute('data-input');
                     if (inputId) {
@@ -939,16 +946,70 @@ document.addEventListener('DOMContentLoaded', () => {
         updateConnections();
     }
 
-    function createConnection(source, target, inputId) {
+    function createConnection(source, target, inputId, options = {}) {
+        // Ensure source and target blocks have properly positioned nodes
+        if (typeof updateBlockNodesForMethods === 'function') {
+            updateBlockNodesForMethods(source);
+            updateBlockNodesForMethods(target);
+        }
+
         const connection = {
             source: source.id,
             target: target.id,
             inputId: inputId
         };
 
+        // Store additional information for method nodes
+        // First check if explicit nodes were provided in options
+        if (options && options.sourceNode) {
+            // Use the provided source node
+            const outputId = options.sourceNode.getAttribute('data-output');
+            if (outputId && outputId.includes('_output')) {
+                const methodName = outputId.split('_')[0];
+                connection.sourceMethod = methodName;
+                connection.sourceNode = outputId;
+                console.log(`Source method from options: ${methodName}, Source node: ${outputId}`);
+            }
+        }
+        // Otherwise use the global sourceNode
+        else if (sourceNode && sourceNode.getAttribute('data-output')) {
+            const outputId = sourceNode.getAttribute('data-output');
+            // Check if this is a method-specific output node
+            if (outputId && outputId.includes('_output')) {
+                const methodName = outputId.split('_')[0];
+                connection.sourceMethod = methodName;
+                connection.sourceNode = outputId;
+                console.log(`Source method: ${methodName}, Source node: ${outputId}`);
+            }
+        }
+
+        // Check if this is a method-specific input node
+        if (inputId && inputId.includes('_input')) {
+            const methodName = inputId.split('_')[0];
+            connection.targetMethod = methodName;
+            console.log(`Target method: ${methodName}, Target input: ${inputId}`);
+        }
+
+        // Log the complete connection object for debugging
+        console.log('Creating connection:', connection);
+
+        // Before adding the connection, make sure we remove any existing
+        // connections to the same target input
+        removeConnectionsToInput(target.id, inputId);
+
         window.connections.push(connection);
+
+        // Save to sessionStorage
+        try {
+            sessionStorage.setItem('connections', JSON.stringify(connections));
+        } catch (err) {
+            console.warn('Error saving connections to sessionStorage:', err);
+        }
+
         updateConnections();
         processBlock(target);
+        
+        return connection;
     }
 
     // Zoom controls
@@ -990,68 +1051,139 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Revert to the original approach that worked for normal blocks
     function updateConnections() {
-        if (!connectionsContainer) return;
-
+        const connectionsContainer = document.getElementById('connections');
         connectionsContainer.innerHTML = '';
-        connections.forEach((conn, index) => {
-            const sourceBlock = document.getElementById(conn.source);
-            const targetBlock = document.getElementById(conn.target);
 
-            if (!sourceBlock || !targetBlock) return;
+        window.connections.forEach(connection => {
+            const sourceBlock = document.getElementById(connection.source);
+            const targetBlock = document.getElementById(connection.target);
 
-            // Find the exact output node and input node we need to connect
-            const sourceNode = sourceBlock.querySelector('.output-node');
-            const targetNode = targetBlock.querySelector(`[data-input="${conn.inputId}"]`);
+            if (!sourceBlock || !targetBlock) {
+                return;
+            }
 
-            if (!sourceNode || !targetNode) return;
+            // Determine output node based on the connection source node if available
+            let outputNode;
+            if (connection.sourceNode) {
+                // Use the specified source node
+                outputNode = sourceBlock.querySelector(`.output-node[data-output="${connection.sourceNode}"]`);
+            } else if (connection.sourceMethod) {
+                // Try to find by method
+                outputNode = sourceBlock.querySelector(`.output-node[data-output="${connection.sourceMethod}_output"]`);
+            } else {
+                // Default to the first output node
+                outputNode = sourceBlock.querySelector('.output-node');
+            }
 
-            // Get accurate SVG coordinates for each node
-            const canvasRect = canvasContainer.getBoundingClientRect();
-            const sourceRect = sourceNode.getBoundingClientRect();
-            const targetRect = targetNode.getBoundingClientRect();
-            
-            // Calculate positions with respect to the SVG canvas and zoom level
-            const x1 = (sourceRect.left + sourceRect.width/2 - canvasRect.left) / zoom;
-            const y1 = (sourceRect.top + sourceRect.height/2 - canvasRect.top) / zoom;
-            const x2 = (targetRect.left + targetRect.width/2 - canvasRect.left) / zoom;
-            const y2 = (targetRect.top + targetRect.height/2 - canvasRect.top) / zoom;
-            
-            // Create the SVG line
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x1);
-            line.setAttribute('y1', y1);
-            line.setAttribute('x2', x2);
-            line.setAttribute('y2', y2);
-            line.setAttribute('class', 'connection-line');
-            line.setAttribute('data-connection-index', index);
+            if (!outputNode) {
+                return;
+            }
 
-            line.addEventListener('click', (e) => {
-                if (selectedConnection === line) {
-                    connections.splice(index, 1);
-                    updateConnections();
-                    selectedConnection = null;
-                } else {
-                    if (selectedConnection) {
-                        selectedConnection.classList.remove('selected');
+            // Determine input node from connection inputId
+            let inputNode;
+            if (connection.inputId) {
+                inputNode = targetBlock.querySelector(`.input-node[data-input="${connection.inputId}"]`);
+            }
+
+            if (!inputNode) {
+                // Fallback to first input node if we couldn't find a matching one
+                inputNode = targetBlock.querySelector('.input-node');
+            }
+
+            if (!inputNode) {
+                return;
+            }
+
+            const svgLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+            // Get positions of nodes
+            const outputRect = outputNode.getBoundingClientRect();
+            const inputRect = inputNode.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+
+            // Calculate positions
+            const x1 = ((outputRect.right - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y1 = ((outputRect.top + outputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+            const x2 = ((inputRect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom);
+            const y2 = ((inputRect.top + inputRect.height/2 - canvasRect.top) / zoom) - (currentTranslate.y / zoom);
+
+            // Use straight line instead of curve
+            const d = `M ${x1} ${y1} L ${x2} ${y2}`;
+
+            svgLine.setAttribute('d', d);
+            svgLine.setAttribute('class', 'connection-line');
+            svgLine.setAttribute('data-source', connection.source);
+            svgLine.setAttribute('data-target', connection.target);
+
+            // Store original connection data for later reference
+            svgLine.dataset.connection = JSON.stringify(connection);
+
+            connectionsContainer.appendChild(svgLine);
+
+            // Add delete button on hover
+            svgLine.addEventListener('mouseover', () => {
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'connection-delete-btn';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.style.position = 'absolute';
+
+                // Position the delete button at the middle of the curve
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+
+                deleteBtn.style.left = `${midX}px`;
+                deleteBtn.style.top = `${midY}px`;
+
+                deleteBtn.addEventListener('click', () => {
+                    // Remove the connection
+                    window.connections = connections.filter(c =>
+                        !(c.source === connection.source &&
+                          c.target === connection.target &&
+                          c.inputId === connection.inputId)
+                    );
+
+                    // Save to sessionStorage
+                    try {
+                        sessionStorage.setItem('connections', JSON.stringify(connections));
+                    } catch (err) {
+                        console.warn('Error saving connections to sessionStorage:', err);
                     }
-                    selectedConnection = line;
-                    line.classList.add('selected');
-                }
-            });
 
-            connectionsContainer.appendChild(line);
+                    // Update the visual connections
+                    updateConnections();
+
+                    // Remove the delete button
+                    deleteBtn.remove();
+                });
+
+                canvas.appendChild(deleteBtn);
+
+                // Remove the button when mouse leaves the connection
+                svgLine.addEventListener('mouseout', () => {
+                    setTimeout(() => {
+                        if (document.querySelector(':hover') !== deleteBtn) {
+                            deleteBtn.remove();
+                        }
+                    }, 50);
+                });
+
+                deleteBtn.addEventListener('mouseout', () => {
+                    setTimeout(() => {
+                        if (document.querySelector(':hover') !== svgLine) {
+                            deleteBtn.remove();
+                        }
+                    }, 50);
+                });
+            });
         });
     }
-    
-    // Make updateConnections available globally
-    window.updateConnections = updateConnections;
 
     // Update the canvas transform function
     function updateCanvasTransform() {
         canvasContainer.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${zoom})`;
         zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
         updateConnections();
-        
+
         // Update miniature map viewport
         const miniMap = document.querySelector('.mini-map');
         const miniMapViewport = document.querySelector('.mini-map-viewport');
@@ -1061,11 +1193,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const canvasHeight = 10000; // Total canvas height
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
-            
+
             // Calculate the scale factor for the miniature map
             const scaleX = miniMap.offsetWidth / canvasWidth;
             const scaleY = miniMap.offsetHeight / canvasHeight;
-            
+
             // Calculate the viewport position and size in the miniature map
             let viewportX = (-currentTranslate.x / zoom) * scaleX;
             let viewportY = (-currentTranslate.y / zoom) * scaleY;
@@ -1160,6 +1292,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Define action buttons for the UI
+    const actionButtons = {
+        'fit-to-view': function() {
+            if (typeof fitAllBlocksToView === 'function') {
+                fitAllBlocksToView();
+            }
+        },
+        'zoom-in': function() {
+            if (zoom < MAX_ZOOM) {
+                zoom += ZOOM_SPEED;
+                updateCanvasTransform();
+            }
+        },
+        'zoom-out': function() {
+            if (zoom > MIN_ZOOM) {
+                zoom -= ZOOM_SPEED;
+                updateCanvasTransform();
+            }
+        },
+        'zoom-fit': function() {
+            zoom = 1;
+            currentTranslate = { x: 0, y: 0 };
+            updateCanvasTransform();
+        }
+    };
+
+    // Add event listeners to action buttons
     Object.entries(actionButtons).forEach(([id, handler]) => {
         const button = document.getElementById(id);
         if (button) {
@@ -1190,6 +1349,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const methodSelect = block.querySelector('.method-select');
                 if (methodSelect && methodSelect.value) {
                     config.selected_method = methodSelect.value;
+                }
+
+                // Get active methods from the method rows
+                const methodRows = block.querySelectorAll('.method-row');
+                if (methodRows.length > 0) {
+                    const activeMethods = Array.from(methodRows).map(row =>
+                        row.getAttribute('data-method')
+                    ).filter(m => m); // Filter out empty values
+
+                    // Always include __init__ as the first method
+                    if (!activeMethods.includes('__init__')) {
+                        activeMethods.unshift('__init__');
+                    }
+
+                    // Store the active methods in config
+                    config.selected_methods = activeMethods;
+
+                    // If no single method is selected, use the first active method
+                    if (!config.selected_method && activeMethods.length > 1) {
+                        config.selected_method = activeMethods[1]; // Use first non-init method
+                    }
                 }
 
                 // Get any parameter values - support both dropdown and text input
@@ -1284,30 +1464,34 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (transform !== 'none') {
                 const matrix = new DOMMatrixReadOnly(transform);
-                translateX = matrix.m41;
-                translateY = matrix.m42;
-            }
-            
-            // Create a throttled update function to prevent too many updates
-            const throttledUpdate = throttle(() => {
-                // Force browser to recalculate layout before updating connections
-                void document.body.offsetHeight; 
-                
-                // Use requestAnimationFrame for smooth updating
-                requestAnimationFrame(() => {
-                    updateConnections();
-                });
-            }, 16); // ~60fps
-            
-            const mouseMoveHandler = (e) => {
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-                
-                block.style.transform = `translate(${translateX + dx}px, ${translateY + dy}px)`;
-                
-                // Update connections in real-time during drag with throttling for performance
-                throttledUpdate();
-                
+                const blockX = matrix.m41;
+                const blockY = matrix.m42;
+
+                // Get mouse position in canvas coordinates
+                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
+                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
+
+                // Calculate offset between mouse and block origin
+                dragOffset.x = mouseX - blockX;
+                dragOffset.y = mouseY - blockY;
+
+                block.style.zIndex = '1000';
+
+            const mouseUpHandler = () => {
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+
+                block.classList.remove('dragging');
+                block.style.zIndex = '1';
+
+                // Final update without throttling to ensure accuracy
+                void document.body.offsetHeight; // Force reflow
+                updateConnections();
+            };
+
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+
                 e.preventDefault();
             };
             
@@ -1396,6 +1580,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        // We don't need to add a mouseup handler here because it's already handled
+        // in the global document mouseup event listener
+    }
+
+    /**
+     * Set up event delegation for handling method row interactions
+     * @param {HTMLElement} block - The block to set up method row handling for
+     */
+    function setupBlockMethodRowsHandling(block) {
+        // Use event delegation for method select changes
+        const methodSelect = block.querySelector('.method-select');
+        if (methodSelect) {
+            // Event listener is likely already set in createCustomBlock
+            // But we'll add a handler to ensure node connections are properly set up
+            methodSelect.addEventListener('change', () => {
+                // After a short delay to allow DOM to update
+                setTimeout(() => {
+                    // Setup node connections for any new nodes added by method row
+                    setupNodeConnections(block);
+                    // Update connections display
+                    updateConnections();
+                }, 100);
+            });
+        }
+
+        // Use event delegation for the block content to handle method row removals
+        const blockContent = block.querySelector('.block-content');
+        if (blockContent) {
+            blockContent.addEventListener('click', (e) => {
+                // Find if clicked element is a remove method button
+                const removeBtn = e.target.closest('.remove-method-btn');
+                if (removeBtn) {
+                    // After a short delay to allow DOM to update after removal
+                    setTimeout(() => {
+                        // Setup node connections for any remaining nodes
+                        setupNodeConnections(block);
+                        // Update connections display
+                        updateConnections();
+                        // Update the block's layout to ensure evenly spaced nodes
+                        if (typeof updateBlockNodesForMethods === 'function') {
+                            updateBlockNodesForMethods(block);
+                        }
+                    }, 100);
+                }
+            });
+        }
     }
 
     // Function to handle block deletion and clean up connections
@@ -1577,7 +1808,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Start dragging
             isDragging = true;
             currentBlock = block;
-            
+
             // Mark the block as being dragged - critical for connection positioning
             block.classList.add('dragging');
             block.setAttribute('data-dragging', 'true');
@@ -1631,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.removeAttribute('data-block-dragging');
                 currentBlock.style.zIndex = '1';
                 currentBlock = null;
-                
+
                 // Final update to ensure connections are correct
                 updateConnections();
             }
@@ -1663,6 +1894,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set up node connections
         setupNodeConnections(block);
 
+        // Set up method row handling for the block
+        setupBlockMethodRowsHandling(block);
+
         // Position block on canvas if not already positioned
         if (!block.style.transform) {
             const canvas = document.querySelector('.canvas-container');
@@ -1672,6 +1906,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 const y = (Math.random() * 200) + 100;
                 block.style.transform = `translate(${snapToGrid(x)}px, ${snapToGrid(y)}px)`;
             }
+        }
+
+        // Always ensure nodes are properly positioned as the final step
+        if (typeof updateBlockNodesForMethods === 'function') {
+            // If the block seems to have no height yet, wait a moment for rendering
+            if (block.offsetHeight < 20) {
+                setTimeout(() => updateBlockNodesForMethods(block), 100);
+            } else {
+                updateBlockNodesForMethods(block);
+            }
+            
+            // Also queue an additional positioning after a delay to handle
+            // cases where methods are loaded asynchronously
+            setTimeout(() => {
+                if (typeof updateBlockNodesForMethods === 'function') {
+                    updateBlockNodesForMethods(block);
+                    // Update connections to reflect node positions
+                    if (typeof updateConnections === 'function') {
+                        updateConnections();
+                    }
+                }
+            }, 500);
         }
 
         return block;

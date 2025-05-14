@@ -171,3 +171,64 @@
 .dark-mode .info-text:nth-child(4)::before {
     filter: brightness(0) invert(1);
 }
+
+.dark-mode .info-text:nth-child(2)::before,
+.dark-mode .info-text:nth-child(4)::before {
+    background-color: #444;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* Method row styling */
+.block-methods {
+    margin-bottom: 10px;
+    padding: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.method-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    margin-bottom: 5px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    border-left: 3px solid #3498db;
+}
+
+.dark-mode .method-row {
+    background-color: #333;
+    border-left: 3px solid #2980b9;
+}
+
+.method-name-label {
+    font-weight: bold;
+    flex-grow: 1;
+}
+
+.remove-method-btn {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.remove-method-btn:hover {
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+.dark-mode .remove-method-btn {
+    color: #ff6b6b;
+}
+
+.dark-mode .remove-method-btn:hover {
+    background-color: rgba(255, 107, 107, 0.2);
+}
