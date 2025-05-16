@@ -110,26 +110,6 @@
     z-index: 1000;
 }
 
-/* .block:active .block-content-wrapper {
-    transform: scale(1.02);
-    z-index: 1000;
-}
-
-.block:active .block-drag-handle {
-    transform: scale(1.02);
-    z-index: 1000;
-} */
-
-/* .block:active .block-header {
-    transform: scale(1.02);
-    z-index: 1000;
-} */
-
-/* .block:active .block-content {
-    transform: scale(1.02);
-    z-index: 998;
-} */
-
 .block:active .node-container {
     opacity: 0 !important;
 }
