@@ -37,18 +37,14 @@
 }
 
 .block .input-node {
-    left: -10px;
-    top: 50%;
-    transform: translateY(-50%);
+    left: -8px;
     background-color: var(--langchain-primary);
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
 }
 
 .block .output-node {
-    right: -10px;
-    top: 100%;
-    transform: translateY(-50%);
+    right: -8px;
     background-color: var(--langchain-primary);
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
@@ -109,12 +105,12 @@
 }
 
 .block:active {
-    transform: scale(1.03);
+    /* transform: scale(1.03); */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.8);
     z-index: 1000;
 }
 
-.block:active .block-content-wrapper {
+/* .block:active .block-content-wrapper {
     transform: scale(1.02);
     z-index: 1000;
 }
@@ -122,17 +118,17 @@
 .block:active .block-drag-handle {
     transform: scale(1.02);
     z-index: 1000;
-}
+} */
 
-.block:active .block-header {
+/* .block:active .block-header {
     transform: scale(1.02);
     z-index: 1000;
-}
+} */
 
-.block:active .block-content {
+/* .block:active .block-content {
     transform: scale(1.02);
     z-index: 998;
-}
+} */
 
 .block:active .node-container {
     opacity: 0 !important;
