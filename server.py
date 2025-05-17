@@ -420,6 +420,8 @@ def generate_python_code(
 
     # Initialize collections
     imports = set()
+    # Always include OS module for file operations
+    imports.add("import os")
     init_code_lines = []
     method_code_lines = []
 
