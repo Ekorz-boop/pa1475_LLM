@@ -953,68 +953,67 @@ document.addEventListener('DOMContentLoaded', () => {
         updateConnections();
     }
 
+    // Improve the createConnection function to better handle method nodes
     function createConnection(source, target, inputId, options = {}) {
-        // Ensure source and target blocks have properly positioned nodes
-        if (typeof updateBlockNodesForMethods === 'function') {
-            updateBlockNodesForMethods(source);
-            updateBlockNodesForMethods(target);
+        // Ensure source and target exist
+        if (!source || !target || !inputId) {
+            console.error("Missing required parameters for connection creation");
+            return null;
         }
 
+        // Get source node (output node)
+        let sourceNode = null;
+        let sourceMethod = null;
+        
+        if (options.sourceNode) {
+            // If a specific source node was provided, use it
+            sourceNode = options.sourceNode;
+        } else {
+            // Otherwise get the default output node
+            const outputElem = source.querySelector('.output-node');
+            if (outputElem) {
+                sourceNode = outputElem.getAttribute('data-output');
+            }
+        }
+
+        // Extract method information
+        if (sourceNode && sourceNode.includes('_output')) {
+            sourceMethod = sourceNode.split('_output')[0];
+        } else if (options.sourceMethod) {
+            sourceMethod = options.sourceMethod;
+        }
+
+        // Extract target method from inputId
+        let targetMethod = null;
+        if (inputId && inputId.includes('_input')) {
+            targetMethod = inputId.split('_input')[0];
+        }
+
+        // Create a complete connection object
         const connection = {
             source: source.id,
             target: target.id,
-            inputId: inputId
+            inputId: inputId,
+            sourceNode: sourceNode,
+            sourceMethod: sourceMethod,
+            targetMethod: targetMethod
         };
 
-        // Store additional information for method nodes
-        // First check if explicit nodes were provided in options
-        if (options && options.sourceNode) {
-            // Use the provided source node
-            const outputId = options.sourceNode.getAttribute('data-output');
-            if (outputId && outputId.includes('_output')) {
-                const methodName = outputId.split('_')[0];
-                connection.sourceMethod = methodName;
-                connection.sourceNode = outputId;
-                console.log(`Source method from options: ${methodName}, Source node: ${outputId}`);
-            }
-        }
-        // Otherwise use the global sourceNode
-        else if (sourceNode && sourceNode.getAttribute('data-output')) {
-            const outputId = sourceNode.getAttribute('data-output');
-            // Check if this is a method-specific output node
-            if (outputId && outputId.includes('_output')) {
-                const methodName = outputId.split('_')[0];
-                connection.sourceMethod = methodName;
-                connection.sourceNode = outputId;
-                console.log(`Source method: ${methodName}, Source node: ${outputId}`);
-            }
-        }
+        console.log("Creating connection with details:", connection);
 
-        // Check if this is a method-specific input node
-        if (inputId && inputId.includes('_input')) {
-            const methodName = inputId.split('_')[0];
-            connection.targetMethod = methodName;
-            console.log(`Target method: ${methodName}, Target input: ${inputId}`);
-        }
-
-        // Log the complete connection object for debugging
-        console.log('Creating connection:', connection);
-
-        // Before adding the connection, make sure we remove any existing
-        // connections to the same target input
-        removeConnectionsToInput(target.id, inputId);
-
+        // Add to connections array
+        if (!window.connections) window.connections = [];
         window.connections.push(connection);
 
         // Save to sessionStorage
         try {
-            sessionStorage.setItem('connections', JSON.stringify(connections));
+            sessionStorage.setItem('connections', JSON.stringify(window.connections));
         } catch (err) {
             console.warn('Error saving connections to sessionStorage:', err);
         }
 
+        // Update visual connections
         updateConnections();
-        processBlock(target);
         
         return connection;
     }
@@ -1129,6 +1128,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Add delete button on hover
             svgLine.addEventListener('mouseover', () => {
+                // Check if a delete button already exists
+                if (document.querySelector('.connection-delete-btn')) {
+                    return;
+                }
+
                 const deleteBtn = document.createElement('div');
                 deleteBtn.className = 'connection-delete-btn';
                 deleteBtn.innerHTML = '×';
@@ -1141,45 +1145,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteBtn.style.left = `${midX}px`;
                 deleteBtn.style.top = `${midY}px`;
 
-                deleteBtn.addEventListener('click', () => {
-                    // Remove the connection
-                    window.connections = connections.filter(c =>
-                        !(c.source === connection.source &&
-                          c.target === connection.target &&
-                          c.inputId === connection.inputId)
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent event bubbling
+                    
+                    // Get the connection data from the line
+                    const connData = JSON.parse(svgLine.dataset.connection);
+                    
+                    // Remove the connection from the global connections array
+                    window.connections = window.connections.filter(c => 
+                        !(c.source === connData.source &&
+                          c.target === connData.target &&
+                          c.inputId === connData.inputId)
                     );
-
+                    
                     // Save to sessionStorage
                     try {
-                        sessionStorage.setItem('connections', JSON.stringify(connections));
+                        sessionStorage.setItem('connections', JSON.stringify(window.connections));
                     } catch (err) {
                         console.warn('Error saving connections to sessionStorage:', err);
                     }
-
+                    
                     // Update the visual connections
                     updateConnections();
-
+                    
                     // Remove the delete button
                     deleteBtn.remove();
                 });
 
                 canvas.appendChild(deleteBtn);
 
-                // Remove the button when mouse leaves the connection
+                // Use a more reliable method to handle button visibility
+                let isOverConnection = false;
+                let isOverButton = false;
+
                 svgLine.addEventListener('mouseout', () => {
+                    isOverConnection = false;
                     setTimeout(() => {
-                        if (document.querySelector(':hover') !== deleteBtn) {
+                        if (!isOverButton && !isOverConnection) {
                             deleteBtn.remove();
                         }
-                    }, 50);
+                    }, 100);
+                });
+
+                svgLine.addEventListener('mouseover', () => {
+                    isOverConnection = true;
+                });
+
+                deleteBtn.addEventListener('mouseover', () => {
+                    isOverButton = true;
                 });
 
                 deleteBtn.addEventListener('mouseout', () => {
+                    isOverButton = false;
                     setTimeout(() => {
-                        if (document.querySelector(':hover') !== svgLine) {
+                        if (!isOverButton && !isOverConnection) {
                             deleteBtn.remove();
                         }
-                    }, 50);
+                    }, 100);
                 });
             });
         });

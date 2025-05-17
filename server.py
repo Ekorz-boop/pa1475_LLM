@@ -312,71 +312,60 @@ def export_blocks():
                 if source_id not in reverse_connection_map[target_id]:
                     reverse_connection_map[target_id].append(source_id)
 
-        # Look for method-specific connections
-        # This additional loop processes the original connections data
-        # to extract method-specific info
+        # Add a debug print to see what's in connections_data
+        print("\nDEBUG - All connection details:")
+        for conn in connections_data:
+            print(f"Connection: {conn}")
+
+        # Create a more robust method_connection_map
+        method_connection_map = {}  # Maps block_id -> input_method -> source blocks and methods
+
+        # Initialize for all blocks
+        for block_id in execution_order:
+            method_connection_map[block_id] = {}
+
+        # Process each connection to build the method map
         for conn in connections_data:
             source_id = conn.get("source")
             target_id = conn.get("target")
             input_id = conn.get("inputId", "")
-            source_method = conn.get("sourceMethod", "")
-            target_method = conn.get("targetMethod", "")
             source_node = conn.get("sourceNode", "")
-
-            if not (source_id and target_id):
+            source_method = conn.get("sourceMethod", "")
+            
+            # Skip if missing required data
+            if not source_id or not target_id or not input_id:
                 continue
-
-            # Skip if either block doesn't exist
-            if (
-                source_id not in temp_canvas.blocks
-                or target_id not in temp_canvas.blocks
-            ):
-                continue
-
-            # If we don't have explicit method information, try to extract it from input/output nodes
+            
+            # Get the target method from the input_id
+            if "_input" in input_id:
+                target_method = input_id.split("_input")[0]
+            else:
+                target_method = "default"
+            
+            # Get source method from sourceNode or sourceMethod
             if not source_method and source_node and "_output" in source_node:
-                source_method = source_node.split("_")[0]
-
-            if not target_method and input_id and "_input" in input_id:
-                target_method = input_id.split("_")[0]
-
-            # Always add to method_connection_map - even if we don't have explicit method information
+                source_method = source_node.split("_output")[0]
+            
+            # Make sure the target block exists in our map
             if target_id not in method_connection_map:
                 method_connection_map[target_id] = {}
+            
+            # Make sure the target method exists in the block's map
+            if target_method not in method_connection_map[target_id]:
+                method_connection_map[target_id][target_method] = []
+            
+            # Add the source with its method
+            method_connection_map[target_id][target_method].append({
+                "block_id": source_id,
+                "method": source_method
+            })
 
-            # First, handle method-specific connection if we have target method
-            if target_method:
-                # Create an entry for this target method if it doesn't exist
-                if target_method not in method_connection_map[target_id]:
-                    method_connection_map[target_id][target_method] = []
-
-                # Add source to this target method's connections
-                if source_id not in method_connection_map[target_id][target_method]:
-                    method_connection_map[target_id][target_method].append(source_id)
-
-            else:
-                # No target method, use default
-                if "default" not in method_connection_map[target_id]:
-                    method_connection_map[target_id]["default"] = []
-
-                # Add source to default connections
-                if source_id not in method_connection_map[target_id]["default"]:
-                    method_connection_map[target_id]["default"].append(source_id)
-
-            # Log all connections with detailed information
-            # connection_type = (
-            #     "method-specific" if target_method or source_method else "standard"
-            # )
-            # print(
-            #     f"Connection: {source_id}{' (' + source_method + ')' if source_method else ''} -> {target_id}{' (' + target_method + ')' if target_method else ''} [{connection_type}]"
-            # )
-
-        # Print out the method_connection_map for debugging
-        # print("\nFinal method connection map:")
-        # for target_id, methods in method_connection_map.items():
-        # print(f"Target {target_id}:")
-        # for method, sources in methods.items():
-        #     print(f"  Method {method}: {sources}")
+        # Print the method connection map for debugging
+        print("\nDEBUG - Method connection map:")
+        for target_id, methods in method_connection_map.items():
+            print(f"Target {target_id}:")
+            for method, sources in methods.items():
+                print(f"  Method {method}: {sources}")
 
         # Set the connections on the temp canvas - use the standard format for compatibility
         temp_canvas.connections = canvas_connections
@@ -553,10 +542,7 @@ def generate_python_code(
                                         special_init_blocks.add(block_id)
 
                                         # Add extra code for multi-file loading
-                                        init_params = []
-                                        multi_load_comment = (
-                                            f"# Handle multiple files for {class_name}"
-                                        )
+                                        multi_load_comment = f"# Handle multiple files for {class_name}"
                                         init_code_lines.append(multi_load_comment)
 
                                         # Find next available variable name
@@ -731,95 +717,35 @@ def generate_python_code(
             should_use_method_connections = False
             method_specific_sources = []
 
-            # print("\nconnections:", method_connections)
+            print(f"Looking for method-specific connections for {method_name} on {class_name}")
 
             if method_connections and block_id in method_connections:
                 # If we have the method in our method connections map
                 if method_name in method_connections[block_id]:
                     should_use_method_connections = True
                     method_specific_sources = method_connections[block_id][method_name]
-                    print(
-                        f"Using method-specific connections for {method_name} on {class_name}: {method_specific_sources}"
-                    )
+                    print(f"Found method-specific sources for {method_name} on {class_name}: {method_specific_sources}")
                 else:
-                    print(
-                        f"No method-specific connections for {method_name} on {class_name}, using general connections"
-                    )
+                    print(f"No method-specific connections for {method_name} on {class_name}, using general connections")
             else:
                 print(f"No method connections for block {block_id} ({class_name})")
 
             source_params = []
 
-            # print("\nconnections?\n")
             # If this block has incoming method-specific connections, use them as parameters
             if should_use_method_connections and method_specific_sources:
-                # print("\nyes\n")
                 # Use method-specific connections
-                for source_id in method_specific_sources:
+                for source_info in method_specific_sources:
+                    source_id = source_info["block_id"]
+                    source_method = source_info["method"]
                     source_var = block_vars[source_id]
-
-                    # Look for method-specific outputs from source block
-                    # The connection should indicate which source method output to use
-                    source_method = None
-
-                    # Check each connection to see if it connects this source to this target method
-                    for conn in connections_data:
-                        # if (
-                        #     conn.get("source") == source_id
-                        #     and conn.get("target") == block_id
-                        #     and conn.get("targetMethod") == method_name
-                        # ):
-                        source_method = conn.get("sourceMethod")
-                        break
-
-                    # If there's a specific source method, use its output variable
+                    
                     if source_method:
                         source_params.append(f"{source_var}_{source_method}_output")
-                        print(
-                            f"Using {source_var}_{source_method}_output as input for {var_name}.{method_name}"
-                        )
+                        print(f"Using specific method output: {source_var}_{source_method}_output")
                     else:
-                        # Otherwise use the general output variable
                         source_params.append(f"{source_var}_output")
-
-            else:
-                # Try to find any connection between this block and any source blocks
-                # that might be relevant for this method
-
-                if block_id in reverse_connection_map:
-                    source_ids = reverse_connection_map[block_id]
-
-                    for source_id in source_ids:
-                        source_var = block_vars[source_id]
-                        # Try to find if there's a connection specifying this method
-                        source_method = None
-                        for conn in connections_data:
-                            if (
-                                conn.get("source") == source_id
-                                and conn.get("target") == block_id
-                            ):
-                                # First look for exact target method match
-                                if (
-                                    conn.get("inputId").replace("_input", "")
-                                    == method_name
-                                ):
-                                    source_method = conn.get("sourceNode").replace(
-                                        "_output", ""
-                                    )
-                                    break
-                                # Then check if there's any source method that might be used
-                                elif not conn.get("targetMethod") and conn.get(
-                                    "sourceMethod"
-                                ):
-                                    source_method = conn.get("sourceMethod")
-
-                        # If we found a related source method, use its output
-                        if source_method:
-                            source_params.append(f"{source_var}_{source_method}_output")
-
-                        else:
-                            # Otherwise use the default output variable from that source
-                            source_params.append(f"{source_var}_output")
+                        print(f"Using general output: {source_var}_output")
 
             # Now generate the method call code, with or without parameters
             if source_params:
