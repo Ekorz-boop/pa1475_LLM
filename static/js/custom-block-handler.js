@@ -1484,7 +1484,7 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
             </div>
             <div class="block-content">
                 <select class="method-select" title="Select method to execute">
-                    <option value="" disabled= selected>Select method...</option>
+                    <option value="" disabled selected>Select method...</option>
                 </select>
                 <div class="block-parameters">
                     <!-- Parameters will be added here dynamically -->
@@ -1550,11 +1550,9 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
     // Populate methods dropdown - pass the original block ID if available for method lookup
     populateMethodsForBlock(block, className, originalBlockId || blockId);
 
-        // Handle method selection change
+    // Handle method selection change
     const methodSelect = block.querySelector('.method-select');
-    console.log('try method select');
     if (methodSelect) {
-        console.log('method select found');
         methodSelect.addEventListener('change', () => {
             const selectedMethod = methodSelect.value;
             console.log(`Method selected: ${selectedMethod}`);
@@ -1577,7 +1575,85 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
         updateBlockNodesForMethods(block);
     }
 
+    // Initialize drag functionality
+    makeBlockDraggable(block);
+
     return block;
+}
+
+// Function to make a block draggable
+function makeBlockDraggable(block) {
+    if (!block) return;
+
+    // Remove any existing drag handlers to prevent duplicates
+    const dragHandle = block.querySelector('.block-drag-handle');
+    if (!dragHandle) return;
+
+    dragHandle.removeEventListener('mousedown', handleDragStart);
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+
+    let isDragging = false;
+    let startX, startY;
+    let initialX, initialY;
+
+    function handleDragStart(e) {
+        // Don't start drag if editing the block name
+        if (document.activeElement === dragHandle) {
+            return;
+        }
+
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        // Get current position
+        const rect = block.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+
+        // Add dragging class
+        block.classList.add('dragging');
+
+        // Prevent text selection while dragging
+        e.preventDefault();
+    }
+
+    function handleDragMove(e) {
+        if (!isDragging) return;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        // Update position
+        block.style.left = `${initialX + dx}px`;
+        block.style.top = `${initialY + dy}px`;
+
+        // Update connections if they exist
+        if (typeof updateConnections === 'function') {
+            updateConnections();
+        }
+    }
+
+    function handleDragEnd() {
+        if (!isDragging) return;
+
+        isDragging = false;
+        block.classList.remove('dragging');
+
+        // Update connections one final time
+        if (typeof updateConnections === 'function') {
+            updateConnections();
+        }
+    }
+
+    // Add event listeners only to the drag handle
+    dragHandle.addEventListener('mousedown', handleDragStart);
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+
+    // Make sure the block has position absolute
+    block.style.position = 'absolute';
 }
 
 // Function to populate methods for a block
@@ -2893,6 +2969,13 @@ function addMethodRow(block, methodName, blockId = '') {
 
         // Update input/output nodes
         updateBlockNodesForMethods(block);
+
+        // CRITICAL FIX: Reinitialize drag functionality after removing method
+        if (typeof makeBlockDraggable === 'function') {
+            makeBlockDraggable(block);
+        } else if (typeof window.makeBlockDraggable === 'function') {
+            window.makeBlockDraggable(block);
+        }
     });
 
     // Create input node for this method
@@ -2959,6 +3042,13 @@ function addMethodRow(block, methodName, blockId = '') {
     setTimeout(() => {
         updateBlockParameters(block, methodName);
     }, 250);
+
+    // CRITICAL FIX: Reinitialize drag functionality after adding method
+    if (typeof makeBlockDraggable === 'function') {
+        makeBlockDraggable(block);
+    } else if (typeof window.makeBlockDraggable === 'function') {
+        window.makeBlockDraggable(block);
+    }
     
     return methodRow;
 }
@@ -3323,13 +3413,16 @@ function updateBlockNodesForMethods(block) {
     const outputNodes = block.querySelectorAll('.output-node');
     console.log(`Positioning ${inputNodes.length} input nodes and ${outputNodes.length} output nodes for block ${block.id}`);
 
+    // Get the block's content height (excluding padding)
+    const blockContent = block.querySelector('.block-content');
+    const blockHeight = blockContent ? blockContent.offsetHeight : block.offsetHeight;
+    const blockTop = blockContent ? blockContent.offsetTop : 0;
+
     // Update spacing for input nodes
     if (inputNodes.length > 0) {
-        const blockHeight = block.offsetHeight || 100; // Use 100px as fallback if height is 0
-        
         // Distribute input nodes evenly
         inputNodes.forEach((node, index) => {
-            const position = (blockHeight / (inputNodes.length + 1)) * (index + 1);
+            const position = blockTop + (blockHeight / (inputNodes.length + 1)) * (index + 1);
             
             // Set positions with !important to override any inline styles
             node.style.position = 'absolute';
@@ -3345,11 +3438,9 @@ function updateBlockNodesForMethods(block) {
 
     // Update spacing for output nodes
     if (outputNodes.length > 0) {
-        const blockHeight = block.offsetHeight || 100; // Use 100px as fallback if height is 0
-        
         // Distribute output nodes evenly
         outputNodes.forEach((node, index) => {
-            const position = (blockHeight / (outputNodes.length + 1)) * (index + 1);
+            const position = blockTop + (blockHeight / (outputNodes.length + 1)) * (index + 1);
             
             // Set positions with !important to override any inline styles
             node.style.position = 'absolute';
