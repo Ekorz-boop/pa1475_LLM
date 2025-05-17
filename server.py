@@ -318,7 +318,9 @@ def export_blocks():
             print(f"Connection: {conn}")
 
         # Create a more robust method_connection_map
-        method_connection_map = {}  # Maps block_id -> input_method -> source blocks and methods
+        method_connection_map = (
+            {}
+        )  # Maps block_id -> input_method -> source blocks and methods
 
         # Initialize for all blocks
         for block_id in execution_order:
@@ -331,34 +333,33 @@ def export_blocks():
             input_id = conn.get("inputId", "")
             source_node = conn.get("sourceNode", "")
             source_method = conn.get("sourceMethod", "")
-            
+
             # Skip if missing required data
             if not source_id or not target_id or not input_id:
                 continue
-            
+
             # Get the target method from the input_id
             if "_input" in input_id:
                 target_method = input_id.split("_input")[0]
             else:
                 target_method = "default"
-            
+
             # Get source method from sourceNode or sourceMethod
             if not source_method and source_node and "_output" in source_node:
                 source_method = source_node.split("_output")[0]
-            
+
             # Make sure the target block exists in our map
             if target_id not in method_connection_map:
                 method_connection_map[target_id] = {}
-            
+
             # Make sure the target method exists in the block's map
             if target_method not in method_connection_map[target_id]:
                 method_connection_map[target_id][target_method] = []
-            
+
             # Add the source with its method
-            method_connection_map[target_id][target_method].append({
-                "block_id": source_id,
-                "method": source_method
-            })
+            method_connection_map[target_id][target_method].append(
+                {"block_id": source_id, "method": source_method}
+            )
 
         # Print the method connection map for debugging
         print("\nDEBUG - Method connection map:")
@@ -542,7 +543,9 @@ def generate_python_code(
                                         special_init_blocks.add(block_id)
 
                                         # Add extra code for multi-file loading
-                                        multi_load_comment = f"# Handle multiple files for {class_name}"
+                                        multi_load_comment = (
+                                            f"# Handle multiple files for {class_name}"
+                                        )
                                         init_code_lines.append(multi_load_comment)
 
                                         # Find next available variable name
@@ -717,16 +720,22 @@ def generate_python_code(
             should_use_method_connections = False
             method_specific_sources = []
 
-            print(f"Looking for method-specific connections for {method_name} on {class_name}")
+            print(
+                f"Looking for method-specific connections for {method_name} on {class_name}"
+            )
 
             if method_connections and block_id in method_connections:
                 # If we have the method in our method connections map
                 if method_name in method_connections[block_id]:
                     should_use_method_connections = True
                     method_specific_sources = method_connections[block_id][method_name]
-                    print(f"Found method-specific sources for {method_name} on {class_name}: {method_specific_sources}")
+                    print(
+                        f"Found method-specific sources for {method_name} on {class_name}: {method_specific_sources}"
+                    )
                 else:
-                    print(f"No method-specific connections for {method_name} on {class_name}, using general connections")
+                    print(
+                        f"No method-specific connections for {method_name} on {class_name}, using general connections"
+                    )
             else:
                 print(f"No method connections for block {block_id} ({class_name})")
 
@@ -739,10 +748,12 @@ def generate_python_code(
                     source_id = source_info["block_id"]
                     source_method = source_info["method"]
                     source_var = block_vars[source_id]
-                    
+
                     if source_method:
                         source_params.append(f"{source_var}_{source_method}_output")
-                        print(f"Using specific method output: {source_var}_{source_method}_output")
+                        print(
+                            f"Using specific method output: {source_var}_{source_method}_output"
+                        )
                     else:
                         source_params.append(f"{source_var}_output")
                         print(f"Using general output: {source_var}_output")
