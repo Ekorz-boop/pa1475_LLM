@@ -29,8 +29,7 @@ RAGgie simplifies the process of building Retrieval Augmented Generation (RAG) p
 1. Add blocks representing different LLM components (document loaders, text splitters, embeddings, etc.)
 2. Connect these blocks to create a functional pipeline
 3. Configure each block with custom parameters
-4. Test the pipeline directly in the browser
-5. Export the pipeline as a standalone Python script
+4. Export the pipeline as a standalone Python script
 
 The application is built with Flask on the backend and vanilla JavaScript on the frontend, making it lightweight and easy to deploy.
 
