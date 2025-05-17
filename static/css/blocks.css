@@ -111,7 +111,7 @@
 }
 
 .block:active .node-container {
-    opacity: 0 !important;
+    opacity: 1 !important;
 }
 
 .block:active .delete-button {

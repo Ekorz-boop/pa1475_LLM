@@ -26,7 +26,7 @@ class TemplateHandler {
         // Make sure the required global functions are available
         this.checkRequiredFunctions();
         
-        // Override the makeBlockDraggable function with our enhanced version
+        // Make sure we override makeBlockDraggable right away
         this.overrideMakeBlockDraggable();
         
         // Initialize UI components

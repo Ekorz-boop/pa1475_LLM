@@ -244,6 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDraggingBlock = false;
     let dragOffset = { x: 0, y: 0 };
 
+    // At the top of the file, add a variable to track when the template handler's override has been applied
+    let blockDragHandlersOverridden = false;
+
     // Add search functionality
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
@@ -784,11 +787,15 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
         }
 
+        // Ensure connection updates happen during ANY block drag
+        if (document.querySelector('.block.dragging')) {
+            updateConnections();
+        }
+        
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
 
             // Calculate position relative to canvas, correctly accounting for zoom and pan
-            // This calculation ensures the block stays under the cursor at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
@@ -1444,13 +1451,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Make a block draggable
+    // Modify the makeBlockDraggable function to ensure proper coordination with global handlers
     function makeBlockDraggable(block) {
         const dragHandle = block.querySelector('.block-drag-handle');
         if (!dragHandle) return;
         
         dragHandle.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return; // Only left mouse button
+            
+            // Set global variables to ensure global mousemove handler works
+            isDraggingBlock = true;
+            draggedBlock = block;
             
             block.classList.add('dragging');
             block.style.zIndex = '1000';
@@ -1464,40 +1475,34 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (transform !== 'none') {
                 const matrix = new DOMMatrixReadOnly(transform);
-                const blockX = matrix.m41;
-                const blockY = matrix.m42;
-
-                // Get mouse position in canvas coordinates
-                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
-                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
-
-                // Calculate offset between mouse and block origin
-                dragOffset.x = mouseX - blockX;
-                dragOffset.y = mouseY - blockY;
-
-                block.style.zIndex = '1000';
-
-            const mouseUpHandler = () => {
-                document.removeEventListener('mousemove', mouseMoveHandler);
-                document.removeEventListener('mouseup', mouseUpHandler);
-
-                block.classList.remove('dragging');
-                block.style.zIndex = '1';
-
-                // Final update without throttling to ensure accuracy
-                void document.body.offsetHeight; // Force reflow
-                updateConnections();
-            };
-
-            document.addEventListener('mousemove', mouseMoveHandler);
-            document.addEventListener('mouseup', mouseUpHandler);
-
+                translateX = matrix.m41;
+                translateY = matrix.m42;
+            }
+            
+            // Add the mouseMoveHandler function definition
+            const mouseMoveHandler = (e) => {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                
+                // Apply new position
+                block.style.transform = `translate(${translateX + dx}px, ${translateY + dy}px)`;
+                
+                // CRITICAL: Update connections on EVERY mouse move
+                if (typeof window.updateConnections === 'function') {
+                    window.updateConnections();
+                }
+                
                 e.preventDefault();
+                e.stopPropagation();
             };
             
             const mouseUpHandler = () => {
                 document.removeEventListener('mousemove', mouseMoveHandler);
                 document.removeEventListener('mouseup', mouseUpHandler);
+                
+                // Reset global variables
+                isDraggingBlock = false;
+                draggedBlock = null;
                 
                 block.classList.remove('dragging');
                 block.style.zIndex = '1';
@@ -1805,6 +1810,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const block = dragHandle.closest('.block');
             if (!block) return;
 
+            // Set these flags to ensure global mousemove handler works too
+            isDraggingBlock = true;
+            draggedBlock = block;
+            
             // Start dragging
             isDragging = true;
             currentBlock = block;
