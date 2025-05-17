@@ -1127,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionsContainer.appendChild(svgLine);
 
             // Add delete button on hover
-            svgLine.addEventListener('mouseover', () => {
+            svgLine.addEventListener('mouseover', (e) => {
                 // Check if a delete button already exists
                 if (document.querySelector('.connection-delete-btn')) {
                     return;
@@ -1138,12 +1138,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteBtn.innerHTML = '×';
                 deleteBtn.style.position = 'absolute';
 
-                // Position the delete button at the middle of the curve
-                const midX = (x1 + x2) / 2;
-                const midY = (y1 + y2) / 2;
+                // Position the delete button directly above the cursor position
+                // Get the cursor position relative to the canvas
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
 
-                deleteBtn.style.left = `${midX}px`;
-                deleteBtn.style.top = `${midY}px`;
+                // Position the button 20px above where the user is hovering
+                deleteBtn.style.left = `${mouseX}px`;
+                deleteBtn.style.top = `${mouseY - 20}px`;
 
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation(); // Prevent event bubbling
@@ -1185,6 +1188,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             deleteBtn.remove();
                         }
                     }, 100);
+                });
+
+                // Update button position on mousemove while hovering over the connection
+                svgLine.addEventListener('mousemove', (moveEvent) => {
+                    if (isOverConnection && !isOverButton) {
+                        const rect = canvas.getBoundingClientRect();
+                        const mouseX = moveEvent.clientX - rect.left;
+                        const mouseY = moveEvent.clientY - rect.top;
+                        
+                        // Update button position to follow the cursor
+                        deleteBtn.style.left = `${mouseX}px`;
+                        deleteBtn.style.top = `${mouseY - 20}px`;
+                    }
                 });
 
                 svgLine.addEventListener('mouseover', () => {

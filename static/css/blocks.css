@@ -607,6 +607,7 @@ svg {
     transform: translate(-50%, -50%);
     z-index: 1000;
     pointer-events: all;
+    transition: transform 0.1s ease;
 }
 
 .connection-delete-btn:hover {
