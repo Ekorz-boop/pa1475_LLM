@@ -18,6 +18,7 @@ RAGgie is a powerful, user-friendly web application for creating, testing, and e
 - [Customization](#customization)
 - [Security and Authentication](#security-and-authentication)
 - [Deployment](#deployment)
+- [Docker](#docker)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
@@ -294,6 +295,88 @@ For production deployment, consider the following steps:
 4. **Database Considerations**:
    - For larger deployments, migrate from SQLite to PostgreSQL/MySQL
    - Set up database backups
+
+## Docker
+
+You can also build and run RAGgie using Docker.
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) installed on your system.
+
+### Building the Docker Image
+
+1.  **Clone the repository** (if you haven't already):
+    ```bash
+    git clone https://github.com/Ekorz-boop/pa1475_LLM.git
+    cd pa1475_LLM
+    ```
+
+2.  **Build the Docker image**:
+    From the root directory of the project (where the `Dockerfile` is located), run:
+    ```bash
+    docker build -t raggie-app .
+    ```
+
+### Running the Docker Container
+
+1.  **Run the container**:
+    ```bash
+    docker run -d -p 5000:5000 --name raggie-container raggie-app
+    ```
+    - `-d`: Runs the container in detached mode (in the background).
+    - `-p 5000:5000`: Maps port 5000 of the host to port 5000 in the container.
+    - `--name raggie-container`: Assigns a name to the container for easier management.
+    - `raggie-app`: The name of the image you built.
+
+2.  **Access the application**:
+    Open your browser and go to `http://localhost:5000`.
+
+### Environment Variables
+
+For a production setup, or if you need to configure mail settings, you should pass environment variables to the `docker run` command.
+
+**Example with `SECRET_KEY` and mail settings:**
+```bash
+docker run -d \\
+  -p 5000:5000 \\
+  --name raggie-container \\
+  -e SECRET_KEY='your_very_secure_and_long_secret_key' \\
+  -e MAIL_SERVER='smtp.example.com' \\
+  -e MAIL_PORT=587 \\
+  -e MAIL_USE_TLS=True \\
+  -e MAIL_USERNAME='your_email@example.com' \\
+  -e MAIL_PASSWORD='your_email_password' \\
+  -e MAIL_DEFAULT_SENDER='noreply@example.com' \\
+  raggie-app
+```
+Refer to the "Configure Environment Variables" section under "Installation" for details on these variables.
+
+### Data Persistence
+
+-   **Database (`instance/app.db`)**: The default Docker setup will initialize a new SQLite database inside the `instance/` directory within the container each time it starts (as `init_db.py` is run). To persist your database across container restarts, you should use a Docker volume:
+    ```bash
+    docker volume create raggie-data
+    docker run -d \\
+      -p 5000:5000 \\
+      --name raggie-container \\
+      -v raggie-data:/app/instance \\
+      # Add your -e environment variables here
+      raggie-app
+    ```
+    When using a volume for the first time, the `init_db.py` script in the `CMD` will create the database. For subsequent runs, it will use the existing database in the volume. You might want to adjust `init_db.py` or the `Dockerfile` `CMD` if you have specific needs for managing an existing database in a volume.
+
+-   **User Files (`files/`)**: The `files/` directory (used for uploads, etc.) is part of the container. If you need data in this directory to persist or be shared, consider mounting a volume for it as well:
+    ```bash
+    docker volume create raggie-files
+    docker run -d \\
+      -p 5000:5000 \\
+      --name raggie-container \\
+      -v raggie-data:/app/instance \\
+      -v raggie-files:/app/files \\
+      # Add your -e environment variables here
+      raggie-app
+    ```
 
 ## Troubleshooting
 

@@ -1,0 +1,43 @@
+# Git files
+.git/
+.gitignore
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment files
+.env
+.venv
+venv/
+env/
+
+# SQLite database file (will be created by init_db.py in the container or managed by volume)
+instance/app.db
+*.sqlite3
+*.db
+
+# Log files
+*.log
+
+# OS-specific files
+.DS_Store
+
+# Editor/IDE specific
+.vscode/
+.idea/
+
+# Test files (if any, and not needed in production image)
+# tests/
+
+# READMEs and License (optional, can be excluded to reduce image size)
+README.md
+README-admin-auth.md
+LICENSE
+
+# Ruff configuration
+ruff.toml
+
+# GitHub specific
+.github/ 
