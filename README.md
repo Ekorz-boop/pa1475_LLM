@@ -83,6 +83,7 @@ graph TD
 - Python 3.7+ 
 - pip (Python package manager)
 - Git (optional, for cloning the repository)
+- Docker (optional, for containerized deployment)
 
 ### Step 1: Clone the Repository
 
@@ -99,13 +100,33 @@ Or download and extract the ZIP file from the repository.
 pip install -r requirements.txt
 ```
 
-### Step 3: Configure Environment Variables (Optional)
+### Step 3: Configure Environment Variables
 
-For production use, create a `.env` file in the root directory with the following variables:
+For both local development and production deployments, RAGgie uses environment variables for configuration. You can create a `.env` file in the root directory of the project to manage these settings. This file is loaded by some environments (like `python-dotenv` if you add it, or Docker Compose's `env_file` feature), but the application itself primarily expects these to be set in the shell environment or passed during Docker runtime.
+
+**Key Environment Variables:**
+
+*   `SECRET_KEY`: **Required.** A long, random string used for session security. **Change this for production.**
+    *   Example: `SECRET_KEY=your-very-secret-and-random-string-here`
+*   `DATABASE_URL`: **Optional.** The connection URI for the database.
+    *   For local development (default): `sqlite:///instance/app.db` (The application will create this path relative to the project root).
+    *   For Docker (default, set in Dockerfile): `sqlite:////app/instance/app.db` (This path is inside the container and should be mapped to a volume for persistence).
+    *   For other databases (e.g., PostgreSQL): `postgresql://user:password@host:port/dbname`
+*   `MAIL_SERVER`: **Optional.** SMTP server for email functionalities (e.g., password reset).
+    *   Example: `MAIL_SERVER=smtp.gmail.com`
+*   `MAIL_PORT`: **Optional.** SMTP server port.
+    *   Example: `MAIL_PORT=587`
+*   `MAIL_USE_TLS`: **Optional.** Whether to use TLS for email.
+    *   Example: `MAIL_USE_TLS=True`
+*   `MAIL_USERNAME`: **Optional.** Username for the SMTP server.
+*   `MAIL_PASSWORD`: **Optional.** Password for the SMTP server (for Gmail, use an [App Password](https://support.google.com/accounts/answer/185833?hl=en) if 2FA is enabled).
+*   `MAIL_DEFAULT_SENDER`: **Optional.** Default "from" address for emails.
+
+**Example `.env` file content:**
 
 ```env
-SECRET_KEY=your-secret-key
-DATABASE_URL=sqlite:///app.db  # Or your preferred database URI
+SECRET_KEY=your-super-secret-key-for-dev
+DATABASE_URL=sqlite:///instance/app.db
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USE_TLS=True
@@ -116,7 +137,9 @@ MAIL_DEFAULT_SENDER=your_email@gmail.com
 
 > **Note:** For Gmail, you must use an [App Password](https://support.google.com/accounts/answer/185833?hl=en) if 2FA is enabled.
 
-### Step 4: Initialize the Database
+**Note:** `server.py` and `init_db.py` are coded to correctly determine the database path for local execution (creating `instance/app.db`). The `DATABASE_URL` in `.env` for local use primarily serves as an override or for clarity if you choose to use it. For Docker, the `DATABASE_URL` is set in the `Dockerfile` and can be overridden at runtime.
+
+### Step 4: Initialize the Database (for Local Setup)
 
 ```bash
 python init_db.py
@@ -126,9 +149,27 @@ This creates the database and an initial admin user:
 - **Username:** `admin`
 - **Password:** `admin123`
 
-> **Important:** When running the application locally (not using Docker), the `init_db.py` script and the `server.py` application will automatically create and use an SQLite database file (`app.db`) located in an `instance` subdirectory within your project folder (e.g., `pa1475_LLM/instance/app.db`). This uses absolute paths, ensuring correct database location regardless of where you run the scripts from. You **must** run `python init_db.py` at least once before starting the server if this database does not exist.
+> **Important:** When running the application locally (not using Docker), the `init_db.py` script (and the `server.py` application if the DB doesn't exist and `DATABASE_URL` isn't set to an external DB) will automatically create and use an SQLite database file (`app.db`) located in an `instance` subdirectory within your project folder (e.g., `pa1475_LLM/instance/app.db`). You **must** run `python init_db.py` at least once before starting the server if this database does not exist and you are not using an alternative `DATABASE_URL`.
 
-### Step 5: Run the Application
+### Data Persistence
+
+-   **Database (`instance/app.db`)**: The application, whether run directly or inside Docker, is coded to look for the SQLite database (`app.db`) in an `instance/` directory relative to the application root (e.g., `/app/instance/app.db` inside the container). 
+    -   When running Docker, the `init_db.py` script (executed by the Docker `CMD`) will create this `instance/app.db` file within the container if it doesn't exist. 
+    -   To persist your database across container restarts, you **must** use a Docker volume to map a directory on your host to the `/app/instance` directory inside the container. This ensures that the `app.db` file created or used by the application is stored on your host machine and survives container recreation.
+    ```bash
+    docker volume create raggie-data
+    docker run -d \\
+      -p 5000:5000 \\
+      --name raggie-container \\
+      -v raggie-data:/app/instance \\
+      # Add your -e environment variables here
+      raggie-app
+    ```
+    When using a volume for the first time, `init_db.py` will create the `app.db` in the volume. Subsequent runs will use the existing `app.db` from the volume. You might want to adjust `init_db.py` or the `Dockerfile` `CMD` if you have specific needs for managing an existing database in a volume.
+
+-   **User Files (`files/`)**: The `files/` directory (used for uploads, etc.) is part of the container. If you need data in this directory to persist or be shared, consider mounting a volume for it as well:
+
+### Step 5: Run the Application (for Local Setup)
 
 ```bash
 python server.py
@@ -220,10 +261,10 @@ Save your pipelines as templates for future use:
 Convert your visual pipeline into a runnable Python script:
 
 1. Build your complete pipeline on the canvas
-2. Click the "Export Pipeline" button 
+2. Click the "Export Pipeline" button
 3. Review the generated Python code
 4. Download the code as a `.py` file
-5. Run it with `python generated_pipeline.py`
+5. Run it with `python generated_pipeline.py` (ensure necessary libraries from your pipeline are installed in that environment)
 
 The exported code includes:
 
@@ -275,110 +316,89 @@ For a complete guide to the authentication and admin system, see [README-admin-a
 
 ## Deployment
 
-### Production Deployment
+This section provides guidance on deploying RAGgie to a production environment.
 
-For production deployment, consider the following steps:
+### General Recommendations
 
-1. **Use a Production WSGI Server**:
-   ```bash
-   pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:8000 server:app
-   ```
+- **WSGI Server**: For production, do not use the Flask development server (`python server.py`). Instead, use a production-grade WSGI server like Gunicorn (which is included in `requirements.txt` and used in the `Dockerfile`) or uWSGI.
+  Example with Gunicorn (if not using Docker):
+  ```bash
+  gunicorn -w 4 -b 0.0.0.0:5000 server:app
+  ```
+- **Environment Variables**: Ensure all required environment variables (especially `SECRET_KEY`, and `MAIL_*` if email is used) are properly set in your production environment. See [Step 3: Configure Environment Variables](#step-3-configure-environment-variables).
+- **Database**: While SQLite is convenient for development, consider a more robust database like PostgreSQL or MySQL for larger-scale production deployments. Update the `DATABASE_URL` environment variable accordingly.
+- **HTTPS**: Always serve the application over HTTPS in production. This is typically handled by a reverse proxy.
 
-2. **Set Environment Variables**:
-   - Set `SECRET_KEY` to a secure random string
-   - Configure proper database credentials
-   - Set up mail server settings for password resets
+### Docker Deployment
 
-3. **Configure a Reverse Proxy**:
-   - Use Nginx or Apache as a reverse proxy
-   - Configure SSL/TLS for secure HTTPS connections
+RAGgie includes a `Dockerfile` for easy containerization and deployment.
 
-4. **Database Considerations**:
-   - For larger deployments, migrate from SQLite to PostgreSQL/MySQL
-   - Set up database backups
+**1. Build the Docker Image:**
 
-## Docker
+Navigate to the project root directory (where the `Dockerfile` is located) and run:
 
-You can also build and run RAGgie using Docker.
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) installed on your system.
-
-### Building the Docker Image
-
-1.  **Clone the repository** (if you haven't already):
-    ```bash
-    git clone https://github.com/Ekorz-boop/pa1475_LLM.git
-    cd pa1475_LLM
-    ```
-
-2.  **Build the Docker image**:
-    From the root directory of the project (where the `Dockerfile` is located), run:
-    ```bash
-    docker build -t raggie-app .
-    ```
-
-### Running the Docker Container
-
-1.  **Run the container**:
-    ```bash
-    docker run -d -p 5000:5000 --name raggie-container raggie-app
-    ```
-    - `-d`: Runs the container in detached mode (in the background).
-    - `-p 5000:5000`: Maps port 5000 of the host to port 5000 in the container.
-    - `--name raggie-container`: Assigns a name to the container for easier management.
-    - `raggie-app`: The name of the image you built.
-
-2.  **Access the application**:
-    Open your browser and go to `http://localhost:5000`.
-
-### Environment Variables
-
-For a production setup, or if you need to configure mail settings, you should pass environment variables to the `docker run` command.
-
-**Example with `SECRET_KEY` and mail settings:**
 ```bash
-docker run -d \\
-  -p 5000:5000 \\
-  --name raggie-container \\
-  -e SECRET_KEY='your_very_secure_and_long_secret_key' \\
-  -e MAIL_SERVER='smtp.example.com' \\
-  -e MAIL_PORT=587 \\
-  -e MAIL_USE_TLS=True \\
-  -e MAIL_USERNAME='your_email@example.com' \\
-  -e MAIL_PASSWORD='your_email_password' \\
-  -e MAIL_DEFAULT_SENDER='noreply@example.com' \\
+docker build -t raggie-app .
+```
+
+**2. Run the Docker Container:**
+
+To run the container:
+
+```bash
+docker run -d \
+  -p 5000:5000 \
+  --name raggie-container \
+  -e SECRET_KEY="your_production_secret_key_here" \
+  # Add other -e flags for MAIL_SERVER, MAIL_PORT, etc. as needed
+  # Example for a custom database URL (if not using the default SQLite in a volume):
+  # -e DATABASE_URL="postgresql://user:password@host:port/dbname" \
   raggie-app
 ```
-Refer to the "Configure Environment Variables" section under "Installation" for details on these variables.
 
-### Data Persistence
+**Environment Variables in Docker:**
 
--   **Database (`instance/app.db`)**: The default Docker setup will initialize a new SQLite database inside the `instance/` directory within the container each time it starts (as `init_db.py` is run). To persist your database across container restarts, you should use a Docker volume:
+- The `Dockerfile` sets some default environment variables (like `DATABASE_URL=sqlite:////app/instance/app.db`).
+- **Crucially, override `SECRET_KEY` at runtime using the `-e` flag.**
+- Pass any other necessary environment variables (e.g., `MAIL_*` settings) using `-e` flags.
+- Alternatively, you can use a `.env` file with `docker run --env-file ./my.env ...` or with Docker Compose.
+
+**3. Data Persistence with Docker Volumes:**
+
+To ensure your data persists across container restarts, use Docker volumes.
+
+-   **Database (`/app/instance/app.db` inside the container):**
+    The `Dockerfile`'s `CMD` includes `python init_db.py`, which will create `instance/app.db` inside the container if it doesn't exist. To persist this database:
     ```bash
-    docker volume create raggie-data
-    docker run -d \\
-      -p 5000:5000 \\
-      --name raggie-container \\
-      -v raggie-data:/app/instance \\
-      # Add your -e environment variables here
+    docker volume create raggie-db-data
+    docker run -d \
+      -p 5000:5000 \
+      --name raggie-container \
+      -v raggie-db-data:/app/instance \
+      -e SECRET_KEY="your_production_secret_key_here" \
+      # Add other -e flags as needed
+      raggie-app
+    ```
+    The first time you run with a new volume, `init_db.py` will create the database. For subsequent runs, it will use the existing database.
+
+-   **User Files (`/app/files/` inside the container):**
+    If your application uses the `files/` directory for user uploads or other persistent file storage, you should also mount a volume for it:
+    ```bash
+    docker volume create raggie-user-files
+    docker run -d \
+      -p 5000:5000 \
+      --name raggie-container \
+      -v raggie-db-data:/app/instance \
+      -v raggie-user-files:/app/files \
+      -e SECRET_KEY="your_production_secret_key_here" \
+      # Add other -e flags as needed
       raggie-app
     ```
     When using a volume for the first time, the `init_db.py` script in the `CMD` will create the database. For subsequent runs, it will use the existing database in the volume. You might want to adjust `init_db.py` or the `Dockerfile` `CMD` if you have specific needs for managing an existing database in a volume.
 
--   **User Files (`files/`)**: The `files/` directory (used for uploads, etc.) is part of the container. If you need data in this directory to persist or be shared, consider mounting a volume for it as well:
-    ```bash
-    docker volume create raggie-files
-    docker run -d \\
-      -p 5000:5000 \\
-      --name raggie-container \\
-      -v raggie-data:/app/instance \\
-      -v raggie-files:/app/files \\
-      # Add your -e environment variables here
-      raggie-app
-    ```
+**4. Accessing the Application:**
+
+Once the container is running, access RAGgie at `http://localhost:5000` (or your server's IP address).
 
 ## Troubleshooting
 
