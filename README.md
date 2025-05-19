@@ -105,7 +105,7 @@ For production use, create a `.env` file in the root directory with the followin
 
 ```env
 SECRET_KEY=your-secret-key
-DATABASE_URL=sqlite:///app.db  # Or your preferred database URI
+DATABASE_URL=sqlite:///instance/app.db  # Or your preferred database URI
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USE_TLS=True
