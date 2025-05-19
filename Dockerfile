@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -19,11 +19,14 @@ RUN mkdir -p instance
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
 
+# Environment variable to indicate running inside Docker
+ENV IS_DOCKER=true
+
 # Define environment variables
 # IMPORTANT: For production, override SECRET_KEY and mail settings securely at runtime.
 ENV FLASK_APP=server.py
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV DATABASE_URL=sqlite:///instance/app.db
+ENV DATABASE_URL=sqlite:////app/instance/app.db
 ENV SECRET_KEY="your-production-secret-key" 
 # Placeholder for mail variables - pass these at runtime
 ENV MAIL_SERVER=""

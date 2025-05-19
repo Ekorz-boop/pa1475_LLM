@@ -126,6 +126,8 @@ This creates the database and an initial admin user:
 - **Username:** `admin`
 - **Password:** `admin123`
 
+> **Important:** If you are running the application locally (not using Docker) and the database (`instance/app.db`) does not exist, you **must** run this `python init_db.py` command before starting the server in Step 5.
+
 ### Step 5: Run the Application
 
 ```bash
