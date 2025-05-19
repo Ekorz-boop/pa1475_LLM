@@ -346,7 +346,7 @@ docker build -t raggie-app .
 To run the container:
 
 ```bash
-docker run -d -p 5000:5000 --name raggie-test-container raggie-app
+docker run -d -p 5000:5000 --name raggie-container raggie-app
 ```
 
 **Environment Variables in Docker:**
