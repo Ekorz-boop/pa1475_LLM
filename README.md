@@ -346,14 +346,7 @@ docker build -t raggie-app .
 To run the container:
 
 ```bash
-docker run -d \
-  -p 5000:5000 \
-  --name raggie-container \
-  -e SECRET_KEY="your_production_secret_key_here" \
-  # Add other -e flags for MAIL_SERVER, MAIL_PORT, etc. as needed
-  # Example for a custom database URL (if not using the default SQLite in a volume):
-  # -e DATABASE_URL="postgresql://user:password@host:port/dbname" \
-  raggie-app
+docker run -d -p 5000:5000 --name raggie-test-container raggie-app
 ```
 
 **Environment Variables in Docker:**
