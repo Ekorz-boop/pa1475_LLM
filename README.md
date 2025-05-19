@@ -80,7 +80,7 @@ graph TD
 
 ### Prerequisites
 
-- Python 3.7+ 
+- Python 3.11+ 
 - pip (Python package manager)
 - Git (optional, for cloning the repository)
 
