@@ -126,7 +126,7 @@ This creates the database and an initial admin user:
 - **Username:** `admin`
 - **Password:** `admin123`
 
-> **Important:** If you are running the application locally (not using Docker) and the database (`instance/app.db`) does not exist, you **must** run this `python init_db.py` command before starting the server in Step 5.
+> **Important:** When running the application locally (not using Docker), the `init_db.py` script and the `server.py` application will automatically create and use an SQLite database file (`app.db`) located in an `instance` subdirectory within your project folder (e.g., `pa1475_LLM/instance/app.db`). This uses absolute paths, ensuring correct database location regardless of where you run the scripts from. You **must** run `python init_db.py` at least once before starting the server if this database does not exist.
 
 ### Step 5: Run the Application
 
