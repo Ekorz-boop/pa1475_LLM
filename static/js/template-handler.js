@@ -26,7 +26,7 @@ class TemplateHandler {
         // Make sure the required global functions are available
         this.checkRequiredFunctions();
         
-        // Override the makeBlockDraggable function with our enhanced version
+        // Make sure we override makeBlockDraggable right away
         this.overrideMakeBlockDraggable();
         
         // Initialize UI components
@@ -2485,6 +2485,8 @@ class TemplateHandler {
                         
                         if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
                             const inputId = inputNode.getAttribute('data-input');
+                            const sourceNodeId = window.sourceNode.getAttribute('data-output');
+                            
                             if (inputId) {
                                 // Remove existing connections to this input
                                 if (window.removeConnectionsToInput && typeof window.removeConnectionsToInput === 'function') {
@@ -2496,24 +2498,30 @@ class TemplateHandler {
                                     });
                                 }
                                 
-                                // Create the new connection
+                                // Create the connection with explicit sourceNode and method information
+                                const sourceMethod = sourceNodeId ? sourceNodeId.split('_output')[0] : null;
+                                const targetMethod = inputId ? inputId.split('_input')[0] : null;
+                                
                                 if (window.createConnection && typeof window.createConnection === 'function') {
-                                    window.createConnection(sourceBlock, targetBlock, inputId);
-                                } else if (window.connections && Array.isArray(window.connections)) {
-                                    // Manually create connection
+                                    window.createConnection(sourceBlock, targetBlock, inputId, {
+                                        sourceNode: sourceNodeId,
+                                        sourceMethod: sourceMethod,
+                                        targetMethod: targetMethod
+                                    });
+                                    console.log(`Created connection from ${sourceBlock.id}:${sourceNodeId} to ${targetBlock.id}:${inputId}`);
+                                } else {
+                                    // Fallback if createConnection is not available
+                                    if (!window.connections) window.connections = [];
                                     window.connections.push({
                                         source: sourceBlock.id,
                                         target: targetBlock.id,
-                                        inputId: inputId
+                                        inputId: inputId,
+                                        sourceNode: sourceNodeId,
+                                        sourceMethod: sourceMethod,
+                                        targetMethod: targetMethod
                                     });
-                                    
-                                    // Update connections if the function exists
-                                    if (window.updateConnections && typeof window.updateConnections === 'function') {
-                                        window.updateConnections();
-                                    }
+                                    updateConnections();
                                 }
-                                
-                                console.log(`Created connection from ${sourceBlock.id} to ${targetBlock.id}:${inputId}`);
                             }
                         }
                     }

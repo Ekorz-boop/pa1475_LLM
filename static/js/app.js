@@ -244,6 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDraggingBlock = false;
     let dragOffset = { x: 0, y: 0 };
 
+    // At the top of the file, add a variable to track when the template handler's override has been applied
+    let blockDragHandlersOverridden = false;
+
     // Add search functionality
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
@@ -784,11 +787,15 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
         }
 
+        // Ensure connection updates happen during ANY block drag
+        if (document.querySelector('.block.dragging')) {
+            updateConnections();
+        }
+        
         if (isDraggingBlock && draggedBlock) {
             const rect = canvas.getBoundingClientRect();
 
             // Calculate position relative to canvas, correctly accounting for zoom and pan
-            // This calculation ensures the block stays under the cursor at any zoom level
             const x = (e.clientX - rect.left - currentTranslate.x) / zoom - dragOffset.x;
             const y = (e.clientY - rect.top - currentTranslate.y) / zoom - dragOffset.y;
 
@@ -946,68 +953,67 @@ document.addEventListener('DOMContentLoaded', () => {
         updateConnections();
     }
 
+    // Improve the createConnection function to better handle method nodes
     function createConnection(source, target, inputId, options = {}) {
-        // Ensure source and target blocks have properly positioned nodes
-        if (typeof updateBlockNodesForMethods === 'function') {
-            updateBlockNodesForMethods(source);
-            updateBlockNodesForMethods(target);
+        // Ensure source and target exist
+        if (!source || !target || !inputId) {
+            console.error("Missing required parameters for connection creation");
+            return null;
         }
 
+        // Get source node (output node)
+        let sourceNode = null;
+        let sourceMethod = null;
+        
+        if (options.sourceNode) {
+            // If a specific source node was provided, use it
+            sourceNode = options.sourceNode;
+        } else {
+            // Otherwise get the default output node
+            const outputElem = source.querySelector('.output-node');
+            if (outputElem) {
+                sourceNode = outputElem.getAttribute('data-output');
+            }
+        }
+
+        // Extract method information
+        if (sourceNode && sourceNode.includes('_output')) {
+            sourceMethod = sourceNode.split('_output')[0];
+        } else if (options.sourceMethod) {
+            sourceMethod = options.sourceMethod;
+        }
+
+        // Extract target method from inputId
+        let targetMethod = null;
+        if (inputId && inputId.includes('_input')) {
+            targetMethod = inputId.split('_input')[0];
+        }
+
+        // Create a complete connection object
         const connection = {
             source: source.id,
             target: target.id,
-            inputId: inputId
+            inputId: inputId,
+            sourceNode: sourceNode,
+            sourceMethod: sourceMethod,
+            targetMethod: targetMethod
         };
 
-        // Store additional information for method nodes
-        // First check if explicit nodes were provided in options
-        if (options && options.sourceNode) {
-            // Use the provided source node
-            const outputId = options.sourceNode.getAttribute('data-output');
-            if (outputId && outputId.includes('_output')) {
-                const methodName = outputId.split('_')[0];
-                connection.sourceMethod = methodName;
-                connection.sourceNode = outputId;
-                console.log(`Source method from options: ${methodName}, Source node: ${outputId}`);
-            }
-        }
-        // Otherwise use the global sourceNode
-        else if (sourceNode && sourceNode.getAttribute('data-output')) {
-            const outputId = sourceNode.getAttribute('data-output');
-            // Check if this is a method-specific output node
-            if (outputId && outputId.includes('_output')) {
-                const methodName = outputId.split('_')[0];
-                connection.sourceMethod = methodName;
-                connection.sourceNode = outputId;
-                console.log(`Source method: ${methodName}, Source node: ${outputId}`);
-            }
-        }
+        console.log("Creating connection with details:", connection);
 
-        // Check if this is a method-specific input node
-        if (inputId && inputId.includes('_input')) {
-            const methodName = inputId.split('_')[0];
-            connection.targetMethod = methodName;
-            console.log(`Target method: ${methodName}, Target input: ${inputId}`);
-        }
-
-        // Log the complete connection object for debugging
-        console.log('Creating connection:', connection);
-
-        // Before adding the connection, make sure we remove any existing
-        // connections to the same target input
-        removeConnectionsToInput(target.id, inputId);
-
+        // Add to connections array
+        if (!window.connections) window.connections = [];
         window.connections.push(connection);
 
         // Save to sessionStorage
         try {
-            sessionStorage.setItem('connections', JSON.stringify(connections));
+            sessionStorage.setItem('connections', JSON.stringify(window.connections));
         } catch (err) {
             console.warn('Error saving connections to sessionStorage:', err);
         }
 
+        // Update visual connections
         updateConnections();
-        processBlock(target);
         
         return connection;
     }
@@ -1121,58 +1127,97 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionsContainer.appendChild(svgLine);
 
             // Add delete button on hover
-            svgLine.addEventListener('mouseover', () => {
+            svgLine.addEventListener('mouseover', (e) => {
+                // Check if a delete button already exists
+                if (document.querySelector('.connection-delete-btn')) {
+                    return;
+                }
+
                 const deleteBtn = document.createElement('div');
                 deleteBtn.className = 'connection-delete-btn';
                 deleteBtn.innerHTML = '×';
                 deleteBtn.style.position = 'absolute';
 
-                // Position the delete button at the middle of the curve
-                const midX = (x1 + x2) / 2;
-                const midY = (y1 + y2) / 2;
+                // Position the delete button directly above the cursor position
+                // Get the cursor position relative to the canvas
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
 
-                deleteBtn.style.left = `${midX}px`;
-                deleteBtn.style.top = `${midY}px`;
+                // Position the button 20px above where the user is hovering
+                deleteBtn.style.left = `${mouseX}px`;
+                deleteBtn.style.top = `${mouseY - 20}px`;
 
-                deleteBtn.addEventListener('click', () => {
-                    // Remove the connection
-                    window.connections = connections.filter(c =>
-                        !(c.source === connection.source &&
-                          c.target === connection.target &&
-                          c.inputId === connection.inputId)
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent event bubbling
+                    
+                    // Get the connection data from the line
+                    const connData = JSON.parse(svgLine.dataset.connection);
+                    
+                    // Remove the connection from the global connections array
+                    window.connections = window.connections.filter(c => 
+                        !(c.source === connData.source &&
+                          c.target === connData.target &&
+                          c.inputId === connData.inputId)
                     );
-
+                    
                     // Save to sessionStorage
                     try {
-                        sessionStorage.setItem('connections', JSON.stringify(connections));
+                        sessionStorage.setItem('connections', JSON.stringify(window.connections));
                     } catch (err) {
                         console.warn('Error saving connections to sessionStorage:', err);
                     }
-
+                    
                     // Update the visual connections
                     updateConnections();
-
+                    
                     // Remove the delete button
                     deleteBtn.remove();
                 });
 
                 canvas.appendChild(deleteBtn);
 
-                // Remove the button when mouse leaves the connection
+                // Use a more reliable method to handle button visibility
+                let isOverConnection = false;
+                let isOverButton = false;
+
                 svgLine.addEventListener('mouseout', () => {
+                    isOverConnection = false;
                     setTimeout(() => {
-                        if (document.querySelector(':hover') !== deleteBtn) {
+                        if (!isOverButton && !isOverConnection) {
                             deleteBtn.remove();
                         }
-                    }, 50);
+                    }, 100);
+                });
+
+                // Update button position on mousemove while hovering over the connection
+                svgLine.addEventListener('mousemove', (moveEvent) => {
+                    if (isOverConnection && !isOverButton) {
+                        const rect = canvas.getBoundingClientRect();
+                        const mouseX = moveEvent.clientX - rect.left;
+                        const mouseY = moveEvent.clientY - rect.top;
+                        
+                        // Update button position to follow the cursor
+                        deleteBtn.style.left = `${mouseX}px`;
+                        deleteBtn.style.top = `${mouseY - 20}px`;
+                    }
+                });
+
+                svgLine.addEventListener('mouseover', () => {
+                    isOverConnection = true;
+                });
+
+                deleteBtn.addEventListener('mouseover', () => {
+                    isOverButton = true;
                 });
 
                 deleteBtn.addEventListener('mouseout', () => {
+                    isOverButton = false;
                     setTimeout(() => {
-                        if (document.querySelector(':hover') !== svgLine) {
+                        if (!isOverButton && !isOverConnection) {
                             deleteBtn.remove();
                         }
-                    }, 50);
+                    }, 100);
                 });
             });
         });
@@ -1444,13 +1489,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Make a block draggable
+    // Modify the makeBlockDraggable function to ensure proper coordination with global handlers
     function makeBlockDraggable(block) {
         const dragHandle = block.querySelector('.block-drag-handle');
         if (!dragHandle) return;
         
         dragHandle.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return; // Only left mouse button
+            
+            // Set global variables to ensure global mousemove handler works
+            isDraggingBlock = true;
+            draggedBlock = block;
             
             block.classList.add('dragging');
             block.style.zIndex = '1000';
@@ -1464,40 +1513,34 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (transform !== 'none') {
                 const matrix = new DOMMatrixReadOnly(transform);
-                const blockX = matrix.m41;
-                const blockY = matrix.m42;
-
-                // Get mouse position in canvas coordinates
-                const mouseX = (e.clientX - canvasRect.left - currentTranslate.x) / zoom;
-                const mouseY = (e.clientY - canvasRect.top - currentTranslate.y) / zoom;
-
-                // Calculate offset between mouse and block origin
-                dragOffset.x = mouseX - blockX;
-                dragOffset.y = mouseY - blockY;
-
-                block.style.zIndex = '1000';
-
-            const mouseUpHandler = () => {
-                document.removeEventListener('mousemove', mouseMoveHandler);
-                document.removeEventListener('mouseup', mouseUpHandler);
-
-                block.classList.remove('dragging');
-                block.style.zIndex = '1';
-
-                // Final update without throttling to ensure accuracy
-                void document.body.offsetHeight; // Force reflow
-                updateConnections();
-            };
-
-            document.addEventListener('mousemove', mouseMoveHandler);
-            document.addEventListener('mouseup', mouseUpHandler);
-
+                translateX = matrix.m41;
+                translateY = matrix.m42;
+            }
+            
+            // Add the mouseMoveHandler function definition
+            const mouseMoveHandler = (e) => {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                
+                // Apply new position
+                block.style.transform = `translate(${translateX + dx}px, ${translateY + dy}px)`;
+                
+                // CRITICAL: Update connections on EVERY mouse move
+                if (typeof window.updateConnections === 'function') {
+                    window.updateConnections();
+                }
+                
                 e.preventDefault();
+                e.stopPropagation();
             };
             
             const mouseUpHandler = () => {
                 document.removeEventListener('mousemove', mouseMoveHandler);
                 document.removeEventListener('mouseup', mouseUpHandler);
+                
+                // Reset global variables
+                isDraggingBlock = false;
+                draggedBlock = null;
                 
                 block.classList.remove('dragging');
                 block.style.zIndex = '1';
@@ -1805,6 +1848,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const block = dragHandle.closest('.block');
             if (!block) return;
 
+            // Set these flags to ensure global mousemove handler works too
+            isDraggingBlock = true;
+            draggedBlock = block;
+            
             // Start dragging
             isDragging = true;
             currentBlock = block;

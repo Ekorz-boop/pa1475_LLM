@@ -111,7 +111,7 @@
 }
 
 .block:active .node-container {
-    opacity: 0 !important;
+    opacity: 1 !important;
 }
 
 .block:active .delete-button {
@@ -271,7 +271,7 @@
     top: 0;
     left: 0;
     pointer-events: none;
-    z-index: -3;  /* Below nodes and everything else */
+    z-index: 10;  /* Increase z-index to be above blocks */
 }
 
 svg {
@@ -283,7 +283,7 @@ svg {
     stroke-width: 2;
     pointer-events: all;
     cursor: pointer;
-    z-index: -3;  /* Match container z-index */
+    z-index: 10;  /* Match container z-index */
 }
 
 .connection-line:hover {
@@ -588,6 +588,32 @@ svg {
     height: 100%;
     border-radius: 8px;
 }
+
+
+/* ===== Connection Delete Button ===== */
+.connection-delete-btn {
+    width: 20px;
+    height: 20px;
+    background-color: #ff4444;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    pointer-events: all;
+    transition: transform 0.1s ease;
+}
+
+.connection-delete-btn:hover {
+    background-color: #ff0000;
+    transform: translate(-50%, -50%) scale(1.1);
 
 
 /* Method row styling */
