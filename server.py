@@ -6,7 +6,7 @@ import inspect
 import pkgutil
 import traceback
 from blocks import Canvas, Block
-from extensions import db, login_manager, init_app
+from extensions import login_manager, init_app
 from models import AdminPanel, User
 from auth import auth as auth_blueprint
 from admin import admin as admin_blueprint
@@ -41,7 +41,7 @@ else:
         instance_folder_server = os.path.join(project_root_server, "instance")
         db_abs_path_server = os.path.join(instance_folder_server, "app.db")
         # Construct the URI carefully to avoid f-string backslash issues
-        default_db_uri = "sqlite:///" + db_abs_path_server.replace('\\', '/')
+        default_db_uri = "sqlite:///" + db_abs_path_server.replace("\\", "/")
         print(f"SERVER.PY (Local): Using DB URI: {default_db_uri}")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = default_db_uri

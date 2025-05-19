@@ -26,7 +26,9 @@ def init_database():
         db_abs_path = os.path.join(instance_folder_path, "app.db")
         # Use an absolute path for local execution, ensuring correct slashes for URI
         # To avoid f-string backslash issues, we construct the string carefully
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_abs_path.replace('\\\\', '/')
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_abs_path.replace(
+            "\\\\", "/"
+        )
         print(f"RUNNING LOCALLY: DB URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
         print(f"Local instance folder target: {instance_folder_path}")
 
@@ -45,22 +47,34 @@ def init_database():
         print("Existing tables dropped.")
 
         db.create_all()
-        
-        print(f"Database tables created/ensured for {app.config['SQLALCHEMY_DATABASE_URI']}.")
+
+        print(
+            f"Database tables created/ensured for {app.config['SQLALCHEMY_DATABASE_URI']}."
+        )
 
         # Verification for local execution
         if not is_docker_env:
-            local_db_file_path = app.config["SQLALCHEMY_DATABASE_URI"].split("sqlite:///")[-1]
+            local_db_file_path = app.config["SQLALCHEMY_DATABASE_URI"].split(
+                "sqlite:///"
+            )[-1]
             if os.path.exists(local_db_file_path):
-                print(f"Verified: Database file exists at {os.path.abspath(local_db_file_path)}")
+                print(
+                    f"Verified: Database file exists at {os.path.abspath(local_db_file_path)}"
+                )
             else:
-                print(f"ERROR: Database file NOT found at {os.path.abspath(local_db_file_path)} after create_all.")
-        else: # Verification for Docker (path is absolute in URI)
-            docker_db_file_path = app.config["SQLALCHEMY_DATABASE_URI"].split("sqlite:///")[-1]
+                print(
+                    f"ERROR: Database file NOT found at {os.path.abspath(local_db_file_path)} after create_all."
+                )
+        else:  # Verification for Docker (path is absolute in URI)
+            docker_db_file_path = app.config["SQLALCHEMY_DATABASE_URI"].split(
+                "sqlite:///"
+            )[-1]
             if os.path.exists(docker_db_file_path):
-                 print(f"Verified: Database file exists at {docker_db_file_path}")
+                print(f"Verified: Database file exists at {docker_db_file_path}")
             else:
-                 print(f"ERROR: Database file NOT found at {docker_db_file_path} after create_all.")
+                print(
+                    f"ERROR: Database file NOT found at {docker_db_file_path} after create_all."
+                )
 
         admin = User(
             username="admin",
@@ -76,11 +90,12 @@ def init_database():
             maintenance_message="System is under maintenance. Please try again later.",
             max_login_attempts=5,
             password_reset_timeout=3600,
-            public_mode=True
+            public_mode=True,
         )
         db.session.add(settings)
         db.session.commit()
         print("Database initialized successfully with default admin and settings.")
+
 
 if __name__ == "__main__":
     init_database()
