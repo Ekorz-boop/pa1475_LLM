@@ -80,7 +80,7 @@ graph TD
 
 ### Prerequisites
 
-- Python 3.7+ 
+- Python 3.11+ 
 - pip (Python package manager)
 - Git (optional, for cloning the repository)
 - Docker (optional, for containerized deployment)
@@ -125,8 +125,8 @@ For both local development and production deployments, RAGgie uses environment v
 **Example `.env` file content:**
 
 ```env
-SECRET_KEY=your-super-secret-key-for-dev
-DATABASE_URL=sqlite:///instance/app.db
+SECRET_KEY=your-secret-key
+DATABASE_URL=sqlite:///instance/app.db  # Or your preferred database URI
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USE_TLS=True
