@@ -417,18 +417,6 @@ Check for errors in the terminal where the server is running. For detailed logs:
 python server.py > raggie.log 2>&1
 ```
 
-## Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b new-feature`
-3. Make your changes
-4. Run tests (if available)
-5. Commit your changes: `git commit -m 'Add new feature'`
-6. Push to the branch: `git push origin new-feature`
-7. Submit a pull request
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
