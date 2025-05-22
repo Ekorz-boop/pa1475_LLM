@@ -6,7 +6,7 @@ import inspect
 import pkgutil
 import traceback
 from blocks import Canvas, Block
-from extensions import db, login_manager, init_app
+from extensions import login_manager, init_app
 from models import AdminPanel, User
 from auth import auth as auth_blueprint
 from admin import admin as admin_blueprint
@@ -24,9 +24,27 @@ CORS(app)
 
 # Configuration
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-please-change")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///app.db"
-)
+
+# Determine default database URI
+if "DATABASE_URL" in os.environ:
+    # Use DATABASE_URL if it's set (primarily for Docker)
+    default_db_uri = os.environ.get("DATABASE_URL")
+else:
+    # For local execution, construct an absolute path
+    # IS_DOCKER check is mostly for clarity, DATABASE_URL should be set in Docker
+    if os.environ.get("IS_DOCKER") == "true":
+        # This path is for consistency if somehow IS_DOCKER is true but DATABASE_URL is not.
+        default_db_uri = "sqlite:////app/instance/app.db"
+    else:
+        # Local execution: construct absolute path relative to server.py
+        project_root_server = os.path.dirname(os.path.abspath(__file__))
+        instance_folder_server = os.path.join(project_root_server, "instance")
+        db_abs_path_server = os.path.join(instance_folder_server, "app.db")
+        # Construct the URI carefully to avoid f-string backslash issues
+        default_db_uri = "sqlite:///" + db_abs_path_server.replace("\\", "/")
+        print(f"SERVER.PY (Local): Using DB URI: {default_db_uri}")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = default_db_uri
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
 app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
@@ -1446,8 +1464,10 @@ def enforce_public_mode():
 
 
 # Create database tables
-with app.app_context():
-    db.create_all()
+# This is now handled by init_db.py when the Docker container starts
+# or when init_db.py is run manually.
+# with app.app_context():
+#     db.create_all()
 
 
 if __name__ == "__main__":
