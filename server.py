@@ -191,8 +191,54 @@ def export_blocks():
                     self.static_methods = []  # Store list of static methods
                     self.class_methods = []  # Store list of class methods
 
-                    # Extract module path and class name from block_type
-                    if block_type.startswith("custom_"):
+                    # Special handling for Godpromptblock
+                    if block_type == "godprompt":
+                        self.class_name = "GodpromptBlock"
+                        self.component_type = "prompt_formatter"
+                        self.selected_methods = ["format_prompt"]
+                        self.methods = ["format_prompt"]
+                        self.import_string = "# Custom Godpromptblock - no imports needed"
+                        
+                        # Get parameters from config
+                        prompt_text = config.get("prompt", "Enter your prompt here...")
+                        question_text = config.get("question", "Enter your question here...")
+                        
+                        # Generate the class definition directly in the function string
+                        self.function_string = f'''
+class GodpromptBlock:
+    """Custom prompt formatting block that combines context, prompt, and question."""
+    
+    def __init__(self, prompt="{prompt_text}", question="{question_text}"):
+        self.prompt = prompt
+        self.question = question
+    
+    def format_prompt(self, context, prompt=None, question=None):
+        """Format the prompt using context, prompt, and question."""
+        if prompt is None:
+            prompt = self.prompt
+        if question is None:
+            question = self.question
+        
+        # Combine everything into a formatted string
+        formatted_prompt = f\"\"\"Context: {{context}}
+
+Prompt: {{prompt}}
+
+Question: {{question}}\"\"\"
+        
+        return formatted_prompt
+'''
+                        # Set parameters for the method
+                        self.parameters = {
+                            "format_prompt": [
+                                {"name": "context", "required": True, "type": "str"},
+                                {"name": "prompt", "required": False, "type": "str", "default": prompt_text},
+                                {"name": "question", "required": False, "type": "str", "default": question_text}
+                            ]
+                        }
+                        
+                    # Extract module path and class name from block_type for regular custom blocks
+                    elif block_type.startswith("custom_"):
                         # Remove 'custom_' prefix to get the full class path
                         full_class_path = block_type[
                             7:
@@ -215,85 +261,86 @@ def export_blocks():
                             self.class_name = full_class_path  # If no dots, use as is
                             self.import_string = f"# Import for {self.class_name}"
 
-                    # Determine component type based on module path and class name
-                    if (
-                        "document_loaders" in self.module_path
-                        or "loader" in self.class_name.lower()
-                    ):
-                        self.component_type = "document_loaders"
-                    elif "text_splitters" in self.module_path:
-                        self.component_type = "text_splitters"
-                    elif (
-                        "embedding" in self.module_path
-                        or "embed" in self.class_name.lower()
-                    ):
-                        self.component_type = "embeddings"
-                    elif "vectorstore" in self.module_path:
-                        self.component_type = "vectorstores"
-                    elif "retriever" in self.module_path:
-                        self.component_type = "retrievers"
-                    elif "llm" in self.module_path:
-                        self.component_type = "llms"
-                    elif "chat" in self.module_path:
-                        self.component_type = "chat_models"
-                    elif "chain" in self.module_path:
-                        self.component_type = "chains"
-                    else:
-                        # Default to a generic type
-                        self.component_type = "error"
-
-                    self.function_string = (
-                        f"# Placeholder for {self.class_name} function"
-                    )
-
-                    # Extract methods from block info or config
-                    if "methods" in config:
-                        self.selected_methods = config["methods"]
-                    elif "selected_methods" in config:
-                        self.selected_methods = config["selected_methods"]
-                    elif "selected_methods" in config.get("config", {}):
-                        self.selected_methods = config["config"]["selected_methods"]
-
-                    # Extract static and class methods information
-                    if "static_methods" in config:
-                        self.static_methods = config["static_methods"]
-                    elif "static_methods" in config.get("config", {}):
-                        self.static_methods = config["config"]["static_methods"]
-
-                    if "class_methods" in config:
-                        self.class_methods = config["class_methods"]
-                    elif "class_methods" in config.get("config", {}):
-                        self.class_methods = config["config"]["class_methods"]
-
-                    # Look for a selected method that might not be in the methods list yet
-                    selected_method = None
-                    if "selected_method" in config:
-                        selected_method = config["selected_method"]
-                    elif "selected_method" in config.get("config", {}):
-                        selected_method = config["config"]["selected_method"]
-
-                    # If we have a selected method but it's not in our list yet, add it
-                    if selected_method and (
-                        not self.selected_methods
-                        or selected_method not in self.selected_methods
-                    ):
-                        if not self.selected_methods:
-                            self.selected_methods = [selected_method]
+                        # Determine component type based on module path and class name
+                        if (
+                            "document_loaders" in self.module_path
+                            or "loader" in self.class_name.lower()
+                        ):
+                            self.component_type = "document_loaders"
+                        elif "text_splitters" in self.module_path:
+                            self.component_type = "text_splitters"
+                        elif (
+                            "embedding" in self.module_path
+                            or "embed" in self.class_name.lower()
+                        ):
+                            self.component_type = "embeddings"
+                        elif "vectorstore" in self.module_path:
+                            self.component_type = "vectorstores"
+                        elif "retriever" in self.module_path:
+                            self.component_type = "retrievers"
+                        elif "llm" in self.module_path:
+                            self.component_type = "llms"
+                        elif "chat" in self.module_path:
+                            self.component_type = "chat_models"
+                        elif "chain" in self.module_path:
+                            self.component_type = "chains"
                         else:
-                            self.selected_methods.append(selected_method)
+                            # Default to a generic type
+                            self.component_type = "error"
 
-                    # Create placeholder for methods list (all available methods)
-                    self.methods = (
-                        list(self.selected_methods) if self.selected_methods else []
-                    )
+                        self.function_string = (
+                            f"# Placeholder for {self.class_name} function"
+                        )
 
-                    # Always add __init__ to methods if not present
-                    if "__init__" not in self.methods:
-                        self.methods.append("__init__")
+                    # Extract methods from block info or config (for regular custom blocks)
+                    if block_type != "godprompt":
+                        if "methods" in config:
+                            self.selected_methods = config["methods"]
+                        elif "selected_methods" in config:
+                            self.selected_methods = config["selected_methods"]
+                        elif "selected_methods" in config.get("config", {}):
+                            self.selected_methods = config["config"]["selected_methods"]
 
-                    # Create default parameters for methods
-                    for method in self.methods:
-                        self.parameters[method] = []
+                        # Extract static and class methods information
+                        if "static_methods" in config:
+                            self.static_methods = config["static_methods"]
+                        elif "static_methods" in config.get("config", {}):
+                            self.static_methods = config["config"]["static_methods"]
+
+                        if "class_methods" in config:
+                            self.class_methods = config["class_methods"]
+                        elif "class_methods" in config.get("config", {}):
+                            self.class_methods = config["config"]["class_methods"]
+
+                        # Look for a selected method that might not be in the methods list yet
+                        selected_method = None
+                        if "selected_method" in config:
+                            selected_method = config["selected_method"]
+                        elif "selected_method" in config.get("config", {}):
+                            selected_method = config["config"]["selected_method"]
+
+                        # If we have a selected method but it's not in our list yet, add it
+                        if selected_method and (
+                            not self.selected_methods
+                            or selected_method not in self.selected_methods
+                        ):
+                            if not self.selected_methods:
+                                self.selected_methods = [selected_method]
+                            else:
+                                self.selected_methods.append(selected_method)
+
+                        # Create placeholder for methods list (all available methods)
+                        self.methods = (
+                            list(self.selected_methods) if self.selected_methods else []
+                        )
+
+                        # Always add __init__ to methods if not present
+                        if "__init__" not in self.methods:
+                            self.methods.append("__init__")
+
+                        # Create default parameters for methods
+                        for method in self.methods:
+                            self.parameters[method] = []
 
                 def validate_connections(self) -> bool:
                     return True
@@ -462,7 +509,8 @@ def generate_python_code(
             and block.import_string
             and not block.import_string.startswith("#")
         ):
-            imports.add(block.import_string)
+            if not (block.import_string == "from custom_blocks.prompt_templates import GodpromptBlock"):
+                imports.add(block.import_string)
             # print(f"Added import: {block.import_string}")
         # Fallback for blocks with module path but no import string
         elif (
@@ -876,11 +924,47 @@ def generate_python_code(
     # Collect clean lines for the final code
     clean_code_lines = []
 
+    # Check if we have any Godpromptblocks to include the class definition
+    has_godpromptblock = False
+    for block_id, block in blocks.items():
+        if hasattr(block, 'class_name') and block.class_name == 'GodpromptBlock':
+            has_godpromptblock = True
+            break
+
     # Add imports at the top
     clean_code_lines.append("# Imports")
     for imp in sorted(list(imports)):
-        clean_code_lines.append(imp)
+        # Skip the placeholder import for GodpromptBlock
+        if not imp.startswith("# Custom Godpromptblock"):
+            clean_code_lines.append(imp)
     clean_code_lines.append("")
+
+    # Add GodpromptBlock class definition if needed
+    if has_godpromptblock:
+        clean_code_lines.append("# Custom GodpromptBlock class definition")
+        clean_code_lines.append("class GodpromptBlock:")
+        clean_code_lines.append('    """Custom prompt formatting block that combines context, prompt, and question."""')
+        clean_code_lines.append("    ")
+        clean_code_lines.append("    def __init__(self, prompt='Enter your prompt here...', question='Enter your question here...'):")
+        clean_code_lines.append("        self.prompt = prompt")
+        clean_code_lines.append("        self.question = question")
+        clean_code_lines.append("    ")
+        clean_code_lines.append("    def format_prompt(self, context, prompt=None, question=None):")
+        clean_code_lines.append('        """Format the prompt using context, prompt, and question."""')
+        clean_code_lines.append("        if prompt is None:")
+        clean_code_lines.append("            prompt = self.prompt")
+        clean_code_lines.append("        if question is None:")
+        clean_code_lines.append("            question = self.question")
+        clean_code_lines.append("        ")
+        clean_code_lines.append("        # Combine everything into a formatted string")
+        clean_code_lines.append('        formatted_prompt = f"""Context: {context}')
+        clean_code_lines.append("")
+        clean_code_lines.append("Prompt: {prompt}")
+        clean_code_lines.append("")
+        clean_code_lines.append('Question: {question}"""')
+        clean_code_lines.append("        ")
+        clean_code_lines.append("        return formatted_prompt")
+        clean_code_lines.append("")
 
     # Add files directory creation if needed
     if has_file_paths:
@@ -1585,6 +1669,106 @@ def create_custom_block():
                 "output_nodes": output_nodes,
             }
         )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/blocks/create_godprompt", methods=["POST"])
+def create_godprompt_block():
+    """Create a Godpromptblock - a special custom block for prompt formatting."""
+    data = request.json
+    block_id = data.get("id")
+    prompt_text = data.get("prompt", "Enter your prompt here...")
+    question_text = data.get("question", "Enter your question here...")
+
+    if not block_id:
+        return jsonify({"error": "Missing block ID"}), 400
+
+    try:
+        # Create a special Godpromptblock class
+        class GodpromptBlock(Block):
+            def __init__(self):
+                super().__init__()
+                self.block_type = "godprompt"
+                self.class_name = "GodpromptBlock"
+                self.module_path = ""
+                self.component_type = "prompt_formatter"
+                self.config = {
+                    "prompt": prompt_text,
+                    "question": question_text,
+                    "parameters": {
+                        "prompt": prompt_text,
+                        "question": question_text
+                    }
+                }
+                # Define the method this block provides
+                self.selected_methods = ["format_prompt"]
+                self.methods = ["format_prompt"]
+                self.parameters = {
+                    "format_prompt": [
+                        {"name": "context", "required": True, "type": "str"},
+                        {"name": "prompt", "required": False, "type": "str", "default": prompt_text},
+                        {"name": "question", "required": False, "type": "str", "default": question_text}
+                    ]
+                }
+                self.static_methods = []
+                self.class_methods = []
+
+                # Set import and function strings for code generation
+                self.import_string = "# Custom Godpromptblock - no imports needed"
+                self.function_string = self._generate_function_string()
+
+            def _generate_function_string(self):
+                return f'''
+class GodpromptBlock:
+    """Custom prompt formatting block that combines context, prompt, and question."""
+    
+    def __init__(self, prompt="{prompt_text}", question="{question_text}"):
+        self.prompt = prompt
+        self.question = question
+    
+    def format_prompt(self, context, prompt=None, question=None):
+        """Format the prompt using context, prompt, and question."""
+        if prompt is None:
+            prompt = self.prompt
+        if question is None:
+            question = self.question
+        
+        # Combine everything into a formatted string
+        formatted_prompt = f\"\"\"Context: {{context}}
+
+Prompt: {{prompt}}
+
+Question: {{question}}\"\"\"
+        
+        return formatted_prompt
+'''
+
+            def validate_connections(self) -> bool:
+                return True
+
+        # Add the Godpromptblock to the canvas
+        canvas.add_block(block_id, GodpromptBlock())
+
+        return jsonify({
+            "status": "success",
+            "message": "Godpromptblock created successfully",
+            "block_id": block_id,
+            "block_type": "godprompt",
+            "class_name": "GodpromptBlock",
+            "input_nodes": ["context_input"],
+            "output_nodes": ["formatted_prompt_output"],
+            "config": {
+                "prompt": prompt_text,
+                "question": question_text,
+                "methods": ["format_prompt"],
+                "selected_methods": ["format_prompt"],
+                "parameters": {
+                    "prompt": prompt_text,
+                    "question": question_text
+                }
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

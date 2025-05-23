@@ -64,7 +64,28 @@ class CustomBlockHandler {
                         </div>
 
                         <div class="tab-content active" data-tab="select-class">
-                            <div class="form-group">
+                            <!-- Special Godpromptblock Section -->
+                            <div class="form-group special-block-section">
+                                <h3>Special Blocks</h3>
+                                <div class="special-blocks-container">
+                                    <div class="special-block-option" data-block-type="godprompt">
+                                        <div class="special-block-icon">🎯</div>
+                                        <div class="special-block-info">
+                                            <h4>Godpromptblock</h4>
+                                            <p>Custom prompt formatter that combines context, prompt, and question into a formatted string</p>
+                                        </div>
+                                        <button type="button" class="select-special-block-btn">Select</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="divider">
+                                <span>OR</span>
+                            </div>
+
+                            <!-- Regular LangChain Section -->
+                            <div class="form-group langchain-section">
+                                <h3>LangChain Blocks</h3>
                                 <label for="library-select">Select LangChain Library:</label>
                                 <select id="library-select">
                                     <option value="">Loading libraries...</option>
@@ -190,6 +211,19 @@ class CustomBlockHandler {
                     const isOpen = content.style.display === 'block';
                     content.style.display = isOpen ? 'none' : 'block';
                     btn.innerHTML = (isOpen ? '▼' : '▲') + btn.innerHTML.slice(1);
+                }
+            }
+        });
+
+        // Add event delegation for special block selection
+        this.modal.addEventListener('click', (e) => {
+            const btn = e.target.closest('.select-special-block-btn');
+            if (btn) {
+                const blockOption = btn.closest('.special-block-option');
+                const blockType = blockOption.dataset.blockType;
+                
+                if (blockType === 'godprompt') {
+                    this.selectGodpromptBlock();
                 }
             }
         });
@@ -960,6 +994,56 @@ class CustomBlockHandler {
                 return;
             }
 
+            // Generate a unique ID for the block
+            const blockId = `custom-block-${Date.now()}`;
+
+            // Handle Godpromptblock creation specially
+            if (this.selectedClass === 'GodpromptBlock') {
+                // Get prompt and question values from the parameters container
+                const promptInput = this.modal.querySelector('input[data-param="prompt"]');
+                const questionInput = this.modal.querySelector('input[data-param="question"]');
+                
+                const promptText = promptInput ? promptInput.value : 'Enter your prompt here...';
+                const questionText = questionInput ? questionInput.value : 'Enter your question here...';
+
+                // Create Godpromptblock via special endpoint
+                const response = await fetch('/api/blocks/create_godprompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: blockId,
+                        prompt: promptText,
+                        question: questionText
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // Add the block to the menu
+                    addCustomBlockToMenu('GodpromptBlock', blockId, this.inputNodes, this.outputNodes);
+
+                    // Save to storage
+                    saveCustomBlockToStorage('GodpromptBlock', blockId, this.inputNodes, this.outputNodes);
+
+                    // Close the modal
+                    this.closeModal();
+
+                    // Reset the form for next use
+                    this.resetForm();
+
+                    // Show success message
+                    showToast('Godpromptblock created successfully!', 'success');
+                } else {
+                    throw new Error(result.error || 'Failed to create Godpromptblock');
+                }
+
+                return;
+            }
+
+            // Regular custom block creation logic
             // Make sure we have up-to-date selected methods
             if (!this.selectedMethods || this.selectedMethods.length === 0) {
                 // If no methods selected, default to just the constructor
@@ -973,9 +1057,6 @@ class CustomBlockHandler {
 
             // Log the methods we're about to save
             console.log('Creating block with these methods:', this.selectedMethods);
-
-            // Generate a unique ID for the block
-            const blockId = `custom-block-${Date.now()}`;
 
             // First save methods to ensure they're available
             console.log(`Saving methods for new block ${blockId}:`, this.selectedMethods);
@@ -1134,6 +1215,72 @@ class CustomBlockHandler {
 
         // Reset tab to first tab
         this.switchTab('select-class');
+    }
+
+    /**
+     * Handle Godpromptblock selection
+     */
+    selectGodpromptBlock() {
+        // Set the selected class to indicate Godpromptblock
+        this.selectedClass = 'GodpromptBlock';
+        this.selectedLibrary = null;
+        this.selectedModule = null;
+        this.classDetails = {
+            doc: 'Custom prompt formatting block that combines context, prompt, and question into a formatted string.',
+            methods: ['format_prompt'],
+            method_details: [{
+                name: 'format_prompt',
+                doc: 'Format the prompt using context, prompt, and question.',
+                parameters: [
+                    { name: 'context', required: true, type: 'str' },
+                    { name: 'prompt', required: false, type: 'str', default: 'Enter your prompt here...' },
+                    { name: 'question', required: false, type: 'str', default: 'Enter your question here...' }
+                ]
+            }],
+            init_params: [
+                { name: 'prompt', required: false, type: 'str', default: 'Enter your prompt here...' },
+                { name: 'question', required: false, type: 'str', default: 'Enter your question here...' }
+            ],
+            component_type: 'prompt_formatter',
+            static_methods: [],
+            class_methods: []
+        };
+
+        // Set default methods
+        this.selectedMethods = ['format_prompt'];
+        this.staticMethods = [];
+        this.classMethods = [];
+
+        // Set default input/output nodes
+        this.inputNodes = ['context_input'];
+        this.outputNodes = ['formatted_prompt_output'];
+
+        // Update the class description
+        const classDescription = this.modal.querySelector('.class-description');
+        classDescription.innerHTML = `
+            <div class="class-info selected">
+                <h3>GodpromptBlock</h3>
+                <p>Custom prompt formatting block that combines context, prompt, and question into a formatted string.</p>
+                <div class="class-details">
+                    <h4>Available Methods:</h4>
+                    <ul>
+                        <li><strong>format_prompt</strong> - Format the prompt using context, prompt, and question</li>
+                    </ul>
+                    <h4>Constructor Parameters:</h4>
+                    <ul>
+                        <li><strong>prompt</strong> - The prompt template text</li>
+                        <li><strong>question</strong> - The question text</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        // Update methods and parameters containers
+        this.updateMethodsContainer();
+        this.updateParametersContainer();
+        
+        // Automatically proceed to next tab
+        this.nextTab();
     }
 }
 
