@@ -259,7 +259,7 @@ def export_blocks():
                         self.static_methods = config["static_methods"]
                     elif "static_methods" in config.get("config", {}):
                         self.static_methods = config["config"]["static_methods"]
-                    
+
                     if "class_methods" in config:
                         self.class_methods = config["class_methods"]
                     elif "class_methods" in config.get("config", {}):
@@ -795,7 +795,7 @@ def generate_python_code(
             # Determine the method type to generate appropriate call syntax
             method_is_static = False
             method_is_classmethod = False
-            
+
             # Check if this method is marked as static or classmethod in the block config
             if hasattr(block, "config") and block.config:
                 static_methods = block.config.get("static_methods", [])
@@ -1279,7 +1279,7 @@ def get_langchain_class_details():
                     "doc": inspect.getdoc(method) or "No documentation available",
                     "parameters": parameters,
                     "is_static": False,
-                    "is_classmethod": False
+                    "is_classmethod": False,
                 }
                 methods.append(method_info)
             except (TypeError, ValueError, AttributeError) as e:
@@ -1293,7 +1293,7 @@ def get_langchain_class_details():
             if isinstance(inspect.getattr_static(class_obj, name, None), staticmethod):
                 static_methods.append(name)
                 method_names.append(name)
-                
+
                 try:
                     # Get the underlying function from the static method
                     underlying_func = inspect.getattr_static(class_obj, name).__func__
@@ -1322,7 +1322,7 @@ def get_langchain_class_details():
                         "doc": inspect.getdoc(method) or "No documentation available",
                         "parameters": parameters,
                         "is_static": True,
-                        "is_classmethod": False
+                        "is_classmethod": False,
                     }
                     methods.append(method_info)
                 except (TypeError, ValueError, AttributeError) as e:
@@ -1335,7 +1335,7 @@ def get_langchain_class_details():
             if isinstance(inspect.getattr_static(class_obj, name, None), classmethod):
                 class_methods.append(name)
                 method_names.append(name)
-                
+
                 try:
                     # Get the underlying function from the class method
                     underlying_func = inspect.getattr_static(class_obj, name).__func__
@@ -1346,7 +1346,7 @@ def get_langchain_class_details():
                         # Skip cls parameter for class methods
                         if param_name == "cls":
                             continue
-                            
+
                         param_info = {
                             "name": param_name,
                             "required": param.default == inspect.Parameter.empty,
@@ -1368,7 +1368,7 @@ def get_langchain_class_details():
                         "doc": inspect.getdoc(method) or "No documentation available",
                         "parameters": parameters,
                         "is_static": False,
-                        "is_classmethod": True
+                        "is_classmethod": True,
                     }
                     methods.append(method_info)
                 except (TypeError, ValueError, AttributeError) as e:
@@ -1378,11 +1378,13 @@ def get_langchain_class_details():
         # Check for common static/class method patterns in LangChain
         # Some LangChain classes define from_* methods that may not be properly detected
         for name in dir(class_obj):
-            if (name.startswith("from_") and 
-                not name.startswith("_") and 
-                name not in method_names and 
-                callable(getattr(class_obj, name, None))):
-                
+            if (
+                name.startswith("from_")
+                and not name.startswith("_")
+                and name not in method_names
+                and callable(getattr(class_obj, name, None))
+            ):
+
                 try:
                     method = getattr(class_obj, name)
                     sig = inspect.signature(method)
@@ -1390,13 +1392,15 @@ def get_langchain_class_details():
 
                     # Check if the first parameter is 'cls' (indicating a classmethod)
                     param_names = list(sig.parameters.keys())
-                    is_classmethod_pattern = len(param_names) > 0 and param_names[0] == 'cls'
-                    
+                    is_classmethod_pattern = (
+                        len(param_names) > 0 and param_names[0] == "cls"
+                    )
+
                     for param_name, param in sig.parameters.items():
                         # Skip cls parameter for class methods
                         if param_name == "cls":
                             continue
-                            
+
                         param_info = {
                             "name": param_name,
                             "required": param.default == inspect.Parameter.empty,
@@ -1419,15 +1423,15 @@ def get_langchain_class_details():
                         "doc": inspect.getdoc(method) or "No documentation available",
                         "parameters": parameters,
                         "is_static": not is_classmethod_pattern,
-                        "is_classmethod": is_classmethod_pattern
+                        "is_classmethod": is_classmethod_pattern,
                     }
                     methods.append(method_info)
-                    
+
                     if is_classmethod_pattern:
                         class_methods.append(name)
                     else:
                         static_methods.append(name)
-                        
+
                 except (TypeError, ValueError, AttributeError) as e:
                     print(f"Error getting signature for method {name}: {str(e)}")
                     continue
