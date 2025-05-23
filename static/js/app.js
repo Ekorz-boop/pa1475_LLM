@@ -1456,6 +1456,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (blockData && blockData.methods) {
                         config.methods = blockData.methods;
 
+                        // Include static and class method information
+                        if (blockData.static_methods) {
+                            config.static_methods = blockData.static_methods;
+                        }
+                        if (blockData.class_methods) {
+                            config.class_methods = blockData.class_methods;
+                        }
+
                         // If selected_method isn't already set, use the first method or __init__
                         if (!config.selected_method) {
                             const nonInitMethods = blockData.methods.filter(m => m !== '__init__');

@@ -16,6 +16,8 @@ class CustomBlockHandler {
         this.inputNodes = [];
         this.outputNodes = [];
         this.parameters = {};
+        this.staticMethods = [];  // Track static methods
+        this.classMethods = [];   // Track class methods
 
         // Modal elements - will be initialized when the modal is created
         this.modal = null;
@@ -627,6 +629,10 @@ class CustomBlockHandler {
             methodDetailsByName[methodDetail.name] = methodDetail;
         });
 
+        // Initialize static and class method arrays from class details
+        this.staticMethods = this.classDetails.static_methods || [];
+        this.classMethods = this.classDetails.class_methods || [];
+
         // Add methods (exclude __init__ since we handled it specially)
         methods.forEach(methodName => {
             if (methodName === '__init__') return;
@@ -638,11 +644,27 @@ class CustomBlockHandler {
             // Check if this method was previously selected
             const isChecked = this.selectedMethods.includes(methodName);
 
+            // Determine method type for display
+            const isStatic = this.staticMethods.includes(methodName);
+            const isClassMethod = this.classMethods.includes(methodName);
+            
+            let methodTypeIndicator = '';
+            let methodTypeBadge = '';
+            
+            if (isStatic) {
+                methodTypeIndicator = ' (Static Method)';
+                methodTypeBadge = '<span class="method-type-badge static-method">STATIC</span>';
+            } else if (isClassMethod) {
+                methodTypeIndicator = ' (Class Method)';
+                methodTypeBadge = '<span class="method-type-badge class-method">CLASS</span>';
+            }
+
             html += `
                 <div class="method-item">
                     <input type="checkbox" id="method-${methodName}" value="${methodName}" ${isChecked ? 'checked' : ''}>
                     <label for="method-${methodName}">
-                        <strong>${methodName}</strong>
+                        <strong>${methodName}</strong>${methodTypeIndicator}
+                        ${methodTypeBadge}
                     </label>
                     <div class="method-details">
                         ${this.formatDocstring(methodDoc)}
@@ -686,7 +708,7 @@ class CustomBlockHandler {
                 // Immediately save this selection to ensure it's not lost
                 if (this.editingBlockId && this.selectedClass) {
                     console.log('Attempt save');
-                    saveMethods(this.selectedClass, this.selectedMethods, this.editingBlockId);
+                    saveMethods(this.selectedClass, this.selectedMethods, this.editingBlockId, this.staticMethods, this.classMethods);
                     console.log('Saved methods during editing:', this.selectedMethods);
                 }
             });
@@ -957,7 +979,7 @@ class CustomBlockHandler {
 
             // First save methods to ensure they're available
             console.log(`Saving methods for new block ${blockId}:`, this.selectedMethods);
-            saveMethods(this.selectedClass, this.selectedMethods, blockId);
+            saveMethods(this.selectedClass, this.selectedMethods, blockId, this.staticMethods, this.classMethods);
 
             // Create the block on the canvas
             createCustomBlock(
@@ -1091,6 +1113,8 @@ class CustomBlockHandler {
         this.inputNodes = [];
         this.outputNodes = [];
         this.parameters = {};
+        this.staticMethods = [];
+        this.classMethods = [];
         this.editingBlockId = null;
         console.log('selections reset');
 
@@ -1984,7 +2008,7 @@ function findModuleInfoForClass(className) {
 }
 
 // Helper function to save methods to sessionStorage
-function saveMethods(className, methods, blockId = null) {
+function saveMethods(className, methods, blockId = null, staticMethods = [], classMethods = []) {
     try {
         const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
@@ -1993,6 +2017,8 @@ function saveMethods(className, methods, blockId = null) {
             const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
         if (existingBlockIndex >= 0) {
             customBlocks[existingBlockIndex].methods = methods;
+                customBlocks[existingBlockIndex].static_methods = staticMethods;
+                customBlocks[existingBlockIndex].class_methods = classMethods;
                 // Make sure className is also set
                 customBlocks[existingBlockIndex].className = className;
         } else {
@@ -2000,7 +2026,9 @@ function saveMethods(className, methods, blockId = null) {
             customBlocks.push({
                     id: blockId,
                     className: className,
-                    methods: methods
+                    methods: methods,
+                    static_methods: staticMethods,
+                    class_methods: classMethods
                 });
             }
         } else {
@@ -2008,17 +2036,23 @@ function saveMethods(className, methods, blockId = null) {
             const existingBlockIndex = customBlocks.findIndex(b => b.className === className);
             if (existingBlockIndex >= 0) {
                 customBlocks[existingBlockIndex].methods = methods;
+                customBlocks[existingBlockIndex].static_methods = staticMethods;
+                customBlocks[existingBlockIndex].class_methods = classMethods;
             } else {
                 customBlocks.push({
                     id: `class-${Date.now()}`,
                     className: className,
-                    methods: methods
+                    methods: methods,
+                    static_methods: staticMethods,
+                    class_methods: classMethods
                 });
             }
         }
 
         sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
         console.log(`Saved methods for ${blockId || className}:`, methods);
+        console.log(`Saved static methods:`, staticMethods);
+        console.log(`Saved class methods:`, classMethods);
 
         // Also save to localStorage as a backup but only for className (not specific blocks)
         try {
@@ -2027,10 +2061,14 @@ function saveMethods(className, methods, blockId = null) {
 
             if (existingBlockIndex >= 0) {
                 localBlocks[existingBlockIndex].methods = methods;
+                localBlocks[existingBlockIndex].static_methods = staticMethods;
+                localBlocks[existingBlockIndex].class_methods = classMethods;
             } else {
                 localBlocks.push({
                     className: className,
-                    methods: methods
+                    methods: methods,
+                    static_methods: staticMethods,
+                    class_methods: classMethods
                 });
             }
 

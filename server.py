@@ -188,6 +188,8 @@ def export_blocks():
                     self.component_type = ""  # Default empty component type
                     self.selected_methods = []
                     self.parameters = {}  # Store parameter info for methods
+                    self.static_methods = []  # Store list of static methods
+                    self.class_methods = []  # Store list of class methods
 
                     # Extract module path and class name from block_type
                     if block_type.startswith("custom_"):
@@ -251,6 +253,17 @@ def export_blocks():
                         self.selected_methods = config["selected_methods"]
                     elif "selected_methods" in config.get("config", {}):
                         self.selected_methods = config["config"]["selected_methods"]
+
+                    # Extract static and class methods information
+                    if "static_methods" in config:
+                        self.static_methods = config["static_methods"]
+                    elif "static_methods" in config.get("config", {}):
+                        self.static_methods = config["config"]["static_methods"]
+                    
+                    if "class_methods" in config:
+                        self.class_methods = config["class_methods"]
+                    elif "class_methods" in config.get("config", {}):
+                        self.class_methods = config["config"]["class_methods"]
 
                     # Look for a selected method that might not be in the methods list yet
                     selected_method = None
@@ -779,29 +792,81 @@ def generate_python_code(
                         print(f"Using general output: {source_var}_output")
 
             # Now generate the method call code, with or without parameters
+            # Determine the method type to generate appropriate call syntax
+            method_is_static = False
+            method_is_classmethod = False
+            
+            # Check if this method is marked as static or classmethod in the block config
+            if hasattr(block, "config") and block.config:
+                static_methods = block.config.get("static_methods", [])
+                class_methods = block.config.get("class_methods", [])
+                method_is_static = method_name in static_methods
+                method_is_classmethod = method_name in class_methods
+
             if source_params:
                 # Filter out any empty parameters
                 filtered_params = [p for p in source_params if p and p.strip() != ""]
 
-                # For methods with only one parameter, pass it as the first argument
-                if len(filtered_params) == 1:
+                # Generate different call syntax based on method type
+                if method_is_static:
+                    # For static methods, call on the class directly
+                    if len(filtered_params) == 1:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({filtered_params[0]})"
+                        )
+                    elif len(filtered_params) > 1:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
+                        )
+                    else:
+                        # Empty filtered_params list - call without parameters
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
+                        )
+                elif method_is_classmethod:
+                    # For class methods, also call on the class directly
+                    if len(filtered_params) == 1:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({filtered_params[0]})"
+                        )
+                    elif len(filtered_params) > 1:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
+                        )
+                    else:
+                        # Empty filtered_params list - call without parameters
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
+                        )
+                else:
+                    # For instance methods, call on the instance (existing behavior)
+                    if len(filtered_params) == 1:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {var_name}.{method_name}({filtered_params[0]})"
+                        )
+                    elif len(filtered_params) > 1:
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
+                        )
+                    else:
+                        # Empty filtered_params list - call without parameters
+                        method_code_lines.append(
+                            f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
+                        )
+            else:
+                # No parameters at all, call method without arguments
+                if method_is_static:
                     method_code_lines.append(
-                        f"{var_name}_{method_name}_output = {var_name}.{method_name}({filtered_params[0]})"
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
                     )
-                elif len(filtered_params) > 1:
+                elif method_is_classmethod:
                     method_code_lines.append(
-                        f"{var_name}_{method_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
                     )
                 else:
-                    # Empty filtered_params list - call without parameters
                     method_code_lines.append(
                         f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
                     )
-            else:
-                # No parameters at all, call method without arguments
-                method_code_lines.append(
-                    f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
-                )
 
             # Mark this method as processed
             processed_methods[block_id].add(method_name)
@@ -1172,7 +1237,10 @@ def get_langchain_class_details():
         # Get methods and patch them if needed
         methods = []
         method_names = []
+        static_methods = []
+        class_methods = []
 
+        # Get instance methods (functions)
         for name, method in inspect.getmembers(class_obj, inspect.isfunction):
             # Skip private methods except __init__
             if name.startswith("_") and not name == "__init__":
@@ -1210,12 +1278,159 @@ def get_langchain_class_details():
                     "name": name,
                     "doc": inspect.getdoc(method) or "No documentation available",
                     "parameters": parameters,
+                    "is_static": False,
+                    "is_classmethod": False
                 }
                 methods.append(method_info)
             except (TypeError, ValueError, AttributeError) as e:
                 # Skip methods with invalid signatures
                 print(f"Error getting signature for {name}: {str(e)}")
                 continue
+
+        # Get static methods
+        for name, method in inspect.getmembers(class_obj, inspect.ismethod):
+            # Check if it's a static method
+            if isinstance(inspect.getattr_static(class_obj, name, None), staticmethod):
+                static_methods.append(name)
+                method_names.append(name)
+                
+                try:
+                    # Get the underlying function from the static method
+                    underlying_func = inspect.getattr_static(class_obj, name).__func__
+                    sig = inspect.signature(underlying_func)
+                    parameters = []
+
+                    for param_name, param in sig.parameters.items():
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                        parameters.append(param_info)
+
+                    method_info = {
+                        "name": name,
+                        "doc": inspect.getdoc(method) or "No documentation available",
+                        "parameters": parameters,
+                        "is_static": True,
+                        "is_classmethod": False
+                    }
+                    methods.append(method_info)
+                except (TypeError, ValueError, AttributeError) as e:
+                    print(f"Error getting signature for static method {name}: {str(e)}")
+                    continue
+
+        # Get class methods
+        for name, method in inspect.getmembers(class_obj, inspect.ismethod):
+            # Check if it's a class method
+            if isinstance(inspect.getattr_static(class_obj, name, None), classmethod):
+                class_methods.append(name)
+                method_names.append(name)
+                
+                try:
+                    # Get the underlying function from the class method
+                    underlying_func = inspect.getattr_static(class_obj, name).__func__
+                    sig = inspect.signature(underlying_func)
+                    parameters = []
+
+                    for param_name, param in sig.parameters.items():
+                        # Skip cls parameter for class methods
+                        if param_name == "cls":
+                            continue
+                            
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                        parameters.append(param_info)
+
+                    method_info = {
+                        "name": name,
+                        "doc": inspect.getdoc(method) or "No documentation available",
+                        "parameters": parameters,
+                        "is_static": False,
+                        "is_classmethod": True
+                    }
+                    methods.append(method_info)
+                except (TypeError, ValueError, AttributeError) as e:
+                    print(f"Error getting signature for class method {name}: {str(e)}")
+                    continue
+
+        # Check for common static/class method patterns in LangChain
+        # Some LangChain classes define from_* methods that may not be properly detected
+        for name in dir(class_obj):
+            if (name.startswith("from_") and 
+                not name.startswith("_") and 
+                name not in method_names and 
+                callable(getattr(class_obj, name, None))):
+                
+                try:
+                    method = getattr(class_obj, name)
+                    sig = inspect.signature(method)
+                    parameters = []
+
+                    # Check if the first parameter is 'cls' (indicating a classmethod)
+                    param_names = list(sig.parameters.keys())
+                    is_classmethod_pattern = len(param_names) > 0 and param_names[0] == 'cls'
+                    
+                    for param_name, param in sig.parameters.items():
+                        # Skip cls parameter for class methods
+                        if param_name == "cls":
+                            continue
+                            
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                        parameters.append(param_info)
+
+                    method_names.append(name)
+                    method_info = {
+                        "name": name,
+                        "doc": inspect.getdoc(method) or "No documentation available",
+                        "parameters": parameters,
+                        "is_static": not is_classmethod_pattern,
+                        "is_classmethod": is_classmethod_pattern
+                    }
+                    methods.append(method_info)
+                    
+                    if is_classmethod_pattern:
+                        class_methods.append(name)
+                    else:
+                        static_methods.append(name)
+                        
+                except (TypeError, ValueError, AttributeError) as e:
+                    print(f"Error getting signature for method {name}: {str(e)}")
+                    continue
 
         # Get init parameters with special handling for document loaders and Pydantic models
         init_params = []
@@ -1281,6 +1496,8 @@ def get_langchain_class_details():
             "init_params": init_params,
             "class_type": class_type,
             "component_type": component_type,
+            "static_methods": static_methods,
+            "class_methods": class_methods,
         }
 
         # Cache the result

@@ -836,3 +836,27 @@
     font-size: 0.97em;
     border-radius: 0 0 5px 5px;
 }
+
+/* Method type badges */
+.method-type-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    margin-left: 8px;
+    border-radius: 3px;
+    font-size: 0.7em;
+    font-weight: bold;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.method-type-badge.static-method {
+    background-color: #2196F3;
+    color: white;
+}
+
+.method-type-badge.class-method {
+    background-color: #FF9800;
+    color: white;
+}
+
+/* Method items */
