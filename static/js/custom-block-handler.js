@@ -1598,24 +1598,61 @@ function makeBlockDraggable(block) {
     let initialX, initialY;
 
     function handleDragStart(e) {
-        // Don't start drag if editing the block name
-        if (document.activeElement === dragHandle) {
+        // 1. Only process left-clicks for drag initiation.
+        if (e.button !== 0) {
             return;
         }
 
+        let eventTarget = e.target;
+        // Resolve to parent if the direct target is a text node.
+        if (eventTarget.nodeType === Node.TEXT_NODE) {
+            eventTarget = eventTarget.parentElement;
+        }
+        // Ensure we have a valid element target.
+        if (!eventTarget || typeof eventTarget.matches !== 'function') {
+            return;
+        }
+
+        // 2. Define selectors for interactive elements that might be *inside* the dragHandle.
+        //    If a click lands on these, we should not start a drag.
+        const interactiveElementsInsideHandle = [
+            'input', 'select', 'textarea', 'button',
+            '[contenteditable="true"]',
+            // Add any specific classes if your drag handle can contain editable fields directly
+        ];
+
+        for (const selector of interactiveElementsInsideHandle) {
+            // Check if the actual clicked element (eventTarget) is or is inside an interactive element
+            // that is itself a child of `this` (the dragHandle).
+            if (eventTarget.closest(selector) && this.contains(eventTarget.closest(selector))) {
+                return; // Let the interactive element handle the click.
+            }
+        }
+        
+        // 3. If the drag handle itself is an editable element (e.g. an input used as a title)
+        //    and it's currently focused, don't start a drag.
+        if (document.activeElement === this && (this.tagName === 'INPUT' || this.isContentEditable || this.tagName === 'TEXTAREA')) {
+            return;
+        }
+
+        // 4. If all checks pass, proceed to initiate the drag.
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
 
-        // Get current position
-        const rect = block.getBoundingClientRect();
+        const blockElement = this.closest('.custom-block'); // `this` is the dragHandle.
+        if (!blockElement) {
+            isDragging = false; 
+            return;
+        }
+
+        const rect = blockElement.getBoundingClientRect();
         initialX = rect.left;
         initialY = rect.top;
 
-        // Add dragging class
-        block.classList.add('dragging');
-
-        // Prevent text selection while dragging
+        blockElement.classList.add('dragging');
+        
+        // Crucially, only call e.preventDefault() if we are actually starting a drag.
         e.preventDefault();
     }
 
@@ -2267,10 +2304,10 @@ function updateBlockParameters(block, methodName) {
                     }
 
                     // Show required parameters or parameters with values
-                    if (hasValue || param.required) {
-                        addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
-                        displayedParams.add(param.name);
-                    }
+                    // if (hasValue || param.required) {
+                    //     addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
+                    //     displayedParams.add(param.name);
+                    // }
                 });
 
                 // Then show any saved parameters from other methods that have values (for THIS BLOCK ONLY)
@@ -2365,15 +2402,14 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
     // Create value input
     const valueInput = document.createElement('input');
     valueInput.type = 'text';
-    valueInput.className = 'param-value';
+    valueInput.className = 'param-value'; // This is likely the input field in question
     valueInput.placeholder = 'Value';
     valueInput.value = value;
 
-    // Add data attribute to mark which block this parameter belongs to
     valueInput.setAttribute('data-block-id', blockId);
     valueInput.setAttribute('data-param-name', paramName);
 
-    // Save value on input instead of just change event to be more responsive
+    // Existing event listener for 'input' (saving value on input)
     valueInput.addEventListener('input', () => {
         if (!blockId) {
             console.warn('Cannot save parameter value: No block ID provided');
@@ -2383,12 +2419,33 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
         saveParameterValue(blockId, paramName, valueInput.value);
     });
 
-    // Also keep the change event for compatibility
+    // Existing event listener for 'change' (compatibility)
     valueInput.addEventListener('change', () => {
         if (!blockId) return;
         console.log(`Parameter changed for ${blockId}.${paramName}: ${valueInput.value}`);
         saveParameterValue(blockId, paramName, valueInput.value);
     });
+
+    // PREVIOUSLY SUGGESTED MODIFICATION - START
+    // New mousedown listener to ensure focusability and stop problematic propagation
+    valueInput.addEventListener('mousedown', function(e) {
+        if (e.button === 0) { // Only for left mouse button
+            // If this input is not already the active element, try to focus it.
+            // Checking document.activeElement prevents re-focusing if already focused,
+            // which can be disruptive to text selection.
+            if (document.activeElement !== this) {
+                this.focus();
+            }
+            
+            // Stop the event from bubbling up to parent elements.
+            // This is crucial if a parent's mousedown listener is incorrectly
+            // calling e.preventDefault() on events originating from this input.
+            e.stopPropagation();
+        }
+        // Importantly, do NOT call e.preventDefault() here ourselves,
+        // as that would prevent default input behaviors like text selection.
+    });
+    // PREVIOUSLY SUGGESTED MODIFICATION - END
 
     // Add the input to the container
     inputContainer.appendChild(valueInput);
@@ -2449,14 +2506,13 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
 
     // Add elements to row
     paramRow.appendChild(paramNameLabel);
-    paramRow.appendChild(isFilePath ? inputContainer : valueInput);
+    paramRow.appendChild(isFilePath ? inputContainer : valueInput); // Ensure valueInput is added
     paramRow.appendChild(removeBtn);
     paramRow.appendChild(hiddenNameInput);
 
     // Add row to container
     container.appendChild(paramRow);
 
-    // Save the parameter value immediately (even if empty) to track that user has explicitly added it
     if (blockId) {
         saveParameterValue(blockId, paramName, value);
     } else {
@@ -3064,41 +3120,63 @@ function setupNodeListener(node, isOutput = false) {
     if (isOutput) {
         // For output nodes, set up drag start
         node.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (typeof draggingConnection !== 'undefined') {
-                window.draggingConnection = true;
-            }
-            if (typeof sourceNode !== 'undefined') {
-                window.sourceNode = node;
+            // 1. Only process left-clicks for initiating connections.
+            if (e.button !== 0) {
+                return;
             }
 
-            // Create the temporary connection line
-            try {
-                const rect = node.getBoundingClientRect();
-                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
-                const zoom = window.zoom || 1;
-                const currentTranslate = window.currentTranslate || { x: 0, y: 0 };
+            let eventTarget = e.target;
+            // Resolve to parent if the direct target is a text node.
+            if (eventTarget.nodeType === Node.TEXT_NODE) {
+                eventTarget = eventTarget.parentElement;
+            }
+            // Ensure we have a valid element target.
+            if (!eventTarget || typeof eventTarget.matches !== 'function') {
+                return;
+            }
 
-                let tempConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const x1 = ((rect.left - canvasRect.left) / zoom) - (currentTranslate.x / zoom) + node.offsetWidth/2;
-                const y1 = ((rect.top - canvasRect.top) / zoom) - (currentTranslate.y / zoom) + node.offsetHeight/2;
+            // 2. Define selectors for elements that should NOT initiate a connection,
+            //    even if the mousedown is technically near/on a connection node.
+            //    These are elements that should receive the click priority.
+            const priorityElements = [
+                'input', 'select', 'textarea', 'button',
+                '[contenteditable="true"]',
+                '.parameter-row',    // Includes .param-name-label, .param-value, etc.
+                '.block-header',     // The entire header area
+                '.method-select-container', // Container for method selection
+                '.parameter-select-row', // Container for adding new parameters
+                // Add other container class names if necessary
+            ];
 
-                tempConnection.setAttribute('x1', x1);
-                tempConnection.setAttribute('y1', y1);
-                tempConnection.setAttribute('x2', x1);
-                tempConnection.setAttribute('y2', y1);
-                tempConnection.setAttribute('class', 'connection-line dragging');
-
-                const connectionsContainer = document.getElementById('connections');
-                if (connectionsContainer) {
-                    connectionsContainer.appendChild(tempConnection);
-                    if (typeof window.tempConnection !== 'undefined') {
-                        window.tempConnection = tempConnection;
-                    }
+            for (const selector of priorityElements) {
+                // If the click originated on or inside one of these priority elements,
+                // let that element handle the click; do not start a connection.
+                if (eventTarget.closest(selector)) {
+                    return; 
                 }
-            } catch (e) {
-                console.error('Error setting up output node listener:', e);
+            }
+
+            // 3. If the click was not on a priority element, proceed with connection logic.
+            const block = node.closest('.custom-block');
+            if (!block) return;
+
+            // Prevent starting a connection if the block is currently being dragged.
+            if (block.classList.contains('dragging')) {
+                 return;
+            }
+            
+            // (The rest of your connection logic from !isConnecting block onwards)
+            // Ensure e.preventDefault() is only called when you are actually starting
+            // the line drawing process for a new connection.
+            if (!isConnecting) {
+                // ... (your existing logic to set isConnecting, startNode, etc.) ...
+                isConnecting = true; // Example
+                startNode = node;    // Example
+                // ...
+                e.preventDefault(); // Call this ONLY when actually drawing the preview line.
+            } else {
+                // ... (your existing logic for handling the second click of a connection) ...
+                // If a connection is successfully made here, you might also call e.preventDefault().
             }
         });
     } else {
