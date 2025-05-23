@@ -691,6 +691,10 @@ def generate_python_code(
                                     param_value = f"[{', '.join(formatted_paths)}]"
                             else:
                                 param_value = formatted_paths[0]
+                        elif ("embedding") in param_value:
+                            # In this case we dont want the value to be a string, but to refer to a block with this name
+                            # Remove quotes if they exist and keep as variable reference
+                            param_value = param_value.strip('"\'')
                         elif not (
                             param_value.startswith(
                                 ("'", '"', "[", "{", "True", "False", "None")
