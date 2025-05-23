@@ -2267,10 +2267,10 @@ function updateBlockParameters(block, methodName) {
                     }
 
                     // Show required parameters or parameters with values
-                    if (hasValue || param.required) {
-                        addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
-                        displayedParams.add(param.name);
-                    }
+                    // if (hasValue || param.required) {
+                    //     addParameterRowForMethod(activeParamsContainer, param.name, savedValue, allMethodParams, blockId);
+                    //     displayedParams.add(param.name);
+                    // }
                 });
 
                 // Then show any saved parameters from other methods that have values (for THIS BLOCK ONLY)
