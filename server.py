@@ -197,12 +197,16 @@ def export_blocks():
                         self.component_type = "prompt_formatter"
                         self.selected_methods = ["format_prompt"]
                         self.methods = ["format_prompt"]
-                        self.import_string = "# Custom Godpromptblock - no imports needed"
-                        
+                        self.import_string = (
+                            "# Custom Godpromptblock - no imports needed"
+                        )
+
                         # Get parameters from config
                         prompt_text = config.get("prompt", "Enter your prompt here...")
-                        question_text = config.get("question", "Enter your question here...")
-                        
+                        question_text = config.get(
+                            "question", "Enter your question here..."
+                        )
+
                         # Generate the class definition directly in the function string
                         self.function_string = f'''
 class GodpromptBlock:
@@ -232,11 +236,21 @@ Question: {{question}}\"\"\"
                         self.parameters = {
                             "format_prompt": [
                                 {"name": "context", "required": True, "type": "str"},
-                                {"name": "prompt", "required": False, "type": "str", "default": prompt_text},
-                                {"name": "question", "required": False, "type": "str", "default": question_text}
+                                {
+                                    "name": "prompt",
+                                    "required": False,
+                                    "type": "str",
+                                    "default": prompt_text,
+                                },
+                                {
+                                    "name": "question",
+                                    "required": False,
+                                    "type": "str",
+                                    "default": question_text,
+                                },
                             ]
                         }
-                        
+
                     # Extract module path and class name from block_type for regular custom blocks
                     elif block_type.startswith("custom_"):
                         # Remove 'custom_' prefix to get the full class path
@@ -509,7 +523,10 @@ def generate_python_code(
             and block.import_string
             and not block.import_string.startswith("#")
         ):
-            if not (block.import_string == "from custom_blocks.prompt_templates import GodpromptBlock"):
+            if not (
+                block.import_string
+                == "from custom_blocks.prompt_templates import GodpromptBlock"
+            ):
                 imports.add(block.import_string)
             # print(f"Added import: {block.import_string}")
         # Fallback for blocks with module path but no import string
@@ -694,7 +711,7 @@ def generate_python_code(
                         elif ("embedding") in param_value:
                             # In this case we dont want the value to be a string, but to refer to a block with this name
                             # Remove quotes if they exist and keep as variable reference
-                            param_value = param_value.strip('"\'')
+                            param_value = param_value.strip("\"'")
                         elif not (
                             param_value.startswith(
                                 ("'", '"', "[", "{", "True", "False", "None")
@@ -931,7 +948,7 @@ def generate_python_code(
     # Check if we have any Godpromptblocks to include the class definition
     has_godpromptblock = False
     for block_id, block in blocks.items():
-        if hasattr(block, 'class_name') and block.class_name == 'GodpromptBlock':
+        if hasattr(block, "class_name") and block.class_name == "GodpromptBlock":
             has_godpromptblock = True
             break
 
@@ -947,14 +964,22 @@ def generate_python_code(
     if has_godpromptblock:
         clean_code_lines.append("# Custom GodpromptBlock class definition")
         clean_code_lines.append("class GodpromptBlock:")
-        clean_code_lines.append('    """Custom prompt formatting block that combines context, prompt, and question."""')
+        clean_code_lines.append(
+            '    """Custom prompt formatting block that combines context, prompt, and question."""'
+        )
         clean_code_lines.append("    ")
-        clean_code_lines.append("    def __init__(self, prompt='Enter your prompt here...', question='Enter your question here...'):")
+        clean_code_lines.append(
+            "    def __init__(self, prompt='Enter your prompt here...', question='Enter your question here...'):"
+        )
         clean_code_lines.append("        self.prompt = prompt")
         clean_code_lines.append("        self.question = question")
         clean_code_lines.append("    ")
-        clean_code_lines.append("    def format_prompt(self, context, prompt=None, question=None):")
-        clean_code_lines.append('        """Format the prompt using context, prompt, and question."""')
+        clean_code_lines.append(
+            "    def format_prompt(self, context, prompt=None, question=None):"
+        )
+        clean_code_lines.append(
+            '        """Format the prompt using context, prompt, and question."""'
+        )
         clean_code_lines.append("        if prompt is None:")
         clean_code_lines.append("            prompt = self.prompt")
         clean_code_lines.append("        if question is None:")
@@ -1700,10 +1725,7 @@ def create_godprompt_block():
                 self.config = {
                     "prompt": prompt_text,
                     "question": question_text,
-                    "parameters": {
-                        "prompt": prompt_text,
-                        "question": question_text
-                    }
+                    "parameters": {"prompt": prompt_text, "question": question_text},
                 }
                 # Define the method this block provides
                 self.selected_methods = ["format_prompt"]
@@ -1711,8 +1733,18 @@ def create_godprompt_block():
                 self.parameters = {
                     "format_prompt": [
                         {"name": "context", "required": True, "type": "str"},
-                        {"name": "prompt", "required": False, "type": "str", "default": prompt_text},
-                        {"name": "question", "required": False, "type": "str", "default": question_text}
+                        {
+                            "name": "prompt",
+                            "required": False,
+                            "type": "str",
+                            "default": prompt_text,
+                        },
+                        {
+                            "name": "question",
+                            "required": False,
+                            "type": "str",
+                            "default": question_text,
+                        },
                     ]
                 }
                 self.static_methods = []
@@ -1754,25 +1786,24 @@ Question: {{question}}\"\"\"
         # Add the Godpromptblock to the canvas
         canvas.add_block(block_id, GodpromptBlock())
 
-        return jsonify({
-            "status": "success",
-            "message": "Godpromptblock created successfully",
-            "block_id": block_id,
-            "block_type": "godprompt",
-            "class_name": "GodpromptBlock",
-            "input_nodes": ["context_input"],
-            "output_nodes": ["formatted_prompt_output"],
-            "config": {
-                "prompt": prompt_text,
-                "question": question_text,
-                "methods": ["format_prompt"],
-                "selected_methods": ["format_prompt"],
-                "parameters": {
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Godpromptblock created successfully",
+                "block_id": block_id,
+                "block_type": "godprompt",
+                "class_name": "GodpromptBlock",
+                "input_nodes": ["context_input"],
+                "output_nodes": ["formatted_prompt_output"],
+                "config": {
                     "prompt": prompt_text,
-                    "question": question_text
-                }
+                    "question": question_text,
+                    "methods": ["format_prompt"],
+                    "selected_methods": ["format_prompt"],
+                    "parameters": {"prompt": prompt_text, "question": question_text},
+                },
             }
-        })
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
