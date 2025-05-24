@@ -357,24 +357,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (blockType === 'custom') {
                         const className = block.getAttribute('data-class-name');
 
-                        // Find module info from sessionStorage to get the full path
-                        let moduleInfo = null;
-                        try {
-                            const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
-                            const blockData = customBlocks.find(b => b.id === blockId || b.className === className);
+                        // Special handling for Godpromptblock
+                        if (className === 'GodpromptBlock') {
+                            finalBlockType = 'godprompt';
+                        } else {
+                            // Find module info from sessionStorage to get the full path
+                            let moduleInfo = null;
+                            try {
+                                const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
+                                const blockData = customBlocks.find(b => b.id === blockId || b.className === className);
 
-                            moduleInfo = {
-                                module: blockData.moduleInfo.module,
-                                library: blockData.moduleInfo.library
-                            };
+                                if (blockData && blockData.moduleInfo) {
+                                    moduleInfo = {
+                                        module: blockData.moduleInfo.module,
+                                        library: blockData.moduleInfo.library
+                                    };
+                                    
+                                    // Create a custom type identifier
+                                    const modulePath = moduleInfo.module;
+                                    finalBlockType = `custom_${modulePath}.${className}`;
+                                } else {
+                                    console.warn('No module info found for custom block:', className);
+                                    finalBlockType = `custom_${className}`;
+                                }
 
-                        } catch (e) {
-                        console.warn('Error finding module info in sessionStorage:', e);
+                            } catch (e) {
+                                console.warn('Error finding module info in sessionStorage:', e);
+                                finalBlockType = `custom_${className}`;
+                            }
                         }
-                            // Create a custom type identifier
-                        const modulePath = moduleInfo.module;
-                        finalBlockType = `custom_${modulePath}.${className}`;
-
                     }
 
                     // Generate configuration for this block

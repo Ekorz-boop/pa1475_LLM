@@ -290,8 +290,11 @@ class CustomBlockHandler {
     switchTab(tabId) {
         // Ensure current selections are saved before switching tabs
         if (tabId !== 'select-class' && this.classSelect && this.moduleSelect) {
-            this.selectedClass = this.classSelect.value;
-            this.selectedModule = this.moduleSelect.value;
+            // Don't override selectedClass if it's already set to GodpromptBlock
+            if (this.selectedClass !== 'GodpromptBlock') {
+                this.selectedClass = this.classSelect.value;
+                this.selectedModule = this.moduleSelect.value;
+            }
             console.log('Tab switch - saved values:', this.selectedClass, this.selectedModule);
         }
 
@@ -345,13 +348,17 @@ class CustomBlockHandler {
         // Check if we need to validate the current tab
         if (currentTabBtn.dataset.tab === 'select-class') {
             // Make sure a class is selected before proceeding
-            if (!this.classSelect.value) {
+            // Check for either regular class selection or special block selection (like Godpromptblock)
+            if (!this.classSelect.value && !this.selectedClass) {
                 alert('Please select a class before proceeding');
                 return;
             }
             // Make sure we save the values
-            this.selectedClass = this.classSelect.value;
-            this.selectedModule = this.moduleSelect.value;
+            if (this.classSelect.value) {
+                this.selectedClass = this.classSelect.value;
+                this.selectedModule = this.moduleSelect.value;
+            }
+            // For special blocks like Godpromptblock, selectedClass is already set
         }
 
         if (currentIndex < tabBtns.length - 1) {
@@ -976,11 +983,16 @@ class CustomBlockHandler {
      * Validate all steps before creating a block
      */
     validateForCreation() {
+        console.log('validateForCreation called'); // Add debug log
+        console.log('this.selectedClass:', this.selectedClass); // Add debug log
+        
         if (!this.selectedClass) {
+            console.log('No selected class, validation failed'); // Add debug log
             showToast('Please select a class', 'error');
             return false;
         }
 
+        console.log('Validation passed'); // Add debug log
         return true;
     }
 
@@ -988,23 +1000,49 @@ class CustomBlockHandler {
      * Create a custom block with the selected configuration
      */
     async createBlock() {
+        console.log('Create Block button clicked!'); // Add debug log
+        
         try {
+            console.log('Validating for creation...'); // Add debug log
+            console.log('Selected class:', this.selectedClass); // Add debug log
+            
             // Validate that we have required fields
             if (!this.validateForCreation()) {
+                console.log('Validation failed'); // Add debug log
                 return;
             }
 
+            console.log('Validation passed, proceeding with creation...'); // Add debug log
+
             // Generate a unique ID for the block
             const blockId = `custom-block-${Date.now()}`;
+            console.log('Generated block ID:', blockId); // Add debug log
 
             // Handle Godpromptblock creation specially
             if (this.selectedClass === 'GodpromptBlock') {
+                console.log('Creating Godpromptblock...'); // Add debug log
+                
                 // Get prompt and question values from the parameters container
                 const promptInput = this.modal.querySelector('input[data-param="prompt"]');
                 const questionInput = this.modal.querySelector('input[data-param="question"]');
                 
                 const promptText = promptInput ? promptInput.value : 'Enter your prompt here...';
                 const questionText = questionInput ? questionInput.value : 'Enter your question here...';
+
+                console.log('Prompt text:', promptText); // Add debug log
+                console.log('Question text:', questionText); // Add debug log
+
+                // Save the methods for this Godpromptblock BEFORE creating it
+                console.log('Saving methods for Godpromptblock:', this.selectedMethods);
+                saveMethods('GodpromptBlock', this.selectedMethods, blockId, this.staticMethods, this.classMethods);
+                
+                // Save the parameters for this specific block
+                const blockParams = {
+                    prompt: promptText,
+                    question: questionText
+                };
+                localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(blockParams));
+                console.log('Saved Godpromptblock parameters:', blockParams);
 
                 // Create Godpromptblock via special endpoint
                 const response = await fetch('/api/blocks/create_godprompt', {
@@ -1019,14 +1057,22 @@ class CustomBlockHandler {
                     })
                 });
 
+                console.log('API response status:', response.status); // Add debug log
                 const result = await response.json();
+                console.log('API response result:', result); // Add debug log
                 
                 if (result.status === 'success') {
+                    console.log('Godpromptblock created successfully, adding to menu...'); // Add debug log
+                    
                     // Add the block to the menu
                     addCustomBlockToMenu('GodpromptBlock', blockId, this.inputNodes, this.outputNodes);
 
                     // Save to storage
                     saveCustomBlockToStorage('GodpromptBlock', blockId, this.inputNodes, this.outputNodes);
+                    
+                    // Also save specific method selections for this block
+                    saveMethodSelection(blockId, 'format_prompt');
+                    console.log('Saved method selection for Godpromptblock:', 'format_prompt');
 
                     // Close the modal
                     this.closeModal();
@@ -1043,6 +1089,8 @@ class CustomBlockHandler {
                 return;
             }
 
+            console.log('Creating regular custom block...'); // Add debug log
+            
             // Regular custom block creation logic
             // Make sure we have up-to-date selected methods
             if (!this.selectedMethods || this.selectedMethods.length === 0) {
@@ -1086,7 +1134,10 @@ class CustomBlockHandler {
             showToast('Custom block created successfully!', 'success');
         } catch (error) {
             console.error('Error creating block:', error);
+            console.error('Error stack:', error.stack); // Add stack trace
             showToast(`Error creating block: ${error.message}`, 'error');
+            
+            // Don't close modal on error so user can see what went wrong
         }
     }
 
@@ -1189,7 +1240,13 @@ class CustomBlockHandler {
      * Reset the form and clear selections
      */
     resetForm() {
-        // Clear selections
+        console.log('resetForm() called, current selectedClass:', this.selectedClass); // Add debug log
+        
+        // Clear selections, but preserve selectedClass if it's GodpromptBlock
+        if (this.selectedClass !== 'GodpromptBlock') {
+            this.selectedClass = null;
+        }
+        
         this.selectedMethods = [];
         this.inputNodes = [];
         this.outputNodes = [];
@@ -1197,7 +1254,8 @@ class CustomBlockHandler {
         this.staticMethods = [];
         this.classMethods = [];
         this.editingBlockId = null;
-        console.log('selections reset');
+        
+        console.log('After reset, selectedClass is:', this.selectedClass); // Add debug log
 
         // Reset UI
         const methodCheckboxes = this.methodsContainer.querySelectorAll('input[type="checkbox"]');
@@ -1221,8 +1279,12 @@ class CustomBlockHandler {
      * Handle Godpromptblock selection
      */
     selectGodpromptBlock() {
+        console.log('selectGodpromptBlock() called'); // Add debug log
+        
         // Set the selected class to indicate Godpromptblock
         this.selectedClass = 'GodpromptBlock';
+        console.log('Set selectedClass to:', this.selectedClass); // Add debug log
+        
         this.selectedLibrary = null;
         this.selectedModule = null;
         this.classDetails = {
@@ -1255,6 +1317,9 @@ class CustomBlockHandler {
         this.inputNodes = ['context_input'];
         this.outputNodes = ['formatted_prompt_output'];
 
+        console.log('Set inputNodes to:', this.inputNodes); // Add debug log
+        console.log('Set outputNodes to:', this.outputNodes); // Add debug log
+
         // Update the class description
         const classDescription = this.modal.querySelector('.class-description');
         classDescription.innerHTML = `
@@ -1279,8 +1344,11 @@ class CustomBlockHandler {
         this.updateMethodsContainer();
         this.updateParametersContainer();
         
+        console.log('About to call nextTab()'); // Add debug log
         // Automatically proceed to next tab
         this.nextTab();
+        
+        console.log('selectGodpromptBlock() completed, selectedClass is now:', this.selectedClass); // Add debug log
     }
 }
 
@@ -1874,6 +1942,30 @@ function populateMethodsForBlock(block, className, blockId) {
     // Clear existing options
     methodSelect.innerHTML = '<option value="">Select Method</option>';
     
+    // Special handling for Godpromptblock
+    if (className === 'GodpromptBlock') {
+        console.log('Special handling for GodpromptBlock');
+        
+        // Add the format_prompt method
+        const option = document.createElement('option');
+        option.value = 'format_prompt';
+        option.textContent = 'format_prompt';
+        methodSelect.appendChild(option);
+        
+        // Set format_prompt as selected
+        methodSelect.value = 'format_prompt';
+        
+        // Save the method selection
+        saveMethodSelection(blockId, 'format_prompt');
+        
+        // Trigger change event to update parameters
+        const changeEvent = new Event('change');
+        methodSelect.dispatchEvent(changeEvent);
+        
+        console.log('Set up GodpromptBlock with format_prompt method');
+        return;
+    }
+    
     // Try to find the block data with methods first by blockId
     let blockData = null;
     
@@ -2308,6 +2400,28 @@ function updateBlockParameters(block, methodName) {
         savedMethodParams = savedParams;
     } catch (e) {
         console.warn(`Error fetching saved parameters for block ${blockId}:`, e);
+    }
+
+    // Special handling for Godpromptblock
+    if (className === 'GodpromptBlock' && methodName === 'format_prompt') {
+        console.log('Special parameter handling for GodpromptBlock');
+        
+        // Define the parameters for format_prompt method
+        const godpromptParams = [
+            { name: 'context', required: true, type: 'str' },
+            { name: 'prompt', required: false, type: 'str', default: savedMethodParams.prompt || 'Enter your prompt here...' },
+            { name: 'question', required: false, type: 'str', default: savedMethodParams.question || 'Enter your question here...' }
+        ];
+        
+        // Create parameters for each one
+        godpromptParams.forEach(param => {
+            const savedValue = savedMethodParams[param.name] || (param.default || '');
+            const paramRow = addParameterRowForMethod(paramsContainer, param.name, savedValue, godpromptParams, blockId);
+            console.log(`Added parameter ${param.name} with value:`, savedValue);
+        });
+        
+        console.log('Completed GodpromptBlock parameter setup');
+        return;
     }
 
     // If we found module info, try to fetch class details
