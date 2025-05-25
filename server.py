@@ -642,7 +642,12 @@ def generate_python_code(
                 
                 # For late init blocks, be more permissive with other parameters
                 elif block_id in late_init_blocks and method_name != "__init__" and param_name != "query":
-                    should_add_param = True
+                    # Exception: For LLM components, 'model' parameter should go to __init__, not method calls
+                    if (hasattr(block, "component_type") and block.component_type in ["llms", "chat_models"] 
+                        and param_name == "model"):
+                        should_add_param = False
+                    else:
+                        should_add_param = True
                 
                 if should_add_param:
                     # Format the parameter value
@@ -679,9 +684,12 @@ def generate_python_code(
                     # For late init blocks, skip parameters that belong to methods
                     if block_id in late_init_blocks:
                         # Only include parameters that are explicitly for __init__
-                        # In this simplified version, we assume late init blocks don't need init params
-                        # unless they're specifically marked as __init__ parameters
-                        continue
+                        # Exception: For LLM components, always include 'model' parameter in __init__
+                        if not (hasattr(block, "component_type") and block.component_type in ["llms", "chat_models"] 
+                                and param_name == "model"):
+                            # In this simplified version, we assume late init blocks don't need init params
+                            # unless they're specifically marked as __init__ parameters
+                            continue
 
                     # Skip empty string values
                     if param_value == "":
@@ -749,7 +757,7 @@ def generate_python_code(
 
                                         # Add extra code for multi-file loading
                                         multi_load_comment = (
-                                            f"# Handle multiple files for {class_name}"
+                                            f"# Handle multiple files for {class_name} (no separate initialization needed)"
                                         )
                                         init_code_lines.append(multi_load_comment)
 
@@ -807,6 +815,12 @@ def generate_python_code(
                                         init_code_lines.append(
                                             '    print("Warning: No valid file paths provided")'
                                         )
+
+                                        # Mark this block as initialized since we handled it specially
+                                        initialized_blocks.add(block_id)
+
+                                        # Return early to avoid any additional initialization
+                                        return
 
                                         # Skip adding this parameter since we're handling it specially
                                         continue
