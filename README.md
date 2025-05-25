@@ -146,6 +146,7 @@ python init_db.py
 ```
 
 This creates the database and an initial admin user:
+
 - **Username:** `admin`
 - **Password:** `admin123`
 
@@ -153,21 +154,8 @@ This creates the database and an initial admin user:
 
 ### Data Persistence
 
--   **Database (`instance/app.db`)**: The application, whether run directly or inside Docker, is coded to look for the SQLite database (`app.db`) in an `instance/` directory relative to the application root (e.g., `/app/instance/app.db` inside the container). 
-    -   When running Docker, the `init_db.py` script (executed by the Docker `CMD`) will create this `instance/app.db` file within the container if it doesn't exist. 
-    -   To persist your database across container restarts, you **must** use a Docker volume to map a directory on your host to the `/app/instance` directory inside the container. This ensures that the `app.db` file created or used by the application is stored on your host machine and survives container recreation.
-    ```bash
-    docker volume create raggie-data
-    docker run -d \\
-      -p 5000:5000 \\
-      --name raggie-container \\
-      -v raggie-data:/app/instance \\
-      # Add your -e environment variables here
-      raggie-app
-    ```
-    When using a volume for the first time, `init_db.py` will create the `app.db` in the volume. Subsequent runs will use the existing `app.db` from the volume. You might want to adjust `init_db.py` or the `Dockerfile` `CMD` if you have specific needs for managing an existing database in a volume.
-
--   **User Files (`files/`)**: The `files/` directory (used for uploads, etc.) is part of the container. If you need data in this directory to persist or be shared, consider mounting a volume for it as well:
+- **Database (`instance/app.db`)**: The application, whether run directly or inside Docker, is coded to look for the SQLite database (`app.db`) in an `instance/` directory relative to the application root (e.g., `/app/instance/app.db` inside the container).
+- **User Files (`files/`)**: The `files/` directory (used for uploads, etc.).
 
 ### Step 5: Run the Application (for Local Setup)
 
@@ -331,67 +319,19 @@ This section provides guidance on deploying RAGgie to a production environment.
 
 ### Docker Deployment
 
-RAGgie includes a `Dockerfile` for easy containerization and deployment.
+RAGgie can be easily used with Docker.
+Just run `docker compose` to build and start the application:
 
-**1. Build the Docker Image:**
-
-Navigate to the project root directory (where the `Dockerfile` is located) and run:
-
-```bash
-docker build -t raggie-app .
+```sh
+docker compose up
+# or, to run in detached mode
+docker compose up -d
 ```
 
-**2. Run the Docker Container:**
+Configure the environment variables or volume mappings in the `compose.yml` file.
+The used SQLite database (`app.db`) in the `instance/` directory can be persisted by mapping it to a Docker volume or a host directory, as shown in the `compose.yml`.
 
-To run the container:
-
-```bash
-docker run -d -p 5000:5000 --name raggie-container raggie-app
-```
-
-**Environment Variables in Docker:**
-
-- The `Dockerfile` sets some default environment variables (like `DATABASE_URL=sqlite:////app/instance/app.db`).
-- **Crucially, override `SECRET_KEY` at runtime using the `-e` flag.**
-- Pass any other necessary environment variables (e.g., `MAIL_*` settings) using `-e` flags.
-- Alternatively, you can use a `.env` file with `docker run --env-file ./my.env ...` or with Docker Compose.
-
-**3. Data Persistence with Docker Volumes:**
-
-To ensure your data persists across container restarts, use Docker volumes.
-
--   **Database (`/app/instance/app.db` inside the container):**
-    The `Dockerfile`'s `CMD` includes `python init_db.py`, which will create `instance/app.db` inside the container if it doesn't exist. To persist this database:
-    ```bash
-    docker volume create raggie-db-data
-    docker run -d \
-      -p 5000:5000 \
-      --name raggie-container \
-      -v raggie-db-data:/app/instance \
-      -e SECRET_KEY="your_production_secret_key_here" \
-      # Add other -e flags as needed
-      raggie-app
-    ```
-    The first time you run with a new volume, `init_db.py` will create the database. For subsequent runs, it will use the existing database.
-
--   **User Files (`/app/files/` inside the container):**
-    If your application uses the `files/` directory for user uploads or other persistent file storage, you should also mount a volume for it:
-    ```bash
-    docker volume create raggie-user-files
-    docker run -d \
-      -p 5000:5000 \
-      --name raggie-container \
-      -v raggie-db-data:/app/instance \
-      -v raggie-user-files:/app/files \
-      -e SECRET_KEY="your_production_secret_key_here" \
-      # Add other -e flags as needed
-      raggie-app
-    ```
-    When using a volume for the first time, the `init_db.py` script in the `CMD` will create the database. For subsequent runs, it will use the existing database in the volume. You might want to adjust `init_db.py` or the `Dockerfile` `CMD` if you have specific needs for managing an existing database in a volume.
-
-**4. Accessing the Application:**
-
-Once the container is running, access RAGgie at `http://localhost:5000` (or your server's IP address).
+Once the container is running, access RAGgie at `http://localhost:5000` (or your custom IP address and port).
 
 ## Troubleshooting
 
