@@ -520,29 +520,40 @@ def generate_python_code(
 
     # Track blocks that have already been initialized with special handling
     special_init_blocks = set()
-    
+
     # Track blocks with late initialization enabled
     late_init_blocks = set()
-    
+
     # Track which blocks have been initialized (for late init)
     initialized_blocks = set()
 
     # First scan to collect all imports upfront and identify late init blocks
     for block_id, block in blocks.items():
         # Check for late initialization setting
-        if (hasattr(block, "config") and block.config and 
-            block.config.get("late_initialization", False)):
+        if (
+            hasattr(block, "config")
+            and block.config
+            and block.config.get("late_initialization", False)
+        ):
             late_init_blocks.add(block_id)
             print(f"Block {block_id} marked for late initialization")
 
         # Collect imports
-        if (hasattr(block, "import_string") and block.import_string and 
-            not block.import_string.startswith("#")):
-            if not (block.import_string == 
-                   "from custom_blocks.prompt_templates import GodpromptBlock"):
+        if (
+            hasattr(block, "import_string")
+            and block.import_string
+            and not block.import_string.startswith("#")
+        ):
+            if not (
+                block.import_string
+                == "from custom_blocks.prompt_templates import GodpromptBlock"
+            ):
                 imports.add(block.import_string)
-        elif (hasattr(block, "module_path") and block.module_path and 
-              hasattr(block, "class_name")):
+        elif (
+            hasattr(block, "module_path")
+            and block.module_path
+            and hasattr(block, "class_name")
+        ):
             import_statement = f"from {block.module_path} import {block.class_name}"
             imports.add(import_statement)
 
@@ -583,37 +594,39 @@ def generate_python_code(
     def get_method_parameters(block, method_name):
         """Extract parameters that belong to a specific method."""
         method_params = []
-        
+
         if not hasattr(block, "config") or not block.config:
             return method_params
-            
+
         # For late init blocks, we need to determine which parameters belong to which methods
         if hasattr(block, "config") and "parameters" in block.config:
             for param_name, param_value in block.config["parameters"].items():
                 if param_value == "":
                     continue
-                    
+
                 # For late init blocks, assume all non-init parameters belong to the selected method
                 # For regular blocks, don't add parameters to method calls unless they're method-specific
                 if block_id in late_init_blocks and method_name != "__init__":
                     # Format the parameter value
                     if isinstance(param_value, str) and not (
-                        param_value.startswith(("'", '"', "[", "{", "True", "False", "None")) or 
-                        param_value.isdigit()
+                        param_value.startswith(
+                            ("'", '"', "[", "{", "True", "False", "None")
+                        )
+                        or param_value.isdigit()
                     ):
                         param_value = f'"{param_value}"'
                     method_params.append(f"{param_name}={param_value}")
-        
+
         return method_params
 
     # Function to initialize a block (used for both regular and late initialization)
     def initialize_block(block_id, block, var_name, class_name):
         if block_id in initialized_blocks:
             return  # Already initialized
-            
+
         # Build initialization parameters
         init_params = []
-        
+
         if hasattr(block, "config") and block.config:
             # For late init blocks, only include parameters that are specifically for __init__
             # For regular blocks, include all parameters
@@ -627,7 +640,7 @@ def generate_python_code(
                         # In this simplified version, we assume late init blocks don't need init params
                         # unless they're specifically marked as __init__ parameters
                         continue
-                        
+
                     # Skip empty string values
                     if param_value == "":
                         continue
@@ -636,7 +649,9 @@ def generate_python_code(
                     if isinstance(param_value, str):
                         if "files/" in param_value:
                             # Handle file paths (existing logic)
-                            file_paths = [path.strip() for path in param_value.split(",")]
+                            file_paths = [
+                                path.strip() for path in param_value.split(",")
+                            ]
                             formatted_paths = []
 
                             for path in file_paths:
@@ -644,7 +659,12 @@ def generate_python_code(
                                     formatted_paths.append(
                                         f'os.path.normpath(os.path.join("files", "{os.path.basename(path)}"))'
                                     )
-                                elif not (path.startswith(("'", '"', "[", "{", "True", "False", "None")) or path.isdigit()):
+                                elif not (
+                                    path.startswith(
+                                        ("'", '"', "[", "{", "True", "False", "None")
+                                    )
+                                    or path.isdigit()
+                                ):
                                     formatted_paths.append(f'"{path}"')
                                 else:
                                     formatted_paths.append(path)
@@ -655,7 +675,12 @@ def generate_python_code(
                                 param_value = formatted_paths[0]
                         elif ("embedding") in param_value:
                             param_value = param_value.strip("\"'")
-                        elif not (param_value.startswith(("'", '"', "[", "{", "True", "False", "None")) or param_value.isdigit()):
+                        elif not (
+                            param_value.startswith(
+                                ("'", '"', "[", "{", "True", "False", "None")
+                            )
+                            or param_value.isdigit()
+                        ):
                             param_value = f'"{param_value}"'
 
                     init_params.append(f"{param_name}={param_value}")
@@ -665,17 +690,21 @@ def generate_python_code(
             # For late init blocks, add to method_code_lines instead of init_code_lines
             method_code_lines.append(f"# Initialize {class_name} (late initialization)")
             if init_params:
-                method_code_lines.append(f"{var_name} = {class_name}({', '.join(init_params)})")
+                method_code_lines.append(
+                    f"{var_name} = {class_name}({', '.join(init_params)})"
+                )
             else:
                 method_code_lines.append(f"{var_name} = {class_name}()")
         else:
             # For regular blocks, add to init_code_lines
             init_code_lines.append(f"# Initialize {class_name}")
             if init_params:
-                init_code_lines.append(f"{var_name} = {class_name}({', '.join(init_params)})")
+                init_code_lines.append(
+                    f"{var_name} = {class_name}({', '.join(init_params)})"
+                )
             else:
                 init_code_lines.append(f"{var_name} = {class_name}()")
-        
+
         initialized_blocks.add(block_id)
 
     # Handle regular initialization for non-late-init blocks
@@ -684,7 +713,9 @@ def generate_python_code(
             block = blocks[block_id]
             var_name = block_vars[block_id]
             class_name = (
-                block.class_name if hasattr(block, "class_name") else type(block).__name__
+                block.class_name
+                if hasattr(block, "class_name")
+                else type(block).__name__
             )
             initialize_block(block_id, block, var_name, class_name)
 
@@ -734,8 +765,10 @@ def generate_python_code(
             # Handle from_documents method replacement
             if method_name == "from_documents" and block_id in late_init_blocks:
                 # For from_documents, we replace the initialization entirely
-                method_code_lines.append(f"# Using {class_name}.from_documents instead of initialization")
-                
+                method_code_lines.append(
+                    f"# Using {class_name}.from_documents instead of initialization"
+                )
+
                 # Get method-specific parameters
                 method_params = get_method_parameters(block, method_name)
 
@@ -743,19 +776,23 @@ def generate_python_code(
                 source_params = []
                 if method_connections and block_id in method_connections:
                     if method_name in method_connections[block_id]:
-                        method_specific_sources = method_connections[block_id][method_name]
+                        method_specific_sources = method_connections[block_id][
+                            method_name
+                        ]
                         for source_info in method_specific_sources:
                             source_id = source_info["block_id"]
                             source_method = source_info["method"]
                             source_var = block_vars[source_id]
                             if source_method:
-                                source_params.append(f"{source_var}_{source_method}_output")
+                                source_params.append(
+                                    f"{source_var}_{source_method}_output"
+                                )
                             else:
                                 source_params.append(f"{source_var}_output")
 
                 # Combine source params and method params
                 all_params = source_params + method_params
-                
+
                 # Generate from_documents call
                 if all_params:
                     method_code_lines.append(
@@ -765,7 +802,7 @@ def generate_python_code(
                     method_code_lines.append(
                         f"{var_name} = {class_name}.{method_name}()"
                     )
-                
+
                 # Mark as initialized since from_documents replaces initialization
                 initialized_blocks.add(block_id)
                 continue
@@ -923,7 +960,9 @@ def generate_python_code(
         last_method = None
         if hasattr(last_block, "config") and last_block.config:
             if "selected_methods" in last_block.config:
-                methods = [m for m in last_block.config["selected_methods"] if m != "__init__"]
+                methods = [
+                    m for m in last_block.config["selected_methods"] if m != "__init__"
+                ]
                 if methods:
                     last_method = methods[-1]
 
