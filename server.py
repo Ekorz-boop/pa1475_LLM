@@ -597,16 +597,19 @@ def generate_python_code(
 
         if not hasattr(block, "config") or not block.config:
             return method_params
+        
+        print(f"DEBUG: Getting method parameters for {method_name} on block with component_type: {getattr(block, 'component_type', 'None')}")
+        print(f"DEBUG: Block config: {block.config}")
+        print(f"DEBUG: Block has component_type attr: {hasattr(block, 'component_type')}")
 
-        # For late init blocks, we need to determine which parameters belong to which methods
-        if hasattr(block, "config") and "parameters" in block.config:
-            for param_name, param_value in block.config["parameters"].items():
-                if param_value == "":
-                    continue
-
-                # For late init blocks, assume all non-init parameters belong to the selected method
-                # For regular blocks, don't add parameters to method calls unless they're method-specific
-                if block_id in late_init_blocks and method_name != "__init__":
+        # First check for method-specific parameters in method_parameters
+        if "method_parameters" in block.config and isinstance(block.config["method_parameters"], dict):
+            if method_name in block.config["method_parameters"]:
+                method_specific_params = block.config["method_parameters"][method_name]
+                for param_name, param_value in method_specific_params.items():
+                    if param_value == "":
+                        continue
+                    
                     # Format the parameter value
                     if isinstance(param_value, str) and not (
                         param_value.startswith(
@@ -617,6 +620,44 @@ def generate_python_code(
                         param_value = f'"{param_value}"'
                     method_params.append(f"{param_name}={param_value}")
 
+        # For ALL blocks, check if there are parameters in the general parameters
+        # that should belong to this specific method but aren't in method_parameters yet
+        if "parameters" in block.config:
+            for param_name, param_value in block.config["parameters"].items():
+                if param_value == "":
+                    continue
+
+                # Skip if this parameter was already added from method_parameters
+                if any(param.startswith(f"{param_name}=") for param in method_params):
+                    continue
+
+                # Check if this parameter should belong to this method
+                should_add_param = False
+                
+                # For vectorstore search methods, add query parameter
+                if (param_name == "query" and method_name in ["similarity_search", "search", "similarity_search_with_score"]
+                    and hasattr(block, "component_type") and block.component_type == "vectorstores"):
+                    should_add_param = True
+                    print(f"DEBUG: Adding query parameter to {method_name} method for ALL blocks")
+                
+                # For late init blocks, be more permissive with other parameters
+                elif block_id in late_init_blocks and method_name != "__init__" and param_name != "query":
+                    should_add_param = True
+                
+                if should_add_param:
+                    # Format the parameter value
+                    if isinstance(param_value, str) and not (
+                        param_value.startswith(
+                            ("'", '"', "[", "{", "True", "False", "None")
+                        )
+                        or param_value.isdigit()
+                    ):
+                        param_value = f'"{param_value}"'
+                    method_params.append(f"{param_name}={param_value}")
+
+
+
+        print(f"DEBUG: Final method params for {method_name}: {method_params}")
         return method_params
 
     # Function to initialize a block (used for both regular and late initialization)
@@ -628,6 +669,7 @@ def generate_python_code(
         init_params = []
 
         if hasattr(block, "config") and block.config:
+
             # For late init blocks, only include parameters that are specifically for __init__
             # For regular blocks, include all parameters
             if "parameters" in block.config and isinstance(
@@ -643,6 +685,22 @@ def generate_python_code(
 
                     # Skip empty string values
                     if param_value == "":
+                        continue
+
+                    # Skip parameters that are method-specific (stored in method_parameters)
+                    if "method_parameters" in block.config:
+                        is_method_param = False
+                        for method_name, method_params in block.config["method_parameters"].items():
+                            if method_name != "__init__" and param_name in method_params:
+                                is_method_param = True
+                                break
+                        if is_method_param:
+                            continue
+                    
+                    # Also check if this parameter name is commonly a method parameter (not init parameter)
+                    # For vectorstores like Chroma, 'query' is typically for search methods, not initialization
+                    if (hasattr(block, "component_type") and block.component_type == "vectorstores" 
+                        and param_name == "query"):
                         continue
 
                     # Format the value properly (existing logic)
@@ -912,10 +970,8 @@ def generate_python_code(
                     else:
                         source_params.append(f"{source_var}_output")
 
-            # Get method-specific parameters - only for late init blocks
-            method_params = []
-            if block_id in late_init_blocks:
-                method_params = get_method_parameters(block, method_name)
+            # Get method-specific parameters for ALL blocks
+            method_params = get_method_parameters(block, method_name)
 
             # Combine source params and method params
             all_params = source_params + method_params

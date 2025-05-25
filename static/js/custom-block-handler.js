@@ -2078,7 +2078,8 @@ function populateMethodsForBlock(block, className, blockId) {
                                                 'file_path', 
                                                 savedParams.file_path, 
                                                 genericParams, 
-                                                blockId
+                                                blockId,
+                                                '__init__'
                                             );
                                             console.log(`Added missing file_path parameter row with value: ${savedParams.file_path}`);
                                         }
@@ -2422,7 +2423,7 @@ function updateBlockParameters(block, methodName) {
         // Create parameters for each one
         godpromptParams.forEach(param => {
             const savedValue = savedMethodParams[param.name] || (param.default || '');
-            const paramRow = addParameterRowForMethod(paramsContainer, param.name, savedValue, godpromptParams, blockId);
+            const paramRow = addParameterRowForMethod(paramsContainer, param.name, savedValue, godpromptParams, blockId, methodName);
             console.log(`Added parameter ${param.name} with value:`, savedValue);
         });
         
@@ -2560,7 +2561,7 @@ function updateBlockParameters(block, methodName) {
                         }
 
                         // Add the parameter row with block ID
-                        const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId);
+                        const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId, methodName);
 
                         // Focus on the value input to encourage the user to enter a value
                         const valueInput = paramRow.querySelector('.param-value');
@@ -2627,12 +2628,25 @@ function updateBlockParameters(block, methodName) {
                         // Find parameter info if available
                         const paramInfo = allMethodParams.find(p => p.name === paramName);
                         if (paramInfo) {
-                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, allMethodParams, blockId);
+                            // Determine which method this parameter belongs to
+                            let paramMethodName = methodName; // Default to current method
+                            
+                            // Check if this parameter is specific to a different method
+                            if (data.method_details) {
+                                for (const methodDetail of data.method_details) {
+                                    if (methodDetail.parameters && methodDetail.parameters.some(p => p.name === paramName)) {
+                                        paramMethodName = methodDetail.name;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, allMethodParams, blockId, paramMethodName);
                             displayedParams.add(paramName);
                         } else {
                             // Handle case where param info is not available (fallback)
                             const genericParams = [{name: paramName, type: 'Any', required: false}];
-                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, genericParams, blockId);
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, genericParams, blockId, methodName);
                             displayedParams.add(paramName);
                         }
                     }
@@ -2650,12 +2664,25 @@ function updateBlockParameters(block, methodName) {
                         // Find parameter info if available
                         const paramInfo = allMethodParams.find(p => p.name === paramName);
                         if (paramInfo) {
-                            addParameterRowForMethod(activeParamsContainer, paramName, value, allMethodParams, blockId);
+                            // Determine which method this parameter belongs to
+                            let paramMethodName = methodName; // Default to current method
+                            
+                            // Check if this parameter is specific to a different method
+                            if (data.method_details) {
+                                for (const methodDetail of data.method_details) {
+                                    if (methodDetail.parameters && methodDetail.parameters.some(p => p.name === paramName)) {
+                                        paramMethodName = methodDetail.name;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, allMethodParams, blockId, paramMethodName);
                             displayedParams.add(paramName);
                         } else {
                             // Handle case where param info is not available (fallback)
                             const genericParams = [{name: paramName, type: 'Any', required: false}];
-                            addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockId);
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockId, methodName);
                             displayedParams.add(paramName);
                         }
                     }
@@ -2673,11 +2700,12 @@ function updateBlockParameters(block, methodName) {
 }
 
 // Helper function to add a parameter row with an already selected parameter
-function addParameterRowForMethod(container, paramName, value = '', availableParams = [], blockId = '') {
+function addParameterRowForMethod(container, paramName, value = '', availableParams = [], blockId = '', methodName = '__init__') {
     // Create a new parameter row
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
     paramRow.setAttribute('data-param-name', paramName);
+    paramRow.setAttribute('data-method', methodName);
 
     // Create param name label
     const paramNameLabel = document.createElement('div');
@@ -2713,6 +2741,9 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
 
     valueInput.setAttribute('data-block-id', blockId);
     valueInput.setAttribute('data-param-name', paramName);
+    
+    // Also add the data-block-id to the parameter row for easier lookup
+    paramRow.setAttribute('data-block-id', blockId);
 
     // Existing event listener for 'input' (saving value on input)
     valueInput.addEventListener('input', () => {
@@ -2849,16 +2880,49 @@ function saveParameterValue(blockId, paramName, value) {
         const blockIndex = customBlocks.findIndex(b => b.id === blockId);
         
         if (blockIndex >= 0) {
-            // Make sure parameters object exists
+            // Find the parameter row to determine which method it belongs to
+            const parameterRow = document.querySelector(`.parameter-row[data-param-name="${paramName}"][data-block-id="${blockId}"], .parameter-row[data-param-name="${paramName}"] input[data-block-id="${blockId}"]`);
+            let methodName = '__init__'; // Default to __init__
+            
+            if (parameterRow) {
+                const methodFromRow = parameterRow.getAttribute('data-method');
+                if (methodFromRow) {
+                    methodName = methodFromRow;
+                }
+            }
+            
+            // Initialize the config structure if needed
+            if (!customBlocks[blockIndex].config) {
+                customBlocks[blockIndex].config = {};
+            }
+            
+            if (methodName === '__init__') {
+                // Save to general parameters for __init__
+                if (!customBlocks[blockIndex].config.parameters) {
+                    customBlocks[blockIndex].config.parameters = {};
+                }
+                customBlocks[blockIndex].config.parameters[paramName] = value;
+            } else {
+                // Save to method_parameters for specific methods
+                if (!customBlocks[blockIndex].config.method_parameters) {
+                    customBlocks[blockIndex].config.method_parameters = {};
+                }
+                if (!customBlocks[blockIndex].config.method_parameters[methodName]) {
+                    customBlocks[blockIndex].config.method_parameters[methodName] = {};
+                }
+                customBlocks[blockIndex].config.method_parameters[methodName][paramName] = value;
+            }
+            
+            // Also maintain backward compatibility by saving to the old parameters structure
             if (!customBlocks[blockIndex].parameters) {
                 customBlocks[blockIndex].parameters = {};
             }
-            
-            // Save the parameter
             customBlocks[blockIndex].parameters[paramName] = value;
             
             // Update session storage
             sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
+            
+            console.log(`Saved parameter ${paramName}=${value} for block ${blockId} method ${methodName}`);
         }
     } catch (e) {
         console.error(`Error saving parameter ${paramName} for block ${blockId}:`, e);
@@ -3628,7 +3692,7 @@ function updateMethodsDisplay(block, methods, blockId = '') {
                                 const genericParams = [{name: paramName, type: 'Any', required: false}];
                                 const paramValue = savedParams[paramName];
                                 
-                                addParameterRowForMethod(activeParamsContainer, paramName, paramValue, genericParams, blockId);
+                                addParameterRowForMethod(activeParamsContainer, paramName, paramValue, genericParams, blockId, '__init__');
                             }
                         }
                     });

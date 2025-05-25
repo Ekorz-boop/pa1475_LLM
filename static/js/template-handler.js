@@ -1255,7 +1255,7 @@ class TemplateHandler {
                                                 
                                                 if (typeof addParameterRowForMethod === 'function') {
                                                     // Add parameter row if the function exists
-                                                    const newRow = addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockData.id);
+                                                    const newRow = addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockData.id, '__init__');
                                                     console.log(`Added missing parameter row for ${paramName}`);
                                                 }
                                             }
