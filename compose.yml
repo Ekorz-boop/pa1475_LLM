@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  raggie:
+    image: raggie-app
+    build: .
+    ports:
+      - "8000:5000"
+    # volumes:
+    # General data folder for the database and other persistent data
+    # - local_data:/app/instance
+    # Directory for user uploads or other persistent file storage
+    # - local_files:/app/files
+    environment:
+      - SECRET_KEY="your_production_secret_key_here"
+      - DATABASE_URL=sqlite:////app/instance/app.db
+      # Mail settings
+      - MAIL_SERVER=""
+      - MAIL_PORT=587
+      - MAIL_USE_TLS=True
+      - MAIL_USERNAME=""
+      - MAIL_PASSWORD=""
+      - MAIL_DEFAULT_SENDER=""
