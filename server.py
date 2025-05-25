@@ -648,7 +648,7 @@ def generate_python_code(
                     # Format the value properly (existing logic)
                     if isinstance(param_value, str):
                         if "files/" in param_value:
-                            # Handle file paths (existing logic)
+                            # If there are multiple comma-separated paths, handle each one
                             file_paths = [
                                 path.strip() for path in param_value.split(",")
                             ]
@@ -656,6 +656,7 @@ def generate_python_code(
 
                             for path in file_paths:
                                 if path.startswith("files/"):
+                                    # Make path relative to the files directory
                                     formatted_paths.append(
                                         f'os.path.normpath(os.path.join("files", "{os.path.basename(path)}"))'
                                     )
@@ -669,8 +670,91 @@ def generate_python_code(
                                 else:
                                     formatted_paths.append(path)
 
+                            # Join multiple paths if needed
                             if len(formatted_paths) > 1:
-                                param_value = f"[{', '.join(formatted_paths)}]"
+                                # For common document loaders, use a list of file paths
+                                if (
+                                    "document_loaders" in class_name.lower()
+                                    or "loader" in class_name.lower()
+                                    or hasattr(block, "component_type")
+                                    and block.component_type == "document_loaders"
+                                ):
+                                    param_value = f"[{', '.join(formatted_paths)}]"
+
+                                    # Special handling for specific loaders
+                                    if (
+                                        param_name == "file_path"
+                                        and block_id not in special_init_blocks
+                                    ):
+                                        # Mark this block as specially initialized
+                                        special_init_blocks.add(block_id)
+
+                                        # Add extra code for multi-file loading
+                                        multi_load_comment = (
+                                            f"# Handle multiple files for {class_name}"
+                                        )
+                                        init_code_lines.append(multi_load_comment)
+
+                                        # Find next available variable name
+                                        i = 1
+                                        while f"docs_{i}" in block_vars.values():
+                                            i += 1
+
+                                        result_var = f"docs_{i}"
+
+                                        # Generate code to load multiple documents - ensure path normalization
+                                        init_code_lines.append(f"{result_var} = []")
+                                        # Use raw strings for file paths to avoid issues with Windows backslashes
+                                        init_code_lines.append(
+                                            "# Normalize paths for cross-platform compatibility"
+                                        )
+                                        init_code_lines.append(
+                                            f"file_paths = [os.path.normpath(p) for p in {param_value}]"
+                                        )
+                                        init_code_lines.append(
+                                            "for file_path in file_paths:"
+                                        )
+                                        init_code_lines.append(
+                                            '    print(f"Loading {file_path}...")'
+                                        )
+                                        init_code_lines.append("    try:")
+                                        init_code_lines.append(
+                                            f"        loader = {class_name}(file_path)"
+                                        )
+                                        init_code_lines.append(
+                                            f"        {result_var}.extend(loader.load())"
+                                        )
+                                        init_code_lines.append(
+                                            '        print(f"Successfully loaded {file_path}")'
+                                        )
+                                        init_code_lines.append(
+                                            "    except Exception as e:"
+                                        )
+                                        init_code_lines.append(
+                                            '        print(f"Error loading {file_path}: {e}")'
+                                        )
+
+                                        # Store reference to the first file (if available) for compatibility
+                                        init_code_lines.append(
+                                            "# Create a reference loader with the first file path"
+                                        )
+                                        init_code_lines.append("if file_paths:")
+                                        init_code_lines.append(
+                                            f"    {var_name} = {class_name}(file_paths[0])"
+                                        )
+                                        init_code_lines.append(
+                                            f"    {var_name}_output = {result_var}"
+                                        )
+                                        init_code_lines.append("else:")
+                                        init_code_lines.append(
+                                            '    print("Warning: No valid file paths provided")'
+                                        )
+
+                                        # Skip adding this parameter since we're handling it specially
+                                        continue
+                                else:
+                                    # Default behavior for other parameters with multiple values
+                                    param_value = f"[{', '.join(formatted_paths)}]"
                             else:
                                 param_value = formatted_paths[0]
                         elif ("embedding") in param_value:
