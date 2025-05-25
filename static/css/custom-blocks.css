@@ -712,3 +712,65 @@
     margin: 0 0 8px 0;
     box-sizing: border-box;
 }
+
+/* Late initialization toggle styles */
+.block-options {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    background: rgba(0, 123, 255, 0.05);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 123, 255, 0.1);
+}
+
+.late-init-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.late-init-toggle {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #007bff;
+}
+
+.late-init-label {
+    cursor: pointer;
+    color: #007bff;
+    font-weight: 600;
+    user-select: none;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.late-init-label:hover {
+    color: #0056b3;
+}
+
+/* When late init is enabled */
+.late-init-toggle:checked + .late-init-label {
+    color: #28a745;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .block-options {
+    background: rgba(0, 123, 255, 0.1);
+    border-color: rgba(0, 123, 255, 0.2);
+}
+
+[data-theme="dark"] .late-init-label {
+    color: #4dabf7;
+}
+
+[data-theme="dark"] .late-init-label:hover {
+    color: #74c0fc;
+}
+
+[data-theme="dark"] .late-init-toggle:checked + .late-init-label {
+    color: #51cf66;
+}

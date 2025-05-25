@@ -182,14 +182,17 @@ def export_blocks():
                 def __init__(self):
                     super().__init__()
                     self.block_type = block_type
-                    self.class_name = None  # Will be set properly based on block_type
-                    self.module_path = ""  # Default empty module path
+                    self.class_name = None
+                    self.module_path = ""
                     self.config = config
-                    self.component_type = ""  # Default empty component type
+                    self.component_type = ""
                     self.selected_methods = []
-                    self.parameters = {}  # Store parameter info for methods
-                    self.static_methods = []  # Store list of static methods
-                    self.class_methods = []  # Store list of class methods
+                    self.parameters = {}
+                    self.static_methods = []
+                    self.class_methods = []
+
+                    # Handle late initialization setting
+                    self.late_initialization = config.get("late_initialization", False)
 
                     # Special handling for Godpromptblock
                     if block_type == "godprompt":
@@ -356,6 +359,12 @@ Question: {{question}}\"\"\"
                         for method in self.methods:
                             self.parameters[method] = []
 
+                    # Extract method-specific parameters
+                    if "method_parameters" in config:
+                        self.method_parameters = config["method_parameters"]
+                    else:
+                        self.method_parameters = {}
+
                 def validate_connections(self) -> bool:
                     return True
 
@@ -496,13 +505,12 @@ Question: {{question}}\"\"\"
 def generate_python_code(
     blocks, connections, method_connections=None, connections_data=None
 ):
-    """Generate Python code for blocks and connections similar to block_sim.py logic."""
+    """Generate Python code for blocks and connections with late initialization support."""
     # Determine execution order
     execution_order = determine_execution_order(blocks, connections)
 
     # Initialize collections
     imports = set()
-    # Always include OS module for file operations
     imports.add("import os")
     init_code_lines = []
     method_code_lines = []
@@ -512,34 +520,41 @@ def generate_python_code(
 
     # Track blocks that have already been initialized with special handling
     special_init_blocks = set()
+    
+    # Track blocks with late initialization enabled
+    late_init_blocks = set()
+    
+    # Track which blocks have been initialized (for late init)
+    initialized_blocks = set()
 
-    # First scan to collect all imports upfront
-    # print(f"Processing {len(blocks)} blocks for imports...")
+    # First scan to collect all imports upfront and identify late init blocks
     for block_id, block in blocks.items():
-        # Only add non-comment imports
-        # print(f"Processing block {block_id} with import string: {block.import_string}")
-        if (
-            hasattr(block, "import_string")
-            and block.import_string
-            and not block.import_string.startswith("#")
-        ):
-            if not (
-                block.import_string
-                == "from custom_blocks.prompt_templates import GodpromptBlock"
-            ):
+        # Check for late initialization setting
+        if (hasattr(block, "config") and block.config and 
+            block.config.get("late_initialization", False)):
+            late_init_blocks.add(block_id)
+            print(f"Block {block_id} marked for late initialization")
+
+        # Collect imports
+        if (hasattr(block, "import_string") and block.import_string and 
+            not block.import_string.startswith("#")):
+            if not (block.import_string == 
+                   "from custom_blocks.prompt_templates import GodpromptBlock"):
                 imports.add(block.import_string)
-            # print(f"Added import: {block.import_string}")
-        # Fallback for blocks with module path but no import string
-        elif (
-            hasattr(block, "module_path")
-            and block.module_path
-            and hasattr(block, "class_name")
-        ):
+        elif (hasattr(block, "module_path") and block.module_path and 
+              hasattr(block, "class_name")):
             import_statement = f"from {block.module_path} import {block.class_name}"
             imports.add(import_statement)
-            # print(f"Added generated import: {import_statement}")
 
-    # print(f"\nCollected {len(imports)} imports: {imports}")
+        # Check if this block uses file paths
+        if hasattr(block, "config") and block.config:
+            if "parameters" in block.config and isinstance(
+                block.config["parameters"], dict
+            ):
+                for param_name, param_value in block.config["parameters"].items():
+                    if isinstance(param_value, str) and "files/" in param_value:
+                        has_file_paths = True
+                        break
 
     # Create variable names for each block
     block_vars = {}
@@ -551,20 +566,9 @@ def generate_python_code(
         var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
-        # Check if this block uses file paths
-        if hasattr(block, "config") and block.config:
-            # First check for parameters dictionary
-            if "parameters" in block.config and isinstance(
-                block.config["parameters"], dict
-            ):
-                for param_name, param_value in block.config["parameters"].items():
-                    if isinstance(param_value, str) and "files/" in param_value:
-                        has_file_paths = True
-                        break
-
     # Build connection maps for easier processing
-    connection_map = {}  # source -> [targets]
-    reverse_connection_map = {}  # target -> [sources]
+    connection_map = {}
+    reverse_connection_map = {}
 
     for source_id, targets in connections.items():
         if source_id not in connection_map:
@@ -575,187 +579,114 @@ def generate_python_code(
                 reverse_connection_map[target_id] = []
             reverse_connection_map[target_id].append(source_id)
 
-    # First, handle all block initializations in the proper order
-    for block_id in execution_order:
-        block = blocks[block_id]
-        var_name = block_vars[block_id]
-        class_name = (
-            block.class_name if hasattr(block, "class_name") else type(block).__name__
-        )
+    # Function to get method-specific parameters for a block
+    def get_method_parameters(block, method_name):
+        """Extract parameters that belong to a specific method."""
+        method_params = []
+        
+        if not hasattr(block, "config") or not block.config:
+            return method_params
+            
+        # For late init blocks, we need to determine which parameters belong to which methods
+        if hasattr(block, "config") and "parameters" in block.config:
+            for param_name, param_value in block.config["parameters"].items():
+                if param_value == "":
+                    continue
+                    
+                # For late init blocks, assume all non-init parameters belong to the selected method
+                # For regular blocks, don't add parameters to method calls unless they're method-specific
+                if block_id in late_init_blocks and method_name != "__init__":
+                    # Format the parameter value
+                    if isinstance(param_value, str) and not (
+                        param_value.startswith(("'", '"', "[", "{", "True", "False", "None")) or 
+                        param_value.isdigit()
+                    ):
+                        param_value = f'"{param_value}"'
+                    method_params.append(f"{param_name}={param_value}")
+        
+        return method_params
 
+    # Function to initialize a block (used for both regular and late initialization)
+    def initialize_block(block_id, block, var_name, class_name):
+        if block_id in initialized_blocks:
+            return  # Already initialized
+            
         # Build initialization parameters
         init_params = []
+        
         if hasattr(block, "config") and block.config:
-            # First check for parameters dictionary (from dropdown UI)
+            # For late init blocks, only include parameters that are specifically for __init__
+            # For regular blocks, include all parameters
             if "parameters" in block.config and isinstance(
                 block.config["parameters"], dict
             ):
                 for param_name, param_value in block.config["parameters"].items():
+                    # For late init blocks, skip parameters that belong to methods
+                    if block_id in late_init_blocks:
+                        # Only include parameters that are explicitly for __init__
+                        # In this simplified version, we assume late init blocks don't need init params
+                        # unless they're specifically marked as __init__ parameters
+                        continue
+                        
                     # Skip empty string values
                     if param_value == "":
                         continue
 
-                    # Format the value properly
+                    # Format the value properly (existing logic)
                     if isinstance(param_value, str):
-                        # Special handling for file paths
                         if "files/" in param_value:
-                            # If there are multiple comma-separated paths, handle each one
-                            file_paths = [
-                                path.strip() for path in param_value.split(",")
-                            ]
+                            # Handle file paths (existing logic)
+                            file_paths = [path.strip() for path in param_value.split(",")]
                             formatted_paths = []
 
                             for path in file_paths:
                                 if path.startswith("files/"):
-                                    # Make path relative to the files directory
                                     formatted_paths.append(
                                         f'os.path.normpath(os.path.join("files", "{os.path.basename(path)}"))'
                                     )
-                                elif not (
-                                    path.startswith(
-                                        ("'", '"', "[", "{", "True", "False", "None")
-                                    )
-                                    or path.isdigit()
-                                ):
+                                elif not (path.startswith(("'", '"', "[", "{", "True", "False", "None")) or path.isdigit()):
                                     formatted_paths.append(f'"{path}"')
                                 else:
                                     formatted_paths.append(path)
 
-                            # Join multiple paths if needed
                             if len(formatted_paths) > 1:
-                                # For common document loaders, use a list of file paths
-                                if (
-                                    "document_loaders" in class_name.lower()
-                                    or "loader" in class_name.lower()
-                                    or hasattr(block, "component_type")
-                                    and block.component_type == "document_loaders"
-                                ):
-                                    param_value = f"[{', '.join(formatted_paths)}]"
-
-                                    # Special handling for specific loaders
-                                    if (
-                                        param_name == "file_path"
-                                        and block_id not in special_init_blocks
-                                    ):
-                                        # Mark this block as specially initialized
-                                        special_init_blocks.add(block_id)
-
-                                        # Add extra code for multi-file loading
-                                        multi_load_comment = (
-                                            f"# Handle multiple files for {class_name}"
-                                        )
-                                        init_code_lines.append(multi_load_comment)
-
-                                        # Find next available variable name
-                                        i = 1
-                                        while f"docs_{i}" in block_vars.values():
-                                            i += 1
-
-                                        result_var = f"docs_{i}"
-
-                                        # Generate code to load multiple documents - ensure path normalization
-                                        init_code_lines.append(f"{result_var} = []")
-                                        # Use raw strings for file paths to avoid issues with Windows backslashes
-                                        init_code_lines.append(
-                                            "# Normalize paths for cross-platform compatibility"
-                                        )
-                                        init_code_lines.append(
-                                            f"file_paths = [os.path.normpath(p) for p in {param_value}]"
-                                        )
-                                        init_code_lines.append(
-                                            "for file_path in file_paths:"
-                                        )
-                                        init_code_lines.append(
-                                            '    print(f"Loading {file_path}...")'
-                                        )
-                                        init_code_lines.append("    try:")
-                                        init_code_lines.append(
-                                            f"        loader = {class_name}(file_path)"
-                                        )
-                                        init_code_lines.append(
-                                            f"        {result_var}.extend(loader.load())"
-                                        )
-                                        init_code_lines.append(
-                                            '        print(f"Successfully loaded {file_path}")'
-                                        )
-                                        init_code_lines.append(
-                                            "    except Exception as e:"
-                                        )
-                                        init_code_lines.append(
-                                            '        print(f"Error loading {file_path}: {e}")'
-                                        )
-
-                                        # Store reference to the first file (if available) for compatibility
-                                        init_code_lines.append(
-                                            "# Create a reference loader with the first file path"
-                                        )
-                                        init_code_lines.append("if file_paths:")
-                                        init_code_lines.append(
-                                            f"    {var_name} = {class_name}(file_paths[0])"
-                                        )
-                                        init_code_lines.append(
-                                            f"    {var_name}_output = {result_var}"
-                                        )
-                                        init_code_lines.append("else:")
-                                        init_code_lines.append(
-                                            '    print("Warning: No valid file paths provided")'
-                                        )
-
-                                        # Skip adding this parameter since we're handling it specially
-                                        continue
-                                else:
-                                    # Default behavior for other parameters with multiple values
-                                    param_value = f"[{', '.join(formatted_paths)}]"
+                                param_value = f"[{', '.join(formatted_paths)}]"
                             else:
                                 param_value = formatted_paths[0]
                         elif ("embedding") in param_value:
-                            # In this case we dont want the value to be a string, but to refer to a block with this name
-                            # Remove quotes if they exist and keep as variable reference
                             param_value = param_value.strip("\"'")
-                        elif not (
-                            param_value.startswith(
-                                ("'", '"', "[", "{", "True", "False", "None")
-                            )
-                            or param_value.isdigit()
-                        ):
+                        elif not (param_value.startswith(("'", '"', "[", "{", "True", "False", "None")) or param_value.isdigit()):
                             param_value = f'"{param_value}"'
 
                     init_params.append(f"{param_name}={param_value}")
 
-            # Then add other parameters from config (excluding non-initialization ones)
-            for param_name, param_value in block.config.items():
-                # Skip non-initialization parameters, class_name and parameters dict itself
-                if param_name in [
-                    "methods",
-                    "selected_methods",
-                    "selected_method",
-                    "class_name",
-                    "parameters",
-                ]:
-                    continue
-
-                # Skip empty string values
-                if param_value == "":
-                    continue
-
-                # Format the value properly
-                if isinstance(param_value, str):
-                    if not (
-                        param_value.startswith(
-                            ("'", '"', "[", "{", "True", "False", "None")
-                        )
-                        or param_value.isdigit()
-                    ):
-                        param_value = f'"{param_value}"'
-
-                init_params.append(f"{param_name}={param_value}")
-
-        # Add initialization code - only if not specially initialized
-        if block_id not in special_init_blocks:
+        # Add initialization code
+        if block_id in late_init_blocks:
+            # For late init blocks, add to method_code_lines instead of init_code_lines
+            method_code_lines.append(f"# Initialize {class_name} (late initialization)")
+            if init_params:
+                method_code_lines.append(f"{var_name} = {class_name}({', '.join(init_params)})")
+            else:
+                method_code_lines.append(f"{var_name} = {class_name}()")
+        else:
+            # For regular blocks, add to init_code_lines
             init_code_lines.append(f"# Initialize {class_name}")
-            init_code_lines.append(
-                f"{var_name} = {class_name}({', '.join(init_params)})"
+            if init_params:
+                init_code_lines.append(f"{var_name} = {class_name}({', '.join(init_params)})")
+            else:
+                init_code_lines.append(f"{var_name} = {class_name}()")
+        
+        initialized_blocks.add(block_id)
+
+    # Handle regular initialization for non-late-init blocks
+    for block_id in execution_order:
+        if block_id not in late_init_blocks and block_id not in special_init_blocks:
+            block = blocks[block_id]
+            var_name = block_vars[block_id]
+            class_name = (
+                block.class_name if hasattr(block, "class_name") else type(block).__name__
             )
+            initialize_block(block_id, block, var_name, class_name)
 
     # Track processed methods to avoid duplicates
     processed_methods = {block_id: set() for block_id in blocks}
@@ -767,18 +698,9 @@ def generate_python_code(
         class_name = (
             block.class_name if hasattr(block, "class_name") else type(block).__name__
         )
-        # component_type = (
-        #    block.component_type if hasattr(block, "component_type") else ""
-        # )
-
-        # Get the selected method from config if available
-        selected_method = None
-        if hasattr(block, "config") and block.config:
-            selected_method = block.config.get("selected_method")
 
         # Get methods for this block (excluding __init__)
         methods_to_execute = []
-        # First check for explicitly selected methods
         if hasattr(block, "config") and block.config:
             if "selected_methods" in block.config and isinstance(
                 block.config["selected_methods"], list
@@ -787,7 +709,6 @@ def generate_python_code(
                     m for m in block.config["selected_methods"] if m != "__init__"
                 ]
 
-        # If no selected methods in config, try block attributes
         if not methods_to_execute:
             if hasattr(block, "methods"):
                 methods_to_execute = [m for m in block.methods if m != "__init__"]
@@ -796,134 +717,114 @@ def generate_python_code(
                     m for m in block.selected_methods if m != "__init__"
                 ]
 
-        # Prioritize specific selected method if available
-        if selected_method and selected_method != "__init__":
-            # Make sure selected_method is at the start of the list
-            if selected_method in methods_to_execute:
-                methods_to_execute.remove(selected_method)
-            methods_to_execute.insert(0, selected_method)
-
         # Make sure we have unique methods
         methods_to_execute = list(dict.fromkeys(methods_to_execute))
 
-        # If no methods are available, don't execute any methods
         if not methods_to_execute:
             continue
 
+        # For late init blocks, initialize just before first method execution
+        if block_id in late_init_blocks and block_id not in initialized_blocks:
+            initialize_block(block_id, block, var_name, class_name)
+
         # Execute methods for this block
         for method_name in methods_to_execute:
-            # if method_name == "load" and block_id in special_init_blocks:
-            #     continue
-
-            # method_code_lines.append(f"# Execute {method_name} on {class_name}")
             print(f"Generating code for method {method_name} on {class_name}")
 
+            # Handle from_documents method replacement
+            if method_name == "from_documents" and block_id in late_init_blocks:
+                # For from_documents, we replace the initialization entirely
+                method_code_lines.append(f"# Using {class_name}.from_documents instead of initialization")
+                
+                # Get method-specific parameters
+                method_params = get_method_parameters(block, method_name)
+
+                # Get source parameters from connections
+                source_params = []
+                if method_connections and block_id in method_connections:
+                    if method_name in method_connections[block_id]:
+                        method_specific_sources = method_connections[block_id][method_name]
+                        for source_info in method_specific_sources:
+                            source_id = source_info["block_id"]
+                            source_method = source_info["method"]
+                            source_var = block_vars[source_id]
+                            if source_method:
+                                source_params.append(f"{source_var}_{source_method}_output")
+                            else:
+                                source_params.append(f"{source_var}_output")
+
+                # Combine source params and method params
+                all_params = source_params + method_params
+                
+                # Generate from_documents call
+                if all_params:
+                    method_code_lines.append(
+                        f"{var_name} = {class_name}.{method_name}({', '.join(all_params)})"
+                    )
+                else:
+                    method_code_lines.append(
+                        f"{var_name} = {class_name}.{method_name}()"
+                    )
+                
+                # Mark as initialized since from_documents replaces initialization
+                initialized_blocks.add(block_id)
+                continue
+
+            # Regular method execution logic
             # Check if we should use method-specific connections
             should_use_method_connections = False
             method_specific_sources = []
 
-            print(
-                f"Looking for method-specific connections for {method_name} on {class_name}"
-            )
-
             if method_connections and block_id in method_connections:
-                # If we have the method in our method connections map
                 if method_name in method_connections[block_id]:
                     should_use_method_connections = True
                     method_specific_sources = method_connections[block_id][method_name]
-                    print(
-                        f"Found method-specific sources for {method_name} on {class_name}: {method_specific_sources}"
-                    )
-                else:
-                    print(
-                        f"No method-specific connections for {method_name} on {class_name}, using general connections"
-                    )
-            else:
-                print(f"No method connections for block {block_id} ({class_name})")
 
             source_params = []
-
-            # If this block has incoming method-specific connections, use them as parameters
             if should_use_method_connections and method_specific_sources:
-                # Use method-specific connections
                 for source_info in method_specific_sources:
                     source_id = source_info["block_id"]
                     source_method = source_info["method"]
                     source_var = block_vars[source_id]
-
                     if source_method:
                         source_params.append(f"{source_var}_{source_method}_output")
-                        print(
-                            f"Using specific method output: {source_var}_{source_method}_output"
-                        )
                     else:
                         source_params.append(f"{source_var}_output")
-                        print(f"Using general output: {source_var}_output")
 
-            # Now generate the method call code, with or without parameters
+            # Get method-specific parameters - only for late init blocks
+            method_params = []
+            if block_id in late_init_blocks:
+                method_params = get_method_parameters(block, method_name)
+
+            # Combine source params and method params
+            all_params = source_params + method_params
+
             # Determine the method type to generate appropriate call syntax
             method_is_static = False
             method_is_classmethod = False
 
-            # Check if this method is marked as static or classmethod in the block config
             if hasattr(block, "config") and block.config:
                 static_methods = block.config.get("static_methods", [])
                 class_methods = block.config.get("class_methods", [])
                 method_is_static = method_name in static_methods
                 method_is_classmethod = method_name in class_methods
 
-            if source_params:
-                # Filter out any empty parameters
-                filtered_params = [p for p in source_params if p and p.strip() != ""]
-
-                # Generate different call syntax based on method type
+            # Generate method call
+            if all_params:
+                filtered_params = [p for p in all_params if p and p.strip() != ""]
                 if method_is_static:
-                    # For static methods, call on the class directly
-                    if len(filtered_params) == 1:
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({filtered_params[0]})"
-                        )
-                    elif len(filtered_params) > 1:
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
-                        )
-                    else:
-                        # Empty filtered_params list - call without parameters
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
-                        )
+                    method_code_lines.append(
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
+                    )
                 elif method_is_classmethod:
-                    # For class methods, also call on the class directly
-                    if len(filtered_params) == 1:
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({filtered_params[0]})"
-                        )
-                    elif len(filtered_params) > 1:
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
-                        )
-                    else:
-                        # Empty filtered_params list - call without parameters
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
-                        )
+                    method_code_lines.append(
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
+                    )
                 else:
-                    # For instance methods, call on the instance (existing behavior)
-                    if len(filtered_params) == 1:
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {var_name}.{method_name}({filtered_params[0]})"
-                        )
-                    elif len(filtered_params) > 1:
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
-                        )
-                    else:
-                        # Empty filtered_params list - call without parameters
-                        method_code_lines.append(
-                            f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
-                        )
+                    method_code_lines.append(
+                        f"{var_name}_{method_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
+                    )
             else:
-                # No parameters at all, call method without arguments
                 if method_is_static:
                     method_code_lines.append(
                         f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
@@ -937,10 +838,7 @@ def generate_python_code(
                         f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
                     )
 
-            # Mark this method as processed
             processed_methods[block_id].add(method_name)
-
-            # If it's the selected method, we can stop after processing it
 
     # Collect clean lines for the final code
     clean_code_lines = []
@@ -955,7 +853,6 @@ def generate_python_code(
     # Add imports at the top
     clean_code_lines.append("# Imports")
     for imp in sorted(list(imports)):
-        # Skip the placeholder import for GodpromptBlock
         if not imp.startswith("# Custom Godpromptblock"):
             clean_code_lines.append(imp)
     clean_code_lines.append("")
@@ -1022,9 +919,20 @@ def generate_python_code(
             else type(last_block).__name__
         )
 
+        # Find the last method executed
+        last_method = None
+        if hasattr(last_block, "config") and last_block.config:
+            if "selected_methods" in last_block.config:
+                methods = [m for m in last_block.config["selected_methods"] if m != "__init__"]
+                if methods:
+                    last_method = methods[-1]
+
         clean_code_lines.append("# Print the final result")
         clean_code_lines.append(f'print("\\nFinal result from {last_class}:")')
-        clean_code_lines.append(f"print({last_var}_output)")
+        if last_method:
+            clean_code_lines.append(f"print({last_var}_{last_method}_output)")
+        else:
+            clean_code_lines.append(f"print({last_var})")
 
     # Generate the final code
     final_code = []
@@ -1681,6 +1589,9 @@ def create_custom_block():
                 self.methods = methods
                 self.class_name = class_name
                 self.module_path = module_path
+
+                # Handle late initialization setting
+                self.late_initialization = parameters.get("late_initialization", False)
 
             def validate_connections(self) -> bool:
                 # Basic validation - could be enhanced based on specific requirements

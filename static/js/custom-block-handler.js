@@ -1722,6 +1722,12 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                     </div>
             </div>
             <div class="block-content">
+                <div class="block-options">
+                    <div class="late-init-container">
+                        <input type="checkbox" id="late-init-${blockId}" class="late-init-toggle" title="Enable late initialization - moves class initialization to just before first method usage">
+                        <label for="late-init-${blockId}" class="late-init-label">Late Init</label>
+                    </div>
+                </div>
                 <select class="method-select" title="Select method to execute">
                     <option value="" disabled selected>Select method...</option>
                 </select>

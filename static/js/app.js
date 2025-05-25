@@ -1401,6 +1401,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switch (type) {
             case 'custom':
+                // Get late initialization setting
+                const lateInitToggle = block.querySelector('.late-init-toggle');
+                if (lateInitToggle) {
+                    config.late_initialization = lateInitToggle.checked;
+                }
+
                 // For custom blocks, get the selected method
                 const methodSelect = block.querySelector('.method-select');
                 if (methodSelect && methodSelect.value) {
@@ -1412,42 +1418,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (methodRows.length > 0) {
                     const activeMethods = Array.from(methodRows).map(row =>
                         row.getAttribute('data-method')
-                    ).filter(m => m); // Filter out empty values
+                    ).filter(m => m);
 
-                    // Always include __init__ as the first method
                     if (!activeMethods.includes('__init__')) {
                         activeMethods.unshift('__init__');
                     }
 
-                    // Store the active methods in config
                     config.selected_methods = activeMethods;
 
-                    // If no single method is selected, use the first active method
                     if (!config.selected_method && activeMethods.length > 1) {
-                        config.selected_method = activeMethods[1]; // Use first non-init method
+                        config.selected_method = activeMethods[1];
                     }
                 }
 
-                // Get any parameter values - support both dropdown and text input
+                // Get parameter values - separate init params from method params
                 const paramRows = block.querySelectorAll('.parameter-row');
                 if (paramRows.length > 0) {
                     config.parameters = {};
+                    config.method_parameters = {}; // New: separate method parameters
 
                     paramRows.forEach(row => {
-                        // Check for dropdown parameter selector first (new style)
-                        const nameDropdown = row.querySelector('.param-name-select');
+                        const nameSelect = row.querySelector('.param-name-select');
                         const nameInput = row.querySelector('.param-name');
                         const valueInput = row.querySelector('.param-value');
+                        const methodName = row.getAttribute('data-method') || '__init__';
 
                         let paramName = '';
-                        if (nameDropdown && nameDropdown.value) {
-                            paramName = nameDropdown.value;
+                        if (nameSelect && nameSelect.value) {
+                            paramName = nameSelect.value;
                         } else if (nameInput && nameInput.value) {
                             paramName = nameInput.value;
                         }
 
                         if (paramName && valueInput) {
-                            config.parameters[paramName] = valueInput.value;
+                            const value = valueInput.value;
+                            if (methodName === '__init__') {
+                                config.parameters[paramName] = value;
+                            } else {
+                                if (!config.method_parameters[methodName]) {
+                                    config.method_parameters[methodName] = {};
+                                }
+                                config.method_parameters[methodName][paramName] = value;
+                            }
                         }
                     });
                 }

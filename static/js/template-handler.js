@@ -464,6 +464,12 @@ class TemplateHandler {
                     }
                 }
                 
+                // Capture late initialization setting
+                const lateInitToggle = blockEl.querySelector('.late-init-toggle');
+                if (lateInitToggle) {
+                    blockConfig.late_initialization = lateInitToggle.checked;
+                }
+                
                 blocks[blockId] = {
                     id: blockId,
                     type: blockType,
