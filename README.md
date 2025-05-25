@@ -76,31 +76,38 @@ graph TD
     F -.-> F1
 ```
 
-## Installation
+## Prerequisites
 
-### Prerequisites
-
-- Python 3.11+ 
+- Python 3.11+
 - pip (Python package manager)
 - Git (optional, for cloning the repository)
 - Docker (optional, for containerized deployment)
 
-### Step 1: Clone the Repository
+## Run in Docker
 
-```bash
-git clone https://github.com/Ekorz-boop/pa1475_LLM.git
-cd pa1475_LLM
+RAGgie can be easily used with Docker.
+Just run `docker compose` to build and start the application:
+
+```sh
+docker compose up
+# or, to run in detached mode
+docker compose up -d
 ```
 
-Or download and extract the ZIP file from the repository.
+Configure the environment variables or volume mappings in the `compose.yml` file.
+The used SQLite database (`app.db`) in the `instance/` directory can be persisted by mapping it to a Docker volume or a host directory, as shown in the `compose.yml`.
 
-### Step 2: Install Dependencies
+Once the container is running, access RAGgie at `http://localhost:5000` (or your custom IP address and port).
+
+## Run Locally
+
+### Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 3: Configure Environment Variables
+### Configure Environment Variables
 
 For both local development and production deployments, RAGgie uses environment variables for configuration. You can create a `.env` file in the root directory of the project to manage these settings. This file is loaded by some environments (like `python-dotenv` if you add it, or Docker Compose's `env_file` feature), but the application itself primarily expects these to be set in the shell environment or passed during Docker runtime.
 
@@ -139,7 +146,7 @@ MAIL_DEFAULT_SENDER=your_email@gmail.com
 
 **Note:** `server.py` and `init_db.py` are coded to correctly determine the database path for local execution (creating `instance/app.db`). The `DATABASE_URL` in `.env` for local use primarily serves as an override or for clarity if you choose to use it. For Docker, the `DATABASE_URL` is set in the `Dockerfile` and can be overridden at runtime.
 
-### Step 4: Initialize the Database (for Local Setup)
+### Initialize the Database (for Local Setup)
 
 ```bash
 python init_db.py
@@ -157,7 +164,7 @@ This creates the database and an initial admin user:
 - **Database (`instance/app.db`)**: The application, whether run directly or inside Docker, is coded to look for the SQLite database (`app.db`) in an `instance/` directory relative to the application root (e.g., `/app/instance/app.db` inside the container).
 - **User Files (`files/`)**: The `files/` directory (used for uploads, etc.).
 
-### Step 5: Run the Application (for Local Setup)
+### Run the Application (for Local Setup)
 
 ```bash
 python server.py
@@ -317,21 +324,6 @@ This section provides guidance on deploying RAGgie to a production environment.
 - **Database**: While SQLite is convenient for development, consider a more robust database like PostgreSQL or MySQL for larger-scale production deployments. Update the `DATABASE_URL` environment variable accordingly.
 - **HTTPS**: Always serve the application over HTTPS in production. This is typically handled by a reverse proxy.
 
-### Docker Deployment
-
-RAGgie can be easily used with Docker.
-Just run `docker compose` to build and start the application:
-
-```sh
-docker compose up
-# or, to run in detached mode
-docker compose up -d
-```
-
-Configure the environment variables or volume mappings in the `compose.yml` file.
-The used SQLite database (`app.db`) in the `instance/` directory can be persisted by mapping it to a Docker volume or a host directory, as shown in the `compose.yml`.
-
-Once the container is running, access RAGgie at `http://localhost:5000` (or your custom IP address and port).
 
 ## Troubleshooting
 
