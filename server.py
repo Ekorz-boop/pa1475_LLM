@@ -597,19 +597,25 @@ def generate_python_code(
 
         if not hasattr(block, "config") or not block.config:
             return method_params
-        
-        print(f"DEBUG: Getting method parameters for {method_name} on block with component_type: {getattr(block, 'component_type', 'None')}")
+
+        print(
+            f"DEBUG: Getting method parameters for {method_name} on block with component_type: {getattr(block, 'component_type', 'None')}"
+        )
         print(f"DEBUG: Block config: {block.config}")
-        print(f"DEBUG: Block has component_type attr: {hasattr(block, 'component_type')}")
+        print(
+            f"DEBUG: Block has component_type attr: {hasattr(block, 'component_type')}"
+        )
 
         # First check for method-specific parameters in method_parameters
-        if "method_parameters" in block.config and isinstance(block.config["method_parameters"], dict):
+        if "method_parameters" in block.config and isinstance(
+            block.config["method_parameters"], dict
+        ):
             if method_name in block.config["method_parameters"]:
                 method_specific_params = block.config["method_parameters"][method_name]
                 for param_name, param_value in method_specific_params.items():
                     if param_value == "":
                         continue
-                    
+
                     # Format the parameter value
                     if isinstance(param_value, str) and not (
                         param_value.startswith(
@@ -633,22 +639,36 @@ def generate_python_code(
 
                 # Check if this parameter should belong to this method
                 should_add_param = False
-                
+
                 # For vectorstore search methods, add query parameter
-                if (param_name == "query" and method_name in ["similarity_search", "search", "similarity_search_with_score"]
-                    and hasattr(block, "component_type") and block.component_type == "vectorstores"):
+                if (
+                    param_name == "query"
+                    and method_name
+                    in ["similarity_search", "search", "similarity_search_with_score"]
+                    and hasattr(block, "component_type")
+                    and block.component_type == "vectorstores"
+                ):
                     should_add_param = True
-                    print(f"DEBUG: Adding query parameter to {method_name} method for ALL blocks")
-                
+                    print(
+                        f"DEBUG: Adding query parameter to {method_name} method for ALL blocks"
+                    )
+
                 # For late init blocks, be more permissive with other parameters
-                elif block_id in late_init_blocks and method_name != "__init__" and param_name != "query":
+                elif (
+                    block_id in late_init_blocks
+                    and method_name != "__init__"
+                    and param_name != "query"
+                ):
                     # Exception: For LLM components, 'model' parameter should go to __init__, not method calls
-                    if (hasattr(block, "component_type") and block.component_type in ["llms", "chat_models"] 
-                        and param_name == "model"):
+                    if (
+                        hasattr(block, "component_type")
+                        and block.component_type in ["llms", "chat_models"]
+                        and param_name == "model"
+                    ):
                         should_add_param = False
                     else:
                         should_add_param = True
-                
+
                 if should_add_param:
                     # Format the parameter value
                     if isinstance(param_value, str) and not (
@@ -659,8 +679,6 @@ def generate_python_code(
                     ):
                         param_value = f'"{param_value}"'
                     method_params.append(f"{param_name}={param_value}")
-
-
 
         print(f"DEBUG: Final method params for {method_name}: {method_params}")
         return method_params
@@ -685,8 +703,11 @@ def generate_python_code(
                     if block_id in late_init_blocks:
                         # Only include parameters that are explicitly for __init__
                         # Exception: For LLM components, always include 'model' parameter in __init__
-                        if not (hasattr(block, "component_type") and block.component_type in ["llms", "chat_models"] 
-                                and param_name == "model"):
+                        if not (
+                            hasattr(block, "component_type")
+                            and block.component_type in ["llms", "chat_models"]
+                            and param_name == "model"
+                        ):
                             # In this simplified version, we assume late init blocks don't need init params
                             # unless they're specifically marked as __init__ parameters
                             continue
@@ -698,17 +719,25 @@ def generate_python_code(
                     # Skip parameters that are method-specific (stored in method_parameters)
                     if "method_parameters" in block.config:
                         is_method_param = False
-                        for method_name, method_params in block.config["method_parameters"].items():
-                            if method_name != "__init__" and param_name in method_params:
+                        for method_name, method_params in block.config[
+                            "method_parameters"
+                        ].items():
+                            if (
+                                method_name != "__init__"
+                                and param_name in method_params
+                            ):
                                 is_method_param = True
                                 break
                         if is_method_param:
                             continue
-                    
+
                     # Also check if this parameter name is commonly a method parameter (not init parameter)
                     # For vectorstores like Chroma, 'query' is typically for search methods, not initialization
-                    if (hasattr(block, "component_type") and block.component_type == "vectorstores" 
-                        and param_name == "query"):
+                    if (
+                        hasattr(block, "component_type")
+                        and block.component_type == "vectorstores"
+                        and param_name == "query"
+                    ):
                         continue
 
                     # Format the value properly (existing logic)
@@ -756,9 +785,7 @@ def generate_python_code(
                                         special_init_blocks.add(block_id)
 
                                         # Add extra code for multi-file loading
-                                        multi_load_comment = (
-                                            f"# Handle multiple files for {class_name} (no separate initialization needed)"
-                                        )
+                                        multi_load_comment = f"# Handle multiple files for {class_name} (no separate initialization needed)"
                                         init_code_lines.append(multi_load_comment)
 
                                         # Find next available variable name
