@@ -1,6 +1,6 @@
 # RAGgie: Retrieval Augmented Generation Pipeline Builder
 
-![RAGgie Logo](static/images/icons/raggie-logo.png)
+<p align="center"><img src="static/images/icons/raggie-logo.png"></p>
 
 RAGgie is a powerful, user-friendly web application for creating, testing, and exporting Retrieval Augmented Generation (RAG) pipelines. It provides a visual block-based interface where users can connect various LLM components to build custom RAG workflows without writing code.
 
