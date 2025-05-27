@@ -15,6 +15,10 @@ RAGgie simplifies the process of building Retrieval Augmented Generation (RAG) p
 
 The application is built with Flask on the backend and vanilla JavaScript on the frontend, making it lightweight and easy to deploy.
 
+![image](https://github.com/user-attachments/assets/57daa554-9f21-4ef4-8e7a-d141f5e7ba0d)
+
+
+
 ## Features
 
 - **Visual Block Editor**: Drag-and-drop interface for creating pipelines
