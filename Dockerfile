@@ -16,8 +16,8 @@ COPY . .
 # Ensure the instance directory exists for the SQLite database
 RUN mkdir -p instance
 
-# Make port 5000 available to the world outside this container
-EXPOSE 5000
+# Make port 8000 available to the world outside this container
+EXPOSE 8000
 
 # Environment variable to indicate running inside Docker
 ENV IS_DOCKER=true
@@ -25,4 +25,4 @@ ENV IS_DOCKER=true
 # Run the command to start the Gunicorn server
 # The init_db.py script will be run if the database doesn't exist,
 # or you can run it manually when first setting up a persistent volume.
-CMD ["sh", "-c", "python init_db.py && gunicorn -w 4 -b 0.0.0.0:5000 server:app"]
+CMD ["sh", "-c", "python init_db.py && gunicorn -w 4 -b 0.0.0.0:8000 server:app"]
