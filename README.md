@@ -82,7 +82,7 @@ docker compose up -d
 Configure the environment variables or volume mappings in the `compose.yml` file.
 The used SQLite database (`app.db`) in the `instance/` directory can be persisted by mapping it to a Docker volume or a host directory, as shown in the `compose.yml`.
 
-Once the container is running, access RAGgie at `http://localhost:5000` (or your custom IP address and port).
+Once the container is running, access RAGgie at `http://localhost:8000` (or your custom IP address and port).
 
 ## Run Locally
 
@@ -155,13 +155,13 @@ This creates the database and an initial admin user:
 python server.py
 ```
 
-Visit [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+Visit [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
 
 ## Getting Started
 
 ### First Login
 
-1. Navigate to [http://127.0.0.1:5000](http://127.0.0.1:5000)
+1. Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000)
 2. Log in with the default admin credentials:
    - Username: `admin`
    - Password: `admin123`
@@ -303,7 +303,7 @@ This section provides guidance on deploying RAGgie to a production environment.
 - **WSGI Server**: For production, do not use the Flask development server (`python server.py`). Instead, use a production-grade WSGI server like Gunicorn (which is included in `requirements.txt` and used in the `Dockerfile`) or uWSGI.
   Example with Gunicorn (if not using Docker):
   ```bash
-  gunicorn -w 4 -b 0.0.0.0:5000 server:app
+  gunicorn -w 4 -b 0.0.0.0:8000 server:app
   ```
 - **Environment Variables**: Ensure all required environment variables (especially `SECRET_KEY`, and `MAIL_*` if email is used) are properly set in your production environment. See [Step 3: Configure Environment Variables](#step-3-configure-environment-variables).
 - **Database**: While SQLite is convenient for development, consider a more robust database like PostgreSQL or MySQL for larger-scale production deployments. Update the `DATABASE_URL` environment variable accordingly.

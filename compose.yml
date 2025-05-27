@@ -5,7 +5,7 @@ services:
     image: raggie-app
     build: .
     ports:
-      - "8000:5000"
+      - "8000:8000"
     # volumes:
     # General data folder for the database and other persistent data
     # - local_data:/app/instance

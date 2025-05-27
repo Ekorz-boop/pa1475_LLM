@@ -17,7 +17,7 @@ import logging
 log = logging.getLogger("werkzeug")  # Suppress werkzeug logging
 log.setLevel(logging.ERROR)
 
-print("Probably running on http://127.0.0.1:5000")
+print("Probably running on http://127.0.0.1:8000")
 
 app = Flask(__name__, static_folder="static", template_folder="static/html")
 CORS(app)
