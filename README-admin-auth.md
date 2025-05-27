@@ -63,7 +63,7 @@ You can log in with these credentials after setup. (Change the password after fi
 ```bash
 python server.py
 ```
-Visit [http://localhost:5000](http://localhost:5000) in your browser.
+Visit [http://localhost:8000](http://localhost:8000) in your browser.
 
 ---
 
