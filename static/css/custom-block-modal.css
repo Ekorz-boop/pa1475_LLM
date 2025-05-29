@@ -836,3 +836,202 @@
     font-size: 0.97em;
     border-radius: 0 0 5px 5px;
 }
+
+/* Method type badges */
+.method-type-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    margin-left: 8px;
+    border-radius: 3px;
+    font-size: 0.7em;
+    font-weight: bold;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.method-type-badge.static-method {
+    background-color: #2196F3;
+    color: white;
+}
+
+.method-type-badge.class-method {
+    background-color: #FF9800;
+    color: white;
+}
+
+/* Method items */
+
+/* Add styles for special blocks section */
+.special-block-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.special-blocks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.special-block-option {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.special-block-option:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+}
+
+.special-block-option.selected {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+.special-block-icon {
+    font-size: 24px;
+    margin-right: 15px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    border-radius: 50%;
+}
+
+.special-block-info {
+    flex: 1;
+}
+
+.special-block-info h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.special-block-info p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.select-special-block-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.select-special-block-btn:hover {
+    background: #0056b3;
+}
+
+.divider {
+    text-align: center;
+    margin: 20px 0;
+    position: relative;
+}
+
+.divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e9ecef;
+}
+
+.divider span {
+    background: white;
+    padding: 0 15px;
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+.langchain-section h3 {
+    margin-bottom: 15px;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.class-info.selected {
+    background: #e3f2fd;
+    border: 1px solid #007bff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+/* Dark mode support for special blocks */
+.dark-mode .special-block-section {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+.dark-mode .special-block-option {
+    background: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.dark-mode .special-block-option:hover {
+    border-color: #007bff;
+    background: #1a2332;
+}
+
+.dark-mode .special-block-option.selected {
+    background: #1a2332;
+}
+
+.dark-mode .special-block-info h4 {
+    color: #e0e0e0;
+}
+
+.dark-mode .special-block-info p {
+    color: #b0b0b0;
+}
+
+.dark-mode .special-block-icon {
+    background: #1a2332;
+}
+
+.dark-mode .divider span {
+    background: #222;
+    color: #b0b0b0;
+}
+
+.dark-mode .divider::before {
+    background: #444;
+}
+
+.dark-mode .langchain-section h3 {
+    color: #e0e0e0;
+}
+
+.dark-mode .class-info.selected {
+    background: #1a2332;
+    border-color: #007bff;
+    color: #e0e0e0;
+}

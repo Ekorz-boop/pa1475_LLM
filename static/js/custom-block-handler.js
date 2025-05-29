@@ -16,6 +16,8 @@ class CustomBlockHandler {
         this.inputNodes = [];
         this.outputNodes = [];
         this.parameters = {};
+        this.staticMethods = [];  // Track static methods
+        this.classMethods = [];   // Track class methods
 
         // Modal elements - will be initialized when the modal is created
         this.modal = null;
@@ -62,7 +64,28 @@ class CustomBlockHandler {
                         </div>
 
                         <div class="tab-content active" data-tab="select-class">
-                            <div class="form-group">
+                            <!-- Special Godpromptblock Section -->
+                            <div class="form-group special-block-section">
+                                <h3>Special Blocks</h3>
+                                <div class="special-blocks-container">
+                                    <div class="special-block-option" data-block-type="godprompt">
+                                        <div class="special-block-icon">🎯</div>
+                                        <div class="special-block-info">
+                                            <h4>Godpromptblock</h4>
+                                            <p>Custom prompt formatter that combines context, prompt, and question into a formatted string</p>
+                                        </div>
+                                        <button type="button" class="select-special-block-btn">Select</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="divider">
+                                <span>OR</span>
+                            </div>
+
+                            <!-- Regular LangChain Section -->
+                            <div class="form-group langchain-section">
+                                <h3>LangChain Blocks</h3>
                                 <label for="library-select">Select LangChain Library:</label>
                                 <select id="library-select">
                                     <option value="">Loading libraries...</option>
@@ -191,6 +214,19 @@ class CustomBlockHandler {
                 }
             }
         });
+
+        // Add event delegation for special block selection
+        this.modal.addEventListener('click', (e) => {
+            const btn = e.target.closest('.select-special-block-btn');
+            if (btn) {
+                const blockOption = btn.closest('.special-block-option');
+                const blockType = blockOption.dataset.blockType;
+                
+                if (blockType === 'godprompt') {
+                    this.selectGodpromptBlock();
+                }
+            }
+        });
     }
 
     /**
@@ -254,8 +290,11 @@ class CustomBlockHandler {
     switchTab(tabId) {
         // Ensure current selections are saved before switching tabs
         if (tabId !== 'select-class' && this.classSelect && this.moduleSelect) {
-            this.selectedClass = this.classSelect.value;
-            this.selectedModule = this.moduleSelect.value;
+            // Don't override selectedClass if it's already set to GodpromptBlock
+            if (this.selectedClass !== 'GodpromptBlock') {
+                this.selectedClass = this.classSelect.value;
+                this.selectedModule = this.moduleSelect.value;
+            }
             console.log('Tab switch - saved values:', this.selectedClass, this.selectedModule);
         }
 
@@ -309,13 +348,17 @@ class CustomBlockHandler {
         // Check if we need to validate the current tab
         if (currentTabBtn.dataset.tab === 'select-class') {
             // Make sure a class is selected before proceeding
-            if (!this.classSelect.value) {
+            // Check for either regular class selection or special block selection (like Godpromptblock)
+            if (!this.classSelect.value && !this.selectedClass) {
                 alert('Please select a class before proceeding');
                 return;
             }
             // Make sure we save the values
-            this.selectedClass = this.classSelect.value;
-            this.selectedModule = this.moduleSelect.value;
+            if (this.classSelect.value) {
+                this.selectedClass = this.classSelect.value;
+                this.selectedModule = this.moduleSelect.value;
+            }
+            // For special blocks like Godpromptblock, selectedClass is already set
         }
 
         if (currentIndex < tabBtns.length - 1) {
@@ -627,6 +670,10 @@ class CustomBlockHandler {
             methodDetailsByName[methodDetail.name] = methodDetail;
         });
 
+        // Initialize static and class method arrays from class details
+        this.staticMethods = this.classDetails.static_methods || [];
+        this.classMethods = this.classDetails.class_methods || [];
+
         // Add methods (exclude __init__ since we handled it specially)
         methods.forEach(methodName => {
             if (methodName === '__init__') return;
@@ -638,11 +685,27 @@ class CustomBlockHandler {
             // Check if this method was previously selected
             const isChecked = this.selectedMethods.includes(methodName);
 
+            // Determine method type for display
+            const isStatic = this.staticMethods.includes(methodName);
+            const isClassMethod = this.classMethods.includes(methodName);
+            
+            let methodTypeIndicator = '';
+            let methodTypeBadge = '';
+            
+            if (isStatic) {
+                methodTypeIndicator = ' (Static Method)';
+                methodTypeBadge = '<span class="method-type-badge static-method">STATIC</span>';
+            } else if (isClassMethod) {
+                methodTypeIndicator = ' (Class Method)';
+                methodTypeBadge = '<span class="method-type-badge class-method">CLASS</span>';
+            }
+
             html += `
                 <div class="method-item">
                     <input type="checkbox" id="method-${methodName}" value="${methodName}" ${isChecked ? 'checked' : ''}>
                     <label for="method-${methodName}">
-                        <strong>${methodName}</strong>
+                        <strong>${methodName}</strong>${methodTypeIndicator}
+                        ${methodTypeBadge}
                     </label>
                     <div class="method-details">
                         ${this.formatDocstring(methodDoc)}
@@ -686,7 +749,7 @@ class CustomBlockHandler {
                 // Immediately save this selection to ensure it's not lost
                 if (this.editingBlockId && this.selectedClass) {
                     console.log('Attempt save');
-                    saveMethods(this.selectedClass, this.selectedMethods, this.editingBlockId);
+                    saveMethods(this.selectedClass, this.selectedMethods, this.editingBlockId, this.staticMethods, this.classMethods);
                     console.log('Saved methods during editing:', this.selectedMethods);
                 }
             });
@@ -920,11 +983,16 @@ class CustomBlockHandler {
      * Validate all steps before creating a block
      */
     validateForCreation() {
+        console.log('validateForCreation called'); // Add debug log
+        console.log('this.selectedClass:', this.selectedClass); // Add debug log
+        
         if (!this.selectedClass) {
+            console.log('No selected class, validation failed'); // Add debug log
             showToast('Please select a class', 'error');
             return false;
         }
 
+        console.log('Validation passed'); // Add debug log
         return true;
     }
 
@@ -932,12 +1000,98 @@ class CustomBlockHandler {
      * Create a custom block with the selected configuration
      */
     async createBlock() {
+        console.log('Create Block button clicked!'); // Add debug log
+        
         try {
+            console.log('Validating for creation...'); // Add debug log
+            console.log('Selected class:', this.selectedClass); // Add debug log
+            
             // Validate that we have required fields
             if (!this.validateForCreation()) {
+                console.log('Validation failed'); // Add debug log
                 return;
             }
 
+            console.log('Validation passed, proceeding with creation...'); // Add debug log
+
+            // Generate a unique ID for the block
+            const blockId = `custom-block-${Date.now()}`;
+            console.log('Generated block ID:', blockId); // Add debug log
+
+            // Handle Godpromptblock creation specially
+            if (this.selectedClass === 'GodpromptBlock') {
+                console.log('Creating Godpromptblock...'); // Add debug log
+                
+                // Get prompt and question values from the parameters container
+                const promptInput = this.modal.querySelector('input[data-param="prompt"]');
+                const questionInput = this.modal.querySelector('input[data-param="question"]');
+                
+                const promptText = promptInput ? promptInput.value : 'Enter your prompt here...';
+                const questionText = questionInput ? questionInput.value : 'Enter your question here...';
+
+                console.log('Prompt text:', promptText); // Add debug log
+                console.log('Question text:', questionText); // Add debug log
+
+                // Save the methods for this Godpromptblock BEFORE creating it
+                console.log('Saving methods for Godpromptblock:', this.selectedMethods);
+                saveMethods('GodpromptBlock', this.selectedMethods, blockId, this.staticMethods, this.classMethods);
+                
+                // Save the parameters for this specific block
+                const blockParams = {
+                    prompt: promptText,
+                    question: questionText
+                };
+                localStorage.setItem(`blockParams-${blockId}`, JSON.stringify(blockParams));
+                console.log('Saved Godpromptblock parameters:', blockParams);
+
+                // Create Godpromptblock via special endpoint
+                const response = await fetch('/api/blocks/create_godprompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: blockId,
+                        prompt: promptText,
+                        question: questionText
+                    })
+                });
+
+                console.log('API response status:', response.status); // Add debug log
+                const result = await response.json();
+                console.log('API response result:', result); // Add debug log
+                
+                if (result.status === 'success') {
+                    console.log('Godpromptblock created successfully, adding to menu...'); // Add debug log
+                    
+                    // Add the block to the menu
+                    addCustomBlockToMenu('GodpromptBlock', blockId, this.inputNodes, this.outputNodes);
+
+                    // Save to storage
+                    saveCustomBlockToStorage('GodpromptBlock', blockId, this.inputNodes, this.outputNodes);
+                    
+                    // Also save specific method selections for this block
+                    saveMethodSelection(blockId, 'format_prompt');
+                    console.log('Saved method selection for Godpromptblock:', 'format_prompt');
+
+                    // Close the modal
+                    this.closeModal();
+
+                    // Reset the form for next use
+                    this.resetForm();
+
+                    // Show success message
+                    showToast('Godpromptblock created successfully!', 'success');
+                } else {
+                    throw new Error(result.error || 'Failed to create Godpromptblock');
+                }
+
+                return;
+            }
+
+            console.log('Creating regular custom block...'); // Add debug log
+            
+            // Regular custom block creation logic
             // Make sure we have up-to-date selected methods
             if (!this.selectedMethods || this.selectedMethods.length === 0) {
                 // If no methods selected, default to just the constructor
@@ -952,12 +1106,9 @@ class CustomBlockHandler {
             // Log the methods we're about to save
             console.log('Creating block with these methods:', this.selectedMethods);
 
-            // Generate a unique ID for the block
-            const blockId = `custom-block-${Date.now()}`;
-
             // First save methods to ensure they're available
             console.log(`Saving methods for new block ${blockId}:`, this.selectedMethods);
-            saveMethods(this.selectedClass, this.selectedMethods, blockId);
+            saveMethods(this.selectedClass, this.selectedMethods, blockId, this.staticMethods, this.classMethods);
 
             // Create the block on the canvas
             createCustomBlock(
@@ -983,7 +1134,10 @@ class CustomBlockHandler {
             showToast('Custom block created successfully!', 'success');
         } catch (error) {
             console.error('Error creating block:', error);
+            console.error('Error stack:', error.stack); // Add stack trace
             showToast(`Error creating block: ${error.message}`, 'error');
+            
+            // Don't close modal on error so user can see what went wrong
         }
     }
 
@@ -1086,13 +1240,22 @@ class CustomBlockHandler {
      * Reset the form and clear selections
      */
     resetForm() {
-        // Clear selections
+        console.log('resetForm() called, current selectedClass:', this.selectedClass); // Add debug log
+        
+        // Clear selections, but preserve selectedClass if it's GodpromptBlock
+        if (this.selectedClass !== 'GodpromptBlock') {
+            this.selectedClass = null;
+        }
+        
         this.selectedMethods = [];
         this.inputNodes = [];
         this.outputNodes = [];
         this.parameters = {};
+        this.staticMethods = [];
+        this.classMethods = [];
         this.editingBlockId = null;
-        console.log('selections reset');
+        
+        console.log('After reset, selectedClass is:', this.selectedClass); // Add debug log
 
         // Reset UI
         const methodCheckboxes = this.methodsContainer.querySelectorAll('input[type="checkbox"]');
@@ -1110,6 +1273,82 @@ class CustomBlockHandler {
 
         // Reset tab to first tab
         this.switchTab('select-class');
+    }
+
+    /**
+     * Handle Godpromptblock selection
+     */
+    selectGodpromptBlock() {
+        console.log('selectGodpromptBlock() called'); // Add debug log
+        
+        // Set the selected class to indicate Godpromptblock
+        this.selectedClass = 'GodpromptBlock';
+        console.log('Set selectedClass to:', this.selectedClass); // Add debug log
+        
+        this.selectedLibrary = null;
+        this.selectedModule = null;
+        this.classDetails = {
+            doc: 'Custom prompt formatting block that combines context, prompt, and question into a formatted string.',
+            methods: ['format_prompt'],
+            method_details: [{
+                name: 'format_prompt',
+                doc: 'Format the prompt using context, prompt, and question.',
+                parameters: [
+                    { name: 'context', required: true, type: 'str' },
+                    { name: 'prompt', required: false, type: 'str', default: 'Enter your prompt here...' },
+                    { name: 'question', required: false, type: 'str', default: 'Enter your question here...' }
+                ]
+            }],
+            init_params: [
+                { name: 'prompt', required: false, type: 'str', default: 'Enter your prompt here...' },
+                { name: 'question', required: false, type: 'str', default: 'Enter your question here...' }
+            ],
+            component_type: 'prompt_formatter',
+            static_methods: [],
+            class_methods: []
+        };
+
+        // Set default methods
+        this.selectedMethods = ['format_prompt'];
+        this.staticMethods = [];
+        this.classMethods = [];
+
+        // Set default input/output nodes
+        this.inputNodes = ['context_input'];
+        this.outputNodes = ['formatted_prompt_output'];
+
+        console.log('Set inputNodes to:', this.inputNodes); // Add debug log
+        console.log('Set outputNodes to:', this.outputNodes); // Add debug log
+
+        // Update the class description
+        const classDescription = this.modal.querySelector('.class-description');
+        classDescription.innerHTML = `
+            <div class="class-info selected">
+                <h3>GodpromptBlock</h3>
+                <p>Custom prompt formatting block that combines context, prompt, and question into a formatted string.</p>
+                <div class="class-details">
+                    <h4>Available Methods:</h4>
+                    <ul>
+                        <li><strong>format_prompt</strong> - Format the prompt using context, prompt, and question</li>
+                    </ul>
+                    <h4>Constructor Parameters:</h4>
+                    <ul>
+                        <li><strong>prompt</strong> - The prompt template text</li>
+                        <li><strong>question</strong> - The question text</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        // Update methods and parameters containers
+        this.updateMethodsContainer();
+        this.updateParametersContainer();
+        
+        console.log('About to call nextTab()'); // Add debug log
+        // Automatically proceed to next tab
+        this.nextTab();
+        
+        console.log('selectGodpromptBlock() completed, selectedClass is now:', this.selectedClass); // Add debug log
     }
 }
 
@@ -1483,6 +1722,12 @@ function createCustomBlock(className, inputNodes, outputNodes, blockId, original
                     </div>
             </div>
             <div class="block-content">
+                <div class="block-options">
+                    <div class="late-init-container" title="Late Initialization: Delays class instantiation until just before the first method is called. This is useful for classes that need runtime parameters or connections from other blocks.">
+                        <input type="checkbox" id="late-init-${blockId}" class="late-init-toggle">
+                        <label for="late-init-${blockId}" class="late-init-label">Late Init</label>
+                    </div>
+                </div>
                 <select class="method-select" title="Select method to execute">
                     <option value="" disabled selected>Select method...</option>
                 </select>
@@ -1703,6 +1948,30 @@ function populateMethodsForBlock(block, className, blockId) {
     // Clear existing options
     methodSelect.innerHTML = '<option value="">Select Method</option>';
     
+    // Special handling for Godpromptblock
+    if (className === 'GodpromptBlock') {
+        console.log('Special handling for GodpromptBlock');
+        
+        // Add the format_prompt method
+        const option = document.createElement('option');
+        option.value = 'format_prompt';
+        option.textContent = 'format_prompt';
+        methodSelect.appendChild(option);
+        
+        // Set format_prompt as selected
+        methodSelect.value = 'format_prompt';
+        
+        // Save the method selection
+        saveMethodSelection(blockId, 'format_prompt');
+        
+        // Trigger change event to update parameters
+        const changeEvent = new Event('change');
+        methodSelect.dispatchEvent(changeEvent);
+        
+        console.log('Set up GodpromptBlock with format_prompt method');
+        return;
+    }
+    
     // Try to find the block data with methods first by blockId
     let blockData = null;
     
@@ -1809,7 +2078,8 @@ function populateMethodsForBlock(block, className, blockId) {
                                                 'file_path', 
                                                 savedParams.file_path, 
                                                 genericParams, 
-                                                blockId
+                                                blockId,
+                                                '__init__'
                                             );
                                             console.log(`Added missing file_path parameter row with value: ${savedParams.file_path}`);
                                         }
@@ -1984,7 +2254,7 @@ function findModuleInfoForClass(className) {
 }
 
 // Helper function to save methods to sessionStorage
-function saveMethods(className, methods, blockId = null) {
+function saveMethods(className, methods, blockId = null, staticMethods = [], classMethods = []) {
     try {
         const customBlocks = JSON.parse(sessionStorage.getItem('customBlocks') || '[]');
 
@@ -1993,6 +2263,8 @@ function saveMethods(className, methods, blockId = null) {
             const existingBlockIndex = customBlocks.findIndex(b => b.id === blockId);
         if (existingBlockIndex >= 0) {
             customBlocks[existingBlockIndex].methods = methods;
+                customBlocks[existingBlockIndex].static_methods = staticMethods;
+                customBlocks[existingBlockIndex].class_methods = classMethods;
                 // Make sure className is also set
                 customBlocks[existingBlockIndex].className = className;
         } else {
@@ -2000,7 +2272,9 @@ function saveMethods(className, methods, blockId = null) {
             customBlocks.push({
                     id: blockId,
                     className: className,
-                    methods: methods
+                    methods: methods,
+                    static_methods: staticMethods,
+                    class_methods: classMethods
                 });
             }
         } else {
@@ -2008,17 +2282,23 @@ function saveMethods(className, methods, blockId = null) {
             const existingBlockIndex = customBlocks.findIndex(b => b.className === className);
             if (existingBlockIndex >= 0) {
                 customBlocks[existingBlockIndex].methods = methods;
+                customBlocks[existingBlockIndex].static_methods = staticMethods;
+                customBlocks[existingBlockIndex].class_methods = classMethods;
             } else {
                 customBlocks.push({
                     id: `class-${Date.now()}`,
                     className: className,
-                    methods: methods
+                    methods: methods,
+                    static_methods: staticMethods,
+                    class_methods: classMethods
                 });
             }
         }
 
         sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
         console.log(`Saved methods for ${blockId || className}:`, methods);
+        console.log(`Saved static methods:`, staticMethods);
+        console.log(`Saved class methods:`, classMethods);
 
         // Also save to localStorage as a backup but only for className (not specific blocks)
         try {
@@ -2027,10 +2307,14 @@ function saveMethods(className, methods, blockId = null) {
 
             if (existingBlockIndex >= 0) {
                 localBlocks[existingBlockIndex].methods = methods;
+                localBlocks[existingBlockIndex].static_methods = staticMethods;
+                localBlocks[existingBlockIndex].class_methods = classMethods;
             } else {
                 localBlocks.push({
                     className: className,
-                    methods: methods
+                    methods: methods,
+                    static_methods: staticMethods,
+                    class_methods: classMethods
                 });
             }
 
@@ -2123,6 +2407,28 @@ function updateBlockParameters(block, methodName) {
         savedMethodParams = savedParams;
     } catch (e) {
         console.warn(`Error fetching saved parameters for block ${blockId}:`, e);
+    }
+
+    // Special handling for Godpromptblock
+    if (className === 'GodpromptBlock' && methodName === 'format_prompt') {
+        console.log('Special parameter handling for GodpromptBlock');
+        
+        // Define the parameters for format_prompt method
+        const godpromptParams = [
+            { name: 'context', required: true, type: 'str' },
+            { name: 'prompt', required: false, type: 'str', default: savedMethodParams.prompt || 'Enter your prompt here...' },
+            { name: 'question', required: false, type: 'str', default: savedMethodParams.question || 'Enter your question here...' }
+        ];
+        
+        // Create parameters for each one
+        godpromptParams.forEach(param => {
+            const savedValue = savedMethodParams[param.name] || (param.default || '');
+            const paramRow = addParameterRowForMethod(paramsContainer, param.name, savedValue, godpromptParams, blockId, methodName);
+            console.log(`Added parameter ${param.name} with value:`, savedValue);
+        });
+        
+        console.log('Completed GodpromptBlock parameter setup');
+        return;
     }
 
     // If we found module info, try to fetch class details
@@ -2255,7 +2561,7 @@ function updateBlockParameters(block, methodName) {
                         }
 
                         // Add the parameter row with block ID
-                        const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId);
+                        const paramRow = addParameterRowForMethod(paramsContainer, paramInfo.name, savedValue, allMethodParams, blockId, methodName);
 
                         // Focus on the value input to encourage the user to enter a value
                         const valueInput = paramRow.querySelector('.param-value');
@@ -2322,12 +2628,25 @@ function updateBlockParameters(block, methodName) {
                         // Find parameter info if available
                         const paramInfo = allMethodParams.find(p => p.name === paramName);
                         if (paramInfo) {
-                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, allMethodParams, blockId);
+                            // Determine which method this parameter belongs to
+                            let paramMethodName = methodName; // Default to current method
+                            
+                            // Check if this parameter is specific to a different method
+                            if (data.method_details) {
+                                for (const methodDetail of data.method_details) {
+                                    if (methodDetail.parameters && methodDetail.parameters.some(p => p.name === paramName)) {
+                                        paramMethodName = methodDetail.name;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, allMethodParams, blockId, paramMethodName);
                             displayedParams.add(paramName);
                         } else {
                             // Handle case where param info is not available (fallback)
                             const genericParams = [{name: paramName, type: 'Any', required: false}];
-                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, genericParams, blockId);
+                            addParameterRowForMethod(activeParamsContainer, paramName, savedValue, genericParams, blockId, methodName);
                             displayedParams.add(paramName);
                         }
                     }
@@ -2345,12 +2664,25 @@ function updateBlockParameters(block, methodName) {
                         // Find parameter info if available
                         const paramInfo = allMethodParams.find(p => p.name === paramName);
                         if (paramInfo) {
-                            addParameterRowForMethod(activeParamsContainer, paramName, value, allMethodParams, blockId);
+                            // Determine which method this parameter belongs to
+                            let paramMethodName = methodName; // Default to current method
+                            
+                            // Check if this parameter is specific to a different method
+                            if (data.method_details) {
+                                for (const methodDetail of data.method_details) {
+                                    if (methodDetail.parameters && methodDetail.parameters.some(p => p.name === paramName)) {
+                                        paramMethodName = methodDetail.name;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, allMethodParams, blockId, paramMethodName);
                             displayedParams.add(paramName);
                         } else {
                             // Handle case where param info is not available (fallback)
                             const genericParams = [{name: paramName, type: 'Any', required: false}];
-                            addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockId);
+                            addParameterRowForMethod(activeParamsContainer, paramName, value, genericParams, blockId, methodName);
                             displayedParams.add(paramName);
                         }
                     }
@@ -2368,11 +2700,12 @@ function updateBlockParameters(block, methodName) {
 }
 
 // Helper function to add a parameter row with an already selected parameter
-function addParameterRowForMethod(container, paramName, value = '', availableParams = [], blockId = '') {
+function addParameterRowForMethod(container, paramName, value = '', availableParams = [], blockId = '', methodName = '__init__') {
     // Create a new parameter row
     const paramRow = document.createElement('div');
     paramRow.className = 'parameter-row';
     paramRow.setAttribute('data-param-name', paramName);
+    paramRow.setAttribute('data-method', methodName);
 
     // Create param name label
     const paramNameLabel = document.createElement('div');
@@ -2408,6 +2741,9 @@ function addParameterRowForMethod(container, paramName, value = '', availablePar
 
     valueInput.setAttribute('data-block-id', blockId);
     valueInput.setAttribute('data-param-name', paramName);
+    
+    // Also add the data-block-id to the parameter row for easier lookup
+    paramRow.setAttribute('data-block-id', blockId);
 
     // Existing event listener for 'input' (saving value on input)
     valueInput.addEventListener('input', () => {
@@ -2544,16 +2880,49 @@ function saveParameterValue(blockId, paramName, value) {
         const blockIndex = customBlocks.findIndex(b => b.id === blockId);
         
         if (blockIndex >= 0) {
-            // Make sure parameters object exists
+            // Find the parameter row to determine which method it belongs to
+            const parameterRow = document.querySelector(`.parameter-row[data-param-name="${paramName}"][data-block-id="${blockId}"], .parameter-row[data-param-name="${paramName}"] input[data-block-id="${blockId}"]`);
+            let methodName = '__init__'; // Default to __init__
+            
+            if (parameterRow) {
+                const methodFromRow = parameterRow.getAttribute('data-method');
+                if (methodFromRow) {
+                    methodName = methodFromRow;
+                }
+            }
+            
+            // Initialize the config structure if needed
+            if (!customBlocks[blockIndex].config) {
+                customBlocks[blockIndex].config = {};
+            }
+            
+            if (methodName === '__init__') {
+                // Save to general parameters for __init__
+                if (!customBlocks[blockIndex].config.parameters) {
+                    customBlocks[blockIndex].config.parameters = {};
+                }
+                customBlocks[blockIndex].config.parameters[paramName] = value;
+            } else {
+                // Save to method_parameters for specific methods
+                if (!customBlocks[blockIndex].config.method_parameters) {
+                    customBlocks[blockIndex].config.method_parameters = {};
+                }
+                if (!customBlocks[blockIndex].config.method_parameters[methodName]) {
+                    customBlocks[blockIndex].config.method_parameters[methodName] = {};
+                }
+                customBlocks[blockIndex].config.method_parameters[methodName][paramName] = value;
+            }
+            
+            // Also maintain backward compatibility by saving to the old parameters structure
             if (!customBlocks[blockIndex].parameters) {
                 customBlocks[blockIndex].parameters = {};
             }
-            
-            // Save the parameter
             customBlocks[blockIndex].parameters[paramName] = value;
             
             // Update session storage
             sessionStorage.setItem('customBlocks', JSON.stringify(customBlocks));
+            
+            console.log(`Saved parameter ${paramName}=${value} for block ${blockId} method ${methodName}`);
         }
     } catch (e) {
         console.error(`Error saving parameter ${paramName} for block ${blockId}:`, e);
@@ -3323,7 +3692,7 @@ function updateMethodsDisplay(block, methods, blockId = '') {
                                 const genericParams = [{name: paramName, type: 'Any', required: false}];
                                 const paramValue = savedParams[paramName];
                                 
-                                addParameterRowForMethod(activeParamsContainer, paramName, paramValue, genericParams, blockId);
+                                addParameterRowForMethod(activeParamsContainer, paramName, paramValue, genericParams, blockId, '__init__');
                             }
                         }
                     });

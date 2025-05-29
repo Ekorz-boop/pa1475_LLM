@@ -182,15 +182,80 @@ def export_blocks():
                 def __init__(self):
                     super().__init__()
                     self.block_type = block_type
-                    self.class_name = None  # Will be set properly based on block_type
-                    self.module_path = ""  # Default empty module path
+                    self.class_name = None
+                    self.module_path = ""
                     self.config = config
-                    self.component_type = ""  # Default empty component type
+                    self.component_type = ""
                     self.selected_methods = []
-                    self.parameters = {}  # Store parameter info for methods
+                    self.parameters = {}
+                    self.static_methods = []
+                    self.class_methods = []
 
-                    # Extract module path and class name from block_type
-                    if block_type.startswith("custom_"):
+                    # Handle late initialization setting
+                    self.late_initialization = config.get("late_initialization", False)
+
+                    # Special handling for Godpromptblock
+                    if block_type == "godprompt":
+                        self.class_name = "GodpromptBlock"
+                        self.component_type = "prompt_formatter"
+                        self.selected_methods = ["format_prompt"]
+                        self.methods = ["format_prompt"]
+                        self.import_string = (
+                            "# Custom Godpromptblock - no imports needed"
+                        )
+
+                        # Get parameters from config
+                        prompt_text = config.get("prompt", "Enter your prompt here...")
+                        question_text = config.get(
+                            "question", "Enter your question here..."
+                        )
+
+                        # Generate the class definition directly in the function string
+                        self.function_string = f'''
+class GodpromptBlock:
+    """Custom prompt formatting block that combines context, prompt, and question."""
+    
+    def __init__(self, prompt="{prompt_text}", question="{question_text}"):
+        self.prompt = prompt
+        self.question = question
+    
+    def format_prompt(self, context, prompt=None, question=None):
+        """Format the prompt using context, prompt, and question."""
+        if prompt is None:
+            prompt = self.prompt
+        if question is None:
+            question = self.question
+        
+        # Combine everything into a formatted string
+        formatted_prompt = f\"\"\"Context: {{context}}
+
+Prompt: {{prompt}}
+
+Question: {{question}}\"\"\"
+        
+        return formatted_prompt
+'''
+                        # Set parameters for the method
+                        self.parameters = {
+                            "format_prompt": [
+                                {"name": "context", "required": True, "type": "str"},
+                                {
+                                    "name": "prompt",
+                                    "required": False,
+                                    "type": "str",
+                                    "default": prompt_text,
+                                },
+                                {
+                                    "name": "question",
+                                    "required": False,
+                                    "type": "str",
+                                    "default": question_text,
+                                },
+                            ]
+                        }
+
+                    # Extract module path and class name from block_type for regular custom blocks
+                    elif block_type.startswith("custom_"):
                         # Remove 'custom_' prefix to get the full class path
                         full_class_path = block_type[
                             7:
@@ -213,74 +278,92 @@ def export_blocks():
                             self.class_name = full_class_path  # If no dots, use as is
                             self.import_string = f"# Import for {self.class_name}"
 
-                    # Determine component type based on module path and class name
-                    if (
-                        "document_loaders" in self.module_path
-                        or "loader" in self.class_name.lower()
-                    ):
-                        self.component_type = "document_loaders"
-                    elif "text_splitters" in self.module_path:
-                        self.component_type = "text_splitters"
-                    elif (
-                        "embedding" in self.module_path
-                        or "embed" in self.class_name.lower()
-                    ):
-                        self.component_type = "embeddings"
-                    elif "vectorstore" in self.module_path:
-                        self.component_type = "vectorstores"
-                    elif "retriever" in self.module_path:
-                        self.component_type = "retrievers"
-                    elif "llm" in self.module_path:
-                        self.component_type = "llms"
-                    elif "chat" in self.module_path:
-                        self.component_type = "chat_models"
-                    elif "chain" in self.module_path:
-                        self.component_type = "chains"
-                    else:
-                        # Default to a generic type
-                        self.component_type = "error"
-
-                    self.function_string = (
-                        f"# Placeholder for {self.class_name} function"
-                    )
-
-                    # Extract methods from block info or config
-                    if "methods" in config:
-                        self.selected_methods = config["methods"]
-                    elif "selected_methods" in config:
-                        self.selected_methods = config["selected_methods"]
-                    elif "selected_methods" in config.get("config", {}):
-                        self.selected_methods = config["config"]["selected_methods"]
-
-                    # Look for a selected method that might not be in the methods list yet
-                    selected_method = None
-                    if "selected_method" in config:
-                        selected_method = config["selected_method"]
-                    elif "selected_method" in config.get("config", {}):
-                        selected_method = config["config"]["selected_method"]
-
-                    # If we have a selected method but it's not in our list yet, add it
-                    if selected_method and (
-                        not self.selected_methods
-                        or selected_method not in self.selected_methods
-                    ):
-                        if not self.selected_methods:
-                            self.selected_methods = [selected_method]
+                        # Determine component type based on module path and class name
+                        if (
+                            "document_loaders" in self.module_path
+                            or "loader" in self.class_name.lower()
+                        ):
+                            self.component_type = "document_loaders"
+                        elif "text_splitters" in self.module_path:
+                            self.component_type = "text_splitters"
+                        elif (
+                            "embedding" in self.module_path
+                            or "embed" in self.class_name.lower()
+                        ):
+                            self.component_type = "embeddings"
+                        elif "vectorstore" in self.module_path:
+                            self.component_type = "vectorstores"
+                        elif "retriever" in self.module_path:
+                            self.component_type = "retrievers"
+                        elif "llm" in self.module_path:
+                            self.component_type = "llms"
+                        elif "chat" in self.module_path:
+                            self.component_type = "chat_models"
+                        elif "chain" in self.module_path:
+                            self.component_type = "chains"
                         else:
-                            self.selected_methods.append(selected_method)
+                            # Default to a generic type
+                            self.component_type = "error"
 
-                    # Create placeholder for methods list (all available methods)
-                    self.methods = (
-                        list(self.selected_methods) if self.selected_methods else []
-                    )
+                        self.function_string = (
+                            f"# Placeholder for {self.class_name} function"
+                        )
 
-                    # Always add __init__ to methods if not present
-                    if "__init__" not in self.methods:
-                        self.methods.append("__init__")
+                    # Extract methods from block info or config (for regular custom blocks)
+                    if block_type != "godprompt":
+                        if "methods" in config:
+                            self.selected_methods = config["methods"]
+                        elif "selected_methods" in config:
+                            self.selected_methods = config["selected_methods"]
+                        elif "selected_methods" in config.get("config", {}):
+                            self.selected_methods = config["config"]["selected_methods"]
 
-                    # Create default parameters for methods
-                    for method in self.methods:
-                        self.parameters[method] = []
+                        # Extract static and class methods information
+                        if "static_methods" in config:
+                            self.static_methods = config["static_methods"]
+                        elif "static_methods" in config.get("config", {}):
+                            self.static_methods = config["config"]["static_methods"]
+
+                        if "class_methods" in config:
+                            self.class_methods = config["class_methods"]
+                        elif "class_methods" in config.get("config", {}):
+                            self.class_methods = config["config"]["class_methods"]
+
+                        # Look for a selected method that might not be in the methods list yet
+                        selected_method = None
+                        if "selected_method" in config:
+                            selected_method = config["selected_method"]
+                        elif "selected_method" in config.get("config", {}):
+                            selected_method = config["config"]["selected_method"]
+
+                        # If we have a selected method but it's not in our list yet, add it
+                        if selected_method and (
+                            not self.selected_methods
+                            or selected_method not in self.selected_methods
+                        ):
+                            if not self.selected_methods:
+                                self.selected_methods = [selected_method]
+                            else:
+                                self.selected_methods.append(selected_method)
+
+                        # Create placeholder for methods list (all available methods)
+                        self.methods = (
+                            list(self.selected_methods) if self.selected_methods else []
+                        )
+
+                        # Always add __init__ to methods if not present
+                        if "__init__" not in self.methods:
+                            self.methods.append("__init__")
+
+                        # Create default parameters for methods
+                        for method in self.methods:
+                            self.parameters[method] = []
+
+                    # Extract method-specific parameters
+                    if "method_parameters" in config:
+                        self.method_parameters = config["method_parameters"]
+                    else:
+                        self.method_parameters = {}
 
                 def validate_connections(self) -> bool:
                     return True
@@ -422,13 +505,12 @@ def export_blocks():
 def generate_python_code(
     blocks, connections, method_connections=None, connections_data=None
 ):
-    """Generate Python code for blocks and connections similar to block_sim.py logic."""
+    """Generate Python code for blocks and connections with late initialization support."""
     # Determine execution order
     execution_order = determine_execution_order(blocks, connections)
 
     # Initialize collections
     imports = set()
-    # Always include OS module for file operations
     imports.add("import os")
     init_code_lines = []
     method_code_lines = []
@@ -439,19 +521,34 @@ def generate_python_code(
     # Track blocks that have already been initialized with special handling
     special_init_blocks = set()
 
-    # First scan to collect all imports upfront
-    # print(f"Processing {len(blocks)} blocks for imports...")
+    # Track blocks with late initialization enabled
+    late_init_blocks = set()
+
+    # Track which blocks have been initialized (for late init)
+    initialized_blocks = set()
+
+    # First scan to collect all imports upfront and identify late init blocks
     for block_id, block in blocks.items():
-        # Only add non-comment imports
-        # print(f"Processing block {block_id} with import string: {block.import_string}")
+        # Check for late initialization setting
+        if (
+            hasattr(block, "config")
+            and block.config
+            and block.config.get("late_initialization", False)
+        ):
+            late_init_blocks.add(block_id)
+            print(f"Block {block_id} marked for late initialization")
+
+        # Collect imports
         if (
             hasattr(block, "import_string")
             and block.import_string
             and not block.import_string.startswith("#")
         ):
-            imports.add(block.import_string)
-            # print(f"Added import: {block.import_string}")
-        # Fallback for blocks with module path but no import string
+            if not (
+                block.import_string
+                == "from custom_blocks.prompt_templates import GodpromptBlock"
+            ):
+                imports.add(block.import_string)
         elif (
             hasattr(block, "module_path")
             and block.module_path
@@ -459,9 +556,16 @@ def generate_python_code(
         ):
             import_statement = f"from {block.module_path} import {block.class_name}"
             imports.add(import_statement)
-            # print(f"Added generated import: {import_statement}")
 
-    # print(f"\nCollected {len(imports)} imports: {imports}")
+        # Check if this block uses file paths
+        if hasattr(block, "config") and block.config:
+            if "parameters" in block.config and isinstance(
+                block.config["parameters"], dict
+            ):
+                for param_name, param_value in block.config["parameters"].items():
+                    if isinstance(param_value, str) and "files/" in param_value:
+                        has_file_paths = True
+                        break
 
     # Create variable names for each block
     block_vars = {}
@@ -473,20 +577,9 @@ def generate_python_code(
         var_name = f"{class_name.lower()}_{i+1}".replace(" ", "_").replace("-", "_")
         block_vars[block_id] = var_name
 
-        # Check if this block uses file paths
-        if hasattr(block, "config") and block.config:
-            # First check for parameters dictionary
-            if "parameters" in block.config and isinstance(
-                block.config["parameters"], dict
-            ):
-                for param_name, param_value in block.config["parameters"].items():
-                    if isinstance(param_value, str) and "files/" in param_value:
-                        has_file_paths = True
-                        break
-
     # Build connection maps for easier processing
-    connection_map = {}  # source -> [targets]
-    reverse_connection_map = {}  # target -> [sources]
+    connection_map = {}
+    reverse_connection_map = {}
 
     for source_id, targets in connections.items():
         if source_id not in connection_map:
@@ -497,29 +590,158 @@ def generate_python_code(
                 reverse_connection_map[target_id] = []
             reverse_connection_map[target_id].append(source_id)
 
-    # First, handle all block initializations in the proper order
-    for block_id in execution_order:
-        block = blocks[block_id]
-        var_name = block_vars[block_id]
-        class_name = (
-            block.class_name if hasattr(block, "class_name") else type(block).__name__
+    # Function to get method-specific parameters for a block
+    def get_method_parameters(block, method_name):
+        """Extract parameters that belong to a specific method."""
+        method_params = []
+
+        if not hasattr(block, "config") or not block.config:
+            return method_params
+
+        print(
+            f"DEBUG: Getting method parameters for {method_name} on block with component_type: {getattr(block, 'component_type', 'None')}"
         )
+        print(f"DEBUG: Block config: {block.config}")
+        print(
+            f"DEBUG: Block has component_type attr: {hasattr(block, 'component_type')}"
+        )
+
+        # First check for method-specific parameters in method_parameters
+        if "method_parameters" in block.config and isinstance(
+            block.config["method_parameters"], dict
+        ):
+            if method_name in block.config["method_parameters"]:
+                method_specific_params = block.config["method_parameters"][method_name]
+                for param_name, param_value in method_specific_params.items():
+                    if param_value == "":
+                        continue
+
+                    # Format the parameter value
+                    if isinstance(param_value, str) and not (
+                        param_value.startswith(
+                            ("'", '"', "[", "{", "True", "False", "None")
+                        )
+                        or param_value.isdigit()
+                    ):
+                        param_value = f'"{param_value}"'
+                    method_params.append(f"{param_name}={param_value}")
+
+        # For ALL blocks, check if there are parameters in the general parameters
+        # that should belong to this specific method but aren't in method_parameters yet
+        if "parameters" in block.config:
+            for param_name, param_value in block.config["parameters"].items():
+                if param_value == "":
+                    continue
+
+                # Skip if this parameter was already added from method_parameters
+                if any(param.startswith(f"{param_name}=") for param in method_params):
+                    continue
+
+                # Check if this parameter should belong to this method
+                should_add_param = False
+
+                # For vectorstore search methods, add query parameter
+                if (
+                    param_name == "query"
+                    and method_name
+                    in ["similarity_search", "search", "similarity_search_with_score"]
+                    and hasattr(block, "component_type")
+                    and block.component_type == "vectorstores"
+                ):
+                    should_add_param = True
+                    print(
+                        f"DEBUG: Adding query parameter to {method_name} method for ALL blocks"
+                    )
+
+                # For late init blocks, be more permissive with other parameters
+                elif (
+                    block_id in late_init_blocks
+                    and method_name != "__init__"
+                    and param_name != "query"
+                ):
+                    # Exception: For LLM components, 'model' parameter should go to __init__, not method calls
+                    if (
+                        hasattr(block, "component_type")
+                        and block.component_type in ["llms", "chat_models"]
+                        and param_name == "model"
+                    ):
+                        should_add_param = False
+                    else:
+                        should_add_param = True
+
+                if should_add_param:
+                    # Format the parameter value
+                    if isinstance(param_value, str) and not (
+                        param_value.startswith(
+                            ("'", '"', "[", "{", "True", "False", "None")
+                        )
+                        or param_value.isdigit()
+                    ):
+                        param_value = f'"{param_value}"'
+                    method_params.append(f"{param_name}={param_value}")
+
+        print(f"DEBUG: Final method params for {method_name}: {method_params}")
+        return method_params
+
+    # Function to initialize a block (used for both regular and late initialization)
+    def initialize_block(block_id, block, var_name, class_name):
+        if block_id in initialized_blocks:
+            return  # Already initialized
 
         # Build initialization parameters
         init_params = []
+
         if hasattr(block, "config") and block.config:
-            # First check for parameters dictionary (from dropdown UI)
+
+            # For late init blocks, only include parameters that are specifically for __init__
+            # For regular blocks, include all parameters
             if "parameters" in block.config and isinstance(
                 block.config["parameters"], dict
             ):
                 for param_name, param_value in block.config["parameters"].items():
+                    # For late init blocks, skip parameters that belong to methods
+                    if block_id in late_init_blocks:
+                        # Only include parameters that are explicitly for __init__
+                        # Exception: For LLM components, always include 'model' parameter in __init__
+                        if not (
+                            hasattr(block, "component_type")
+                            and block.component_type in ["llms", "chat_models"]
+                            and param_name == "model"
+                        ):
+                            # In this simplified version, we assume late init blocks don't need init params
+                            # unless they're specifically marked as __init__ parameters
+                            continue
+
                     # Skip empty string values
                     if param_value == "":
                         continue
 
-                    # Format the value properly
+                    # Skip parameters that are method-specific (stored in method_parameters)
+                    if "method_parameters" in block.config:
+                        is_method_param = False
+                        for method_name, method_params in block.config[
+                            "method_parameters"
+                        ].items():
+                            if (
+                                method_name != "__init__"
+                                and param_name in method_params
+                            ):
+                                is_method_param = True
+                                break
+                        if is_method_param:
+                            continue
+
+                    # Also check if this parameter name is commonly a method parameter (not init parameter)
+                    # For vectorstores like Chroma, 'query' is typically for search methods, not initialization
+                    if (
+                        hasattr(block, "component_type")
+                        and block.component_type == "vectorstores"
+                        and param_name == "query"
+                    ):
+                        continue
+
+                    # Format the value properly (existing logic)
                     if isinstance(param_value, str):
-                        # Special handling for file paths
                         if "files/" in param_value:
                             # If there are multiple comma-separated paths, handle each one
                             file_paths = [
@@ -563,9 +785,7 @@ def generate_python_code(
                                         special_init_blocks.add(block_id)
 
                                         # Add extra code for multi-file loading
-                                        multi_load_comment = (
-                                            f"# Handle multiple files for {class_name}"
-                                        )
+                                        multi_load_comment = f"# Handle multiple files for {class_name} (no separate initialization needed)"
                                         init_code_lines.append(multi_load_comment)
 
                                         # Find next available variable name
@@ -623,6 +843,12 @@ def generate_python_code(
                                             '    print("Warning: No valid file paths provided")'
                                         )
 
+                                        # Mark this block as initialized since we handled it specially
+                                        initialized_blocks.add(block_id)
+
+                                        # Return early to avoid any additional initialization
+                                        return
+
                                         # Skip adding this parameter since we're handling it specially
                                         continue
                                 else:
@@ -630,6 +856,8 @@ def generate_python_code(
                                     param_value = f"[{', '.join(formatted_paths)}]"
                             else:
                                 param_value = formatted_paths[0]
+                        elif ("embedding") in param_value:
+                            param_value = param_value.strip("\"'")
                         elif not (
                             param_value.startswith(
                                 ("'", '"', "[", "{", "True", "False", "None")
@@ -640,40 +868,39 @@ def generate_python_code(
 
                     init_params.append(f"{param_name}={param_value}")
 
-            # Then add other parameters from config (excluding non-initialization ones)
-            for param_name, param_value in block.config.items():
-                # Skip non-initialization parameters, class_name and parameters dict itself
-                if param_name in [
-                    "methods",
-                    "selected_methods",
-                    "selected_method",
-                    "class_name",
-                    "parameters",
-                ]:
-                    continue
-
-                # Skip empty string values
-                if param_value == "":
-                    continue
-
-                # Format the value properly
-                if isinstance(param_value, str):
-                    if not (
-                        param_value.startswith(
-                            ("'", '"', "[", "{", "True", "False", "None")
-                        )
-                        or param_value.isdigit()
-                    ):
-                        param_value = f'"{param_value}"'
-
-                init_params.append(f"{param_name}={param_value}")
-
-        # Add initialization code - only if not specially initialized
-        if block_id not in special_init_blocks:
+        # Add initialization code
+        if block_id in late_init_blocks:
+            # For late init blocks, add to method_code_lines instead of init_code_lines
+            method_code_lines.append(f"# Initialize {class_name} (late initialization)")
+            if init_params:
+                method_code_lines.append(
+                    f"{var_name} = {class_name}({', '.join(init_params)})"
+                )
+            else:
+                method_code_lines.append(f"{var_name} = {class_name}()")
+        else:
+            # For regular blocks, add to init_code_lines
             init_code_lines.append(f"# Initialize {class_name}")
-            init_code_lines.append(
-                f"{var_name} = {class_name}({', '.join(init_params)})"
+            if init_params:
+                init_code_lines.append(
+                    f"{var_name} = {class_name}({', '.join(init_params)})"
+                )
+            else:
+                init_code_lines.append(f"{var_name} = {class_name}()")
+
+        initialized_blocks.add(block_id)
+
+    # Handle regular initialization for non-late-init blocks
+    for block_id in execution_order:
+        if block_id not in late_init_blocks and block_id not in special_init_blocks:
+            block = blocks[block_id]
+            var_name = block_vars[block_id]
+            class_name = (
+                block.class_name
+                if hasattr(block, "class_name")
+                else type(block).__name__
             )
+            initialize_block(block_id, block, var_name, class_name)
 
     # Track processed methods to avoid duplicates
     processed_methods = {block_id: set() for block_id in blocks}
@@ -685,18 +912,9 @@ def generate_python_code(
         class_name = (
             block.class_name if hasattr(block, "class_name") else type(block).__name__
         )
-        # component_type = (
-        #    block.component_type if hasattr(block, "component_type") else ""
-        # )
-
-        # Get the selected method from config if available
-        selected_method = None
-        if hasattr(block, "config") and block.config:
-            selected_method = block.config.get("selected_method")
 
         # Get methods for this block (excluding __init__)
         methods_to_execute = []
-        # First check for explicitly selected methods
         if hasattr(block, "config") and block.config:
             if "selected_methods" in block.config and isinstance(
                 block.config["selected_methods"], list
@@ -705,7 +923,6 @@ def generate_python_code(
                     m for m in block.config["selected_methods"] if m != "__init__"
                 ]
 
-        # If no selected methods in config, try block attributes
         if not methods_to_execute:
             if hasattr(block, "methods"):
                 methods_to_execute = [m for m in block.methods if m != "__init__"]
@@ -714,108 +931,184 @@ def generate_python_code(
                     m for m in block.selected_methods if m != "__init__"
                 ]
 
-        # Prioritize specific selected method if available
-        if selected_method and selected_method != "__init__":
-            # Make sure selected_method is at the start of the list
-            if selected_method in methods_to_execute:
-                methods_to_execute.remove(selected_method)
-            methods_to_execute.insert(0, selected_method)
-
         # Make sure we have unique methods
         methods_to_execute = list(dict.fromkeys(methods_to_execute))
 
-        # If no methods are available, don't execute any methods
         if not methods_to_execute:
             continue
 
+        # For late init blocks, initialize just before first method execution
+        if block_id in late_init_blocks and block_id not in initialized_blocks:
+            initialize_block(block_id, block, var_name, class_name)
+
         # Execute methods for this block
         for method_name in methods_to_execute:
-            # if method_name == "load" and block_id in special_init_blocks:
-            #     continue
-
-            # method_code_lines.append(f"# Execute {method_name} on {class_name}")
             print(f"Generating code for method {method_name} on {class_name}")
 
+            # Handle from_documents method replacement
+            if method_name == "from_documents" and block_id in late_init_blocks:
+                # For from_documents, we replace the initialization entirely
+                method_code_lines.append(
+                    f"# Using {class_name}.from_documents instead of initialization"
+                )
+
+                # Get method-specific parameters
+                method_params = get_method_parameters(block, method_name)
+
+                # Get source parameters from connections
+                source_params = []
+                if method_connections and block_id in method_connections:
+                    if method_name in method_connections[block_id]:
+                        method_specific_sources = method_connections[block_id][
+                            method_name
+                        ]
+                        for source_info in method_specific_sources:
+                            source_id = source_info["block_id"]
+                            source_method = source_info["method"]
+                            source_var = block_vars[source_id]
+                            if source_method:
+                                source_params.append(
+                                    f"{source_var}_{source_method}_output"
+                                )
+                            else:
+                                source_params.append(f"{source_var}_output")
+
+                # Combine source params and method params
+                all_params = source_params + method_params
+
+                # Generate from_documents call
+                if all_params:
+                    method_code_lines.append(
+                        f"{var_name} = {class_name}.{method_name}({', '.join(all_params)})"
+                    )
+                else:
+                    method_code_lines.append(
+                        f"{var_name} = {class_name}.{method_name}()"
+                    )
+
+                # Mark as initialized since from_documents replaces initialization
+                initialized_blocks.add(block_id)
+                continue
+
+            # Regular method execution logic
             # Check if we should use method-specific connections
             should_use_method_connections = False
             method_specific_sources = []
 
-            print(
-                f"Looking for method-specific connections for {method_name} on {class_name}"
-            )
-
             if method_connections and block_id in method_connections:
-                # If we have the method in our method connections map
                 if method_name in method_connections[block_id]:
                     should_use_method_connections = True
                     method_specific_sources = method_connections[block_id][method_name]
-                    print(
-                        f"Found method-specific sources for {method_name} on {class_name}: {method_specific_sources}"
-                    )
-                else:
-                    print(
-                        f"No method-specific connections for {method_name} on {class_name}, using general connections"
-                    )
-            else:
-                print(f"No method connections for block {block_id} ({class_name})")
 
             source_params = []
-
-            # If this block has incoming method-specific connections, use them as parameters
             if should_use_method_connections and method_specific_sources:
-                # Use method-specific connections
                 for source_info in method_specific_sources:
                     source_id = source_info["block_id"]
                     source_method = source_info["method"]
                     source_var = block_vars[source_id]
-
                     if source_method:
                         source_params.append(f"{source_var}_{source_method}_output")
-                        print(
-                            f"Using specific method output: {source_var}_{source_method}_output"
-                        )
                     else:
                         source_params.append(f"{source_var}_output")
-                        print(f"Using general output: {source_var}_output")
 
-            # Now generate the method call code, with or without parameters
-            if source_params:
-                # Filter out any empty parameters
-                filtered_params = [p for p in source_params if p and p.strip() != ""]
+            # Get method-specific parameters for ALL blocks
+            method_params = get_method_parameters(block, method_name)
 
-                # For methods with only one parameter, pass it as the first argument
-                if len(filtered_params) == 1:
+            # Combine source params and method params
+            all_params = source_params + method_params
+
+            # Determine the method type to generate appropriate call syntax
+            method_is_static = False
+            method_is_classmethod = False
+
+            if hasattr(block, "config") and block.config:
+                static_methods = block.config.get("static_methods", [])
+                class_methods = block.config.get("class_methods", [])
+                method_is_static = method_name in static_methods
+                method_is_classmethod = method_name in class_methods
+
+            # Generate method call
+            if all_params:
+                filtered_params = [p for p in all_params if p and p.strip() != ""]
+                if method_is_static:
                     method_code_lines.append(
-                        f"{var_name}_{method_name}_output = {var_name}.{method_name}({filtered_params[0]})"
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
                     )
-                elif len(filtered_params) > 1:
+                elif method_is_classmethod:
+                    method_code_lines.append(
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}({', '.join(filtered_params)})"
+                    )
+                else:
                     method_code_lines.append(
                         f"{var_name}_{method_name}_output = {var_name}.{method_name}({', '.join(filtered_params)})"
                     )
+            else:
+                if method_is_static:
+                    method_code_lines.append(
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
+                    )
+                elif method_is_classmethod:
+                    method_code_lines.append(
+                        f"{var_name}_{method_name}_output = {class_name}.{method_name}()"
+                    )
                 else:
-                    # Empty filtered_params list - call without parameters
                     method_code_lines.append(
                         f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
                     )
-            else:
-                # No parameters at all, call method without arguments
-                method_code_lines.append(
-                    f"{var_name}_{method_name}_output = {var_name}.{method_name}()"
-                )
 
-            # Mark this method as processed
             processed_methods[block_id].add(method_name)
-
-            # If it's the selected method, we can stop after processing it
 
     # Collect clean lines for the final code
     clean_code_lines = []
 
+    # Check if we have any Godpromptblocks to include the class definition
+    has_godpromptblock = False
+    for block_id, block in blocks.items():
+        if hasattr(block, "class_name") and block.class_name == "GodpromptBlock":
+            has_godpromptblock = True
+            break
+
     # Add imports at the top
     clean_code_lines.append("# Imports")
     for imp in sorted(list(imports)):
-        clean_code_lines.append(imp)
+        if not imp.startswith("# Custom Godpromptblock"):
+            clean_code_lines.append(imp)
     clean_code_lines.append("")
+
+    # Add GodpromptBlock class definition if needed
+    if has_godpromptblock:
+        clean_code_lines.append("# Custom GodpromptBlock class definition")
+        clean_code_lines.append("class GodpromptBlock:")
+        clean_code_lines.append(
+            '    """Custom prompt formatting block that combines context, prompt, and question."""'
+        )
+        clean_code_lines.append("    ")
+        clean_code_lines.append(
+            "    def __init__(self, prompt='Enter your prompt here...', question='Enter your question here...'):"
+        )
+        clean_code_lines.append("        self.prompt = prompt")
+        clean_code_lines.append("        self.question = question")
+        clean_code_lines.append("    ")
+        clean_code_lines.append(
+            "    def format_prompt(self, context, prompt=None, question=None):"
+        )
+        clean_code_lines.append(
+            '        """Format the prompt using context, prompt, and question."""'
+        )
+        clean_code_lines.append("        if prompt is None:")
+        clean_code_lines.append("            prompt = self.prompt")
+        clean_code_lines.append("        if question is None:")
+        clean_code_lines.append("            question = self.question")
+        clean_code_lines.append("        ")
+        clean_code_lines.append("        # Combine everything into a formatted string")
+        clean_code_lines.append('        formatted_prompt = f"""Context: {context}')
+        clean_code_lines.append("")
+        clean_code_lines.append("Prompt: {prompt}")
+        clean_code_lines.append("")
+        clean_code_lines.append('Question: {question}"""')
+        clean_code_lines.append("        ")
+        clean_code_lines.append("        return formatted_prompt")
+        clean_code_lines.append("")
 
     # Add files directory creation if needed
     if has_file_paths:
@@ -844,9 +1137,22 @@ def generate_python_code(
             else type(last_block).__name__
         )
 
+        # Find the last method executed
+        last_method = None
+        if hasattr(last_block, "config") and last_block.config:
+            if "selected_methods" in last_block.config:
+                methods = [
+                    m for m in last_block.config["selected_methods"] if m != "__init__"
+                ]
+                if methods:
+                    last_method = methods[-1]
+
         clean_code_lines.append("# Print the final result")
         clean_code_lines.append(f'print("\\nFinal result from {last_class}:")')
-        clean_code_lines.append(f"print({last_var}_output)")
+        if last_method:
+            clean_code_lines.append(f"print({last_var}_{last_method}_output)")
+        else:
+            clean_code_lines.append(f"print({last_var})")
 
     # Generate the final code
     final_code = []
@@ -1172,7 +1478,10 @@ def get_langchain_class_details():
         # Get methods and patch them if needed
         methods = []
         method_names = []
+        static_methods = []
+        class_methods = []
 
+        # Get instance methods (functions)
         for name, method in inspect.getmembers(class_obj, inspect.isfunction):
             # Skip private methods except __init__
             if name.startswith("_") and not name == "__init__":
@@ -1210,12 +1519,163 @@ def get_langchain_class_details():
                     "name": name,
                     "doc": inspect.getdoc(method) or "No documentation available",
                     "parameters": parameters,
+                    "is_static": False,
+                    "is_classmethod": False,
                 }
                 methods.append(method_info)
             except (TypeError, ValueError, AttributeError) as e:
                 # Skip methods with invalid signatures
                 print(f"Error getting signature for {name}: {str(e)}")
                 continue
+
+        # Get static methods
+        for name, method in inspect.getmembers(class_obj, inspect.ismethod):
+            # Check if it's a static method
+            if isinstance(inspect.getattr_static(class_obj, name, None), staticmethod):
+                static_methods.append(name)
+                method_names.append(name)
+
+                try:
+                    # Get the underlying function from the static method
+                    underlying_func = inspect.getattr_static(class_obj, name).__func__
+                    sig = inspect.signature(underlying_func)
+                    parameters = []
+
+                    for param_name, param in sig.parameters.items():
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                        parameters.append(param_info)
+
+                    method_info = {
+                        "name": name,
+                        "doc": inspect.getdoc(method) or "No documentation available",
+                        "parameters": parameters,
+                        "is_static": True,
+                        "is_classmethod": False,
+                    }
+                    methods.append(method_info)
+                except (TypeError, ValueError, AttributeError) as e:
+                    print(f"Error getting signature for static method {name}: {str(e)}")
+                    continue
+
+        # Get class methods
+        for name, method in inspect.getmembers(class_obj, inspect.ismethod):
+            # Check if it's a class method
+            if isinstance(inspect.getattr_static(class_obj, name, None), classmethod):
+                class_methods.append(name)
+                method_names.append(name)
+
+                try:
+                    # Get the underlying function from the class method
+                    underlying_func = inspect.getattr_static(class_obj, name).__func__
+                    sig = inspect.signature(underlying_func)
+                    parameters = []
+
+                    for param_name, param in sig.parameters.items():
+                        # Skip cls parameter for class methods
+                        if param_name == "cls":
+                            continue
+
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                        parameters.append(param_info)
+
+                    method_info = {
+                        "name": name,
+                        "doc": inspect.getdoc(method) or "No documentation available",
+                        "parameters": parameters,
+                        "is_static": False,
+                        "is_classmethod": True,
+                    }
+                    methods.append(method_info)
+                except (TypeError, ValueError, AttributeError) as e:
+                    print(f"Error getting signature for class method {name}: {str(e)}")
+                    continue
+
+        # Check for common static/class method patterns in LangChain
+        # Some LangChain classes define from_* methods that may not be properly detected
+        for name in dir(class_obj):
+            if (
+                name.startswith("from_")
+                and not name.startswith("_")
+                and name not in method_names
+                and callable(getattr(class_obj, name, None))
+            ):
+
+                try:
+                    method = getattr(class_obj, name)
+                    sig = inspect.signature(method)
+                    parameters = []
+
+                    # Check if the first parameter is 'cls' (indicating a classmethod)
+                    param_names = list(sig.parameters.keys())
+                    is_classmethod_pattern = (
+                        len(param_names) > 0 and param_names[0] == "cls"
+                    )
+
+                    for param_name, param in sig.parameters.items():
+                        # Skip cls parameter for class methods
+                        if param_name == "cls":
+                            continue
+
+                        param_info = {
+                            "name": param_name,
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                        parameters.append(param_info)
+
+                    method_names.append(name)
+                    method_info = {
+                        "name": name,
+                        "doc": inspect.getdoc(method) or "No documentation available",
+                        "parameters": parameters,
+                        "is_static": not is_classmethod_pattern,
+                        "is_classmethod": is_classmethod_pattern,
+                    }
+                    methods.append(method_info)
+
+                    if is_classmethod_pattern:
+                        class_methods.append(name)
+                    else:
+                        static_methods.append(name)
+
+                except (TypeError, ValueError, AttributeError) as e:
+                    print(f"Error getting signature for method {name}: {str(e)}")
+                    continue
 
         # Get init parameters with special handling for document loaders and Pydantic models
         init_params = []
@@ -1281,6 +1741,8 @@ def get_langchain_class_details():
             "init_params": init_params,
             "class_type": class_type,
             "component_type": component_type,
+            "static_methods": static_methods,
+            "class_methods": class_methods,
         }
 
         # Cache the result
@@ -1348,6 +1810,9 @@ def create_custom_block():
                 self.class_name = class_name
                 self.module_path = module_path
 
+                # Handle late initialization setting
+                self.late_initialization = parameters.get("late_initialization", False)
+
             def validate_connections(self) -> bool:
                 # Basic validation - could be enhanced based on specific requirements
                 return True
@@ -1362,6 +1827,112 @@ def create_custom_block():
                 "block_id": block_id,
                 "input_nodes": input_nodes,
                 "output_nodes": output_nodes,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/blocks/create_godprompt", methods=["POST"])
+def create_godprompt_block():
+    """Create a Godpromptblock - a special custom block for prompt formatting."""
+    data = request.json
+    block_id = data.get("id")
+    prompt_text = data.get("prompt", "Enter your prompt here...")
+    question_text = data.get("question", "Enter your question here...")
+
+    if not block_id:
+        return jsonify({"error": "Missing block ID"}), 400
+
+    try:
+        # Create a special Godpromptblock class
+        class GodpromptBlock(Block):
+            def __init__(self):
+                super().__init__()
+                self.block_type = "godprompt"
+                self.class_name = "GodpromptBlock"
+                self.module_path = ""
+                self.component_type = "prompt_formatter"
+                self.config = {
+                    "prompt": prompt_text,
+                    "question": question_text,
+                    "parameters": {"prompt": prompt_text, "question": question_text},
+                }
+                # Define the method this block provides
+                self.selected_methods = ["format_prompt"]
+                self.methods = ["format_prompt"]
+                self.parameters = {
+                    "format_prompt": [
+                        {"name": "context", "required": True, "type": "str"},
+                        {
+                            "name": "prompt",
+                            "required": False,
+                            "type": "str",
+                            "default": prompt_text,
+                        },
+                        {
+                            "name": "question",
+                            "required": False,
+                            "type": "str",
+                            "default": question_text,
+                        },
+                    ]
+                }
+                self.static_methods = []
+                self.class_methods = []
+
+                # Set import and function strings for code generation
+                self.import_string = "# Custom Godpromptblock - no imports needed"
+                self.function_string = self._generate_function_string()
+
+            def _generate_function_string(self):
+                return f'''
+class GodpromptBlock:
+    """Custom prompt formatting block that combines context, prompt, and question."""
+    
+    def __init__(self, prompt="{prompt_text}", question="{question_text}"):
+        self.prompt = prompt
+        self.question = question
+    
+    def format_prompt(self, context, prompt=None, question=None):
+        """Format the prompt using context, prompt, and question."""
+        if prompt is None:
+            prompt = self.prompt
+        if question is None:
+            question = self.question
+        
+        # Combine everything into a formatted string
+        formatted_prompt = f\"\"\"Context: {{context}}
+
+Prompt: {{prompt}}
+
+Question: {{question}}\"\"\"
+        
+        return formatted_prompt
+'''
+
+            def validate_connections(self) -> bool:
+                return True
+
+        # Add the Godpromptblock to the canvas
+        canvas.add_block(block_id, GodpromptBlock())
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Godpromptblock created successfully",
+                "block_id": block_id,
+                "block_type": "godprompt",
+                "class_name": "GodpromptBlock",
+                "input_nodes": ["context_input"],
+                "output_nodes": ["formatted_prompt_output"],
+                "config": {
+                    "prompt": prompt_text,
+                    "question": question_text,
+                    "methods": ["format_prompt"],
+                    "selected_methods": ["format_prompt"],
+                    "parameters": {"prompt": prompt_text, "question": question_text},
+                },
             }
         )
     except Exception as e:
